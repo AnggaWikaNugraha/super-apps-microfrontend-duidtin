@@ -1,0 +1,57 @@
+.ui-alert {
+  @apply ui:flex ui:gap-3 ui:rounded-lg ui:border ui:p-4 ui:text-sm;
+}
+
+.ui-alert__icon {
+  @apply ui:shrink-0;
+}
+
+.ui-alert__content {
+  @apply ui:flex-1 ui:space-y-1;
+}
+
+.ui-alert__title {
+  @apply ui:font-medium ui:text-gray-900 ui:dark:text-gray-100;
+}
+
+.ui-alert__description {
+  @apply ui:text-gray-600 ui:dark:text-gray-400;
+}
+
+.ui-alert--default {
+  @apply ui:border-gray-200 ui:bg-gray-50 ui:dark:border-gray-800 ui:dark:bg-gray-900;
+}
+.ui-alert--primary {
+  @apply ui:border-blue-200 ui:bg-blue-50 ui:dark:border-blue-900 ui:dark:bg-blue-950/40;
+}
+.ui-alert--success {
+  @apply ui:border-green-200 ui:bg-green-50 ui:dark:border-green-900 ui:dark:bg-green-950/40;
+}
+.ui-alert--warning {
+  @apply ui:border-amber-200 ui:bg-amber-50 ui:dark:border-amber-900 ui:dark:bg-amber-950/40;
+}
+.ui-alert--danger {
+  @apply ui:border-red-200 ui:bg-red-50 ui:dark:border-red-900 ui:dark:bg-red-950/40;
+}
+.ui-alert--info {
+  @apply ui:border-sky-200 ui:bg-sky-50 ui:dark:border-sky-900 ui:dark:bg-sky-950/40;
+}
+
+.ui-alert--default .ui-alert__icon {
+  @apply ui:text-gray-500;
+}
+.ui-alert--primary .ui-alert__icon {
+  @apply ui:text-blue-600;
+}
+.ui-alert--success .ui-alert__icon {
+  @apply ui:text-green-600;
+}
+.ui-alert--warning .ui-alert__icon {
+  @apply ui:text-amber-500;
+}
+.ui-alert--danger .ui-alert__icon {
+  @apply ui:text-red-600;
+}
+.ui-alert--info .ui-alert__icon {
+  @apply ui:text-sky-600;
+}

@@ -1,0 +1,43 @@
+.ui-spinner {
+  @apply ui:pointer-events-none ui:relative ui:inline-block ui:origin-center ui:animate-spin;
+}
+
+.ui-spinner--default {
+  @apply ui:text-gray-500 ui:dark:text-gray-400;
+}
+
+.ui-spinner--primary {
+  @apply ui:text-blue-600 ui:dark:text-blue-400;
+}
+
+.ui-spinner--success {
+  @apply ui:text-green-600 ui:dark:text-green-400;
+}
+
+.ui-spinner--danger {
+  @apply ui:text-red-600 ui:dark:text-red-400;
+}
+
+.ui-spinner--warning {
+  @apply ui:text-amber-500 ui:dark:text-amber-400;
+}
+
+.ui-spinner--current {
+  @apply ui:text-inherit;
+}
+
+.ui-spinner--sm {
+  @apply ui:size-4;
+}
+
+.ui-spinner--md {
+  @apply ui:size-6;
+}
+
+.ui-spinner--lg {
+  @apply ui:size-8;
+}
+
+.ui-spinner--xl {
+  @apply ui:size-12;
+}

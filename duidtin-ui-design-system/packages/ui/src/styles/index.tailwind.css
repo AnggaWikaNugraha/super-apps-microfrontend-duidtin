@@ -6,3 +6,7 @@
 @import "./table/table.css";
 @import "./select/select.css";
 @import "./date-range-picker/date-range-picker.css";
+@import "./spinner/spinner.css";
+@import "./alert/alert.css";
+@import "./modal/modal.css";
+@import "./tabs/tabs.css";

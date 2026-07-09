@@ -15,3 +15,15 @@ export type { SelectItemProps, SelectLabelProps, SelectPopoverProps, SelectRootP
 
 export { DateRangePicker } from "./components/date-range-picker";
 export type { DateRangePickerRootProps } from "./components/date-range-picker";
+
+export { Spinner } from "./components/spinner";
+export type { SpinnerRootProps, SpinnerVariants } from "./components/spinner";
+
+export { Alert } from "./components/alert";
+export type { AlertRootProps, AlertSectionProps, AlertVariants } from "./components/alert";
+
+export { Modal } from "./components/modal";
+export type { ModalContentProps, ModalRootProps, ModalSectionProps } from "./components/modal";
+
+export { Tabs } from "./components/tabs";
+export type { TabsListProps, TabsPanelProps, TabsRootProps, TabsTabProps } from "./components/tabs";
