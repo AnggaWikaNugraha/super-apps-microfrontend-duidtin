@@ -12,6 +12,37 @@ duidtin-ui-design-system/
     producer/           # yang beneran jadi remote MF (loadRemote-able)
 ```
 
+## Cara mulai
+
+Dari root repo ini (`x-duidtin/duidtin-ui-design-system/`):
+
+1. `bun install` — install semua dependency (root + `packages/ui` + `apps/producer` sekaligus, lewat workspaces).
+2. `bun run build` — build `packages/ui` dulu, baru `apps/producer` (urutan otomatis lewat Turborepo). Hasil: `dist/` di `packages/ui`, `dist/mf/` (`remoteEntry.js` + manifest) di `apps/producer`.
+3. `bun run storybook` — buka preview komponen di `localhost:6006`. Keluar dari server-nya pakai `q` atau Ctrl+C dua kali (karena `turbo.json` pakai `"ui": "tui"`).
+4. `bun run dev:producer` — nyalain dev server `apps/producer` (`--filter=@duidtin/producer --filter=@duidtin/ui`, biar `packages/ui` ikut ke-watch juga), serve `remoteEntry.js` live di `http://localhost:3001` — buat cek/debug remote MF-nya sebelum ada host beneran yang konsumsi.
+
+## Status saat ini
+
+Sudah ada:
+- 1 komponen (`Button`) di `packages/ui`, lengkap dengan style, build, dan Storybook.
+- `apps/producer` expose `Button` + `globals` lewat Module Federation, dengan codegen exposes otomatis dan tipe TypeScript lintas-remote (`dts`) sudah dikonfigurasi.
+
+Belum ada:
+- Host (`duidtin-ui`) — jadi `loadRemote()` belum pernah bener-bener dites dari sisi konsumen, verifikasi baru sebatas cek `mf-manifest.json`.
+- `duidtin-layout` — belum dibuat sama sekali.
+- Config deploy/container.
+
+## Stack
+
+- **Bun** — package manager & workspace runner (`bun install`, `bun run <script>`).
+- **Turborepo** — orkestrasi task lintas paket (`build`, `dev`, `check-types`, `storybook`), otomatis urutin build berdasar dependency antar paket.
+- **TypeScript** — strict mode, tiap paket punya `tsconfig.json` sendiri yang extends dari root.
+- **Rslib** — build tool utama, dipakai dua cara beda: format `"esm"` buat `packages/ui` (paket library biasa), format `"mf"` (+ `@module-federation/rsbuild-plugin`) buat `apps/producer` (remote Module Federation).
+- **React 18** + **react-aria-components** — primitif komponen accessible yang di-wrap tiap komponen `packages/ui`.
+- **Tailwind CSS v4** (prefix `ui:`) + **tailwind-variants** + **tailwind-merge** — styling & komposisi variant per komponen.
+- **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — mekanisme expose komponen ke konsumen luar (`duidtin-ui` nanti), termasuk generate tipe TypeScript lintas-remote.
+- **Storybook** (builder Vite) — preview & dokumentasi visual komponen saat develop, terpisah total dari alur Module Federation.
+
 ## Alur singkatnya
 
 ```

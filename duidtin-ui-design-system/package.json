@@ -4,6 +4,7 @@
   "packageManager": "bun@1.3.8",
   "scripts": {
     "dev": "turbo run dev",
+    "dev:producer": "turbo run dev --filter=@duidtin/producer --filter=@duidtin/ui",
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "storybook": "turbo run storybook --filter=@duidtin/ui"
