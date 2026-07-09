@@ -43,6 +43,33 @@ Belum ada:
 - **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — mekanisme expose komponen ke konsumen luar (`duidtin-ui` nanti), termasuk generate tipe TypeScript lintas-remote.
 - **Storybook** (builder Vite) — preview & dokumentasi visual komponen saat develop, terpisah total dari alur Module Federation.
 
+## Daftar Komponen
+
+**Data & tampilan**
+- `Button` — wrap primitif `react-aria-components` Button. Varian `variant` (solid/outline) × `color` (primary/default) × `size` (sm/md).
+- `Card` — compound (`Card`, `Card.Header`, `Card.Body`, `Card.Footer`). Varian `size` (sm/md/lg) × `variant` (elevated/outlined/soft).
+- `Badge` — varian `variant` (solid/soft/outlined) × `color` (default/primary/success/danger/warning/info).
+- `Table` — compound (`Table`, `Table.Header`, `Table.Column`, `Table.Body`, `Table.Row`, `Table.Cell`). Mode statis pakai primitif Table `react-aria-components` (bukan `<table>` HTML biasa) — dapat ARIA grid + keyboard nav gratis.
+
+**Filter & input**
+- `Select` — compound (`Select`, `Select.Label`, `Select.Trigger`, `Select.Popover`, `Select.Item`), dropdown pakai primitif Select `react-aria-components`.
+- `DateRangePicker` — 2 `<input type="date">` native (Dari/Sampai), bukan kalender custom — keputusan simplifikasi (lihat catatan di bawah).
+
+**Feedback & state**
+- `Spinner` — SVG custom (gradient `currentColor`), animasi `animate-spin`. Varian `color` (6 warna) × `size` (sm/md/lg/xl).
+- `Alert` — compound (`Alert`, `Alert.Icon`, `Alert.Content`, `Alert.Title`, `Alert.Description`). Varian `variant` (6 warna), warna icon ngikut otomatis lewat CSS descendant selector.
+
+**Overlay & navigasi**
+- `Modal` — compound (`Modal.Root`, `Modal.Content`, `Modal.Heading`, `Modal.Body`, `Modal.Footer`), pakai `DialogTrigger` + `ModalOverlay` + `Modal` + `Dialog` dari `react-aria-components` — animasi enter/exit, focus-trap, esc-to-close otomatis dari primitifnya.
+- `Tabs` — compound (`Tabs`, `Tabs.List`, `Tabs.Tab`, `Tabs.Panel`), primitif Tabs native `react-aria-components`.
+
+**Chart** (satu-satunya kategori yang butuh dependency tambahan: `recharts`)
+- `BarChart` — bar chart multi-series. Props: `data`, `categoryKey`, `series` (array `{ dataKey, name?, color? }`).
+- `LineChart` — line chart multi-series, pola props sama dengan `BarChart`.
+- `PieChart` — pie/donut chart (`innerRadius` buat mode donut). Props: `data` (array `{ name, value, color? }`).
+
+Semua komponen ikut pola yang sama di "Alur nambah komponen baru" di bawah — punya file terpisah di `styles/`, `types/`, `components/`. Beberapa (`DateRangePicker`, `BarChart`/`LineChart`/`PieChart`) sengaja disederhanakan dari padanan penuhnya (kalender segmented+popover, custom tooltip/legend) demi kecepatan build tanpa sistem design token yang belum ada di repo ini.
+
 ## Alur singkatnya
 
 ```
