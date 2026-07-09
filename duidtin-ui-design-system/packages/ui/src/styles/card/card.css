@@ -1,0 +1,46 @@
+.ui-card {
+  @apply ui:relative ui:rounded-2xl ui:border ui:bg-white ui:text-gray-900 ui:transition-shadow ui:duration-200;
+  @apply ui:dark:border-gray-800 ui:dark:bg-gray-900 ui:dark:text-gray-50;
+}
+
+.ui-card--elevated {
+  @apply ui:border-transparent ui:shadow-[0_12px_30px_-18px_rgba(15,23,42,0.35)];
+  @apply ui:dark:shadow-[0_12px_30px_-18px_rgba(0,0,0,0.6)];
+}
+
+.ui-card--outlined {
+  @apply ui:border-gray-200 ui:shadow-none;
+  @apply ui:dark:border-gray-800;
+}
+
+.ui-card--soft {
+  @apply ui:border-transparent ui:bg-gray-50;
+  @apply ui:dark:bg-gray-800/60;
+}
+
+.ui-card--sm {
+  @apply ui:p-4;
+}
+
+.ui-card--md {
+  @apply ui:p-6;
+}
+
+.ui-card--lg {
+  @apply ui:p-8;
+}
+
+.ui-card__header {
+  @apply ui:mb-3 ui:text-lg ui:font-semibold ui:leading-tight ui:text-gray-900;
+  @apply ui:dark:text-gray-50;
+}
+
+.ui-card__body {
+  @apply ui:text-sm ui:leading-relaxed ui:text-gray-600;
+  @apply ui:dark:text-gray-300;
+}
+
+.ui-card__footer {
+  @apply ui:mt-4 ui:flex ui:items-center ui:justify-end ui:gap-2 ui:border-t ui:border-gray-100 ui:pt-4;
+  @apply ui:dark:border-gray-800;
+}
