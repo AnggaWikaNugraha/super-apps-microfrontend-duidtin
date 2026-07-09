@@ -40,6 +40,11 @@ export default defineConfig({
               "react-dom": { singleton: true, requiredVersion: false },
               "react/jsx-runtime": { singleton: true, requiredVersion: false },
             },
+            dts: {
+              generateTypes: { extractThirdParty: true, typesFolder: "@mf-types" },
+              consumeTypes: { typesFolder: "@mf-types" },
+              displayErrorInTerminal: true,
+            },
           },
           {
             target: "dual",

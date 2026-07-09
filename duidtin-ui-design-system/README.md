@@ -47,24 +47,42 @@ Dari nulis komponen sampai bisa di-`loadRemote` dari luar:
 8. bun run build (di packages/ui, atau dari root lewat turbo)
         → hasilkan dist/ terbaru, termasuk dist/components/<nama>/root.js + .d.ts
 
-── expose lewat apps/producer ──
-9. apps/producer/src/components/<nama>.ts              → shim re-export:
-        export { <Nama> } from "@duidtin/ui";
-        export { <Nama> as default } from "@duidtin/ui";
-10. apps/producer/src/components/component-exposes.ts   → tambah entry:
-        "./components/<nama>": "./src/components/<nama>.ts",
-        (rslib.config.ts producer otomatis ambil ini lewat ...componentExposes, nggak perlu diubah lagi)
+── expose lewat apps/producer (OTOMATIS, lihat bagian "Codegen exposes" di bawah) ──
+9. scripts/generate-components.ts jalan otomatis sebelum build (prebuild)
+        → scan packages/ui/src/components/*, generate shim apps/producer/src/components/<nama>.ts
+          + update apps/producer/src/components/component-exposes.ts
+        (dulunya 2 langkah manual — sekarang cukup pastikan nama folder komponen di packages/ui benar,
+         sisanya di-generate)
 
 ── build apps/producer ──
-11. bun run build (di apps/producer, atau dari root — turbo otomatis build packages/ui dulu karena dependsOn: ["^build"])
+10. bun run build (di apps/producer, atau dari root — turbo otomatis build packages/ui dulu karena dependsOn: ["^build"])
         → remoteEntry.js + mf-manifest.json ter-update, ada entry expose komponen baru
+        → sekaligus generate tipe TypeScript-nya ke folder @mf-types (lihat "Tipe lintas-remote (MF dts)")
 
 ── verifikasi ──
-12. cek apps/producer/dist/mf/mf-manifest.json — pastikan key "./components/<nama>" muncul di situ
+11. cek apps/producer/dist/mf/mf-manifest.json — pastikan key "./components/<nama>" muncul di situ
         (belum ada host buat test loadRemote() beneran, jadi verifikasi sementara cuma sampai sini)
 ```
 
-Poin yang paling gampang kelupaan: langkah 3, 6, dan 10 — nambah file baru tapi lupa daftarin ke barrel/import-nya. Kalau lupa, biasanya nggak error keras, cuma komponennya "nggak keliatan" dari luar meski file-nya udah ada.
+Poin yang paling gampang kelupaan sekarang cuma langkah 3 dan 6 (nambah file baru di `packages/ui` tapi lupa daftarin ke `index.tailwind.css`/barrel `index.ts`) — bagian expose ke `apps/producer` (dulu langkah 9-10 manual) sudah otomatis lewat codegen, jadi risiko lupa di situ hilang.
+
+## Codegen exposes (`apps/producer/scripts/generate-components.ts`)
+
+Script ini yang menghilangkan langkah manual "bikin shim + daftarin ke `component-exposes.ts`" tiap nambah komponen baru:
+
+- Jalan otomatis lewat `prebuild` (dan juga di awal `dev`) — begitu `bun run build` dipanggil di `apps/producer`, script ini jalan duluan sebelum `rslib build`.
+- Baca semua nama folder di `packages/ui/src/components/`, konversi ke PascalCase (`button` → `Button`) — asumsinya nama folder dan nama komponen yang di-export selalu selaras (konvensi yang sudah dipakai sejak awal).
+- Generate file shim `apps/producer/src/components/<nama>.ts` isinya cuma re-export dari `@duidtin/ui`, dan generate ulang seluruh isi `component-exposes.ts` dari daftar folder yang ketemu.
+- Konsekuensinya: `apps/producer/src/components/component-exposes.ts` dan tiap file shim `<nama>.ts` di folder itu **jadi file hasil generate**, bukan yang ditulis manual lagi — kalau diedit manual, akan ketiban pas `prebuild` jalan lagi.
+
+## Tipe lintas-remote (MF `dts`)
+
+`pluginModuleFederation` di `apps/producer/rslib.config.ts` punya blok `dts: { generateTypes, consumeTypes, displayErrorInTerminal }` (butuh devDependency `@module-federation/typescript`):
+
+- `generateTypes: { extractThirdParty: true, typesFolder: "@mf-types" }` — waktu `apps/producer` di-build, otomatis generate deskripsi tipe TypeScript dari semua yang di-`exposes`, ditaruh di folder `@mf-types` (di-`.gitignore`, karena ini output generated, bukan source).
+- `consumeTypes: { typesFolder: "@mf-types" }` — sisi ini yang dipakai kalau `apps/producer` sendiri nanti perlu **konsumsi** tipe dari remote lain (belum relevan sekarang karena belum ada remote lain yang dikonsumsi, tapi disiapkan dari awal biar konsisten).
+- `displayErrorInTerminal: true` — kalau proses generate tipe ini gagal, errornya muncul jelas di terminal build, bukan cuma silent-fail.
+- Efeknya buat konsumen (nanti `duidtin-ui`): `loadRemote("duidtin_ui_design_system/components/button")` bisa dapat autocomplete & type-check props `Button` beneran, bukan `any` — asal host-nya juga setup fitur `dts` MF yang sama di sisi consume.
 
 ## Preview komponen (Storybook)
 
