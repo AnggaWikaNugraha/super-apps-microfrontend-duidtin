@@ -1,8 +1,15 @@
 export const componentExposes = {
+  "./components/alert": "./src/components/alert.ts",
   "./components/badge": "./src/components/badge.ts",
+  "./components/bar-chart": "./src/components/bar-chart.ts",
   "./components/button": "./src/components/button.ts",
   "./components/card": "./src/components/card.ts",
   "./components/date-range-picker": "./src/components/date-range-picker.ts",
+  "./components/line-chart": "./src/components/line-chart.ts",
+  "./components/modal": "./src/components/modal.ts",
+  "./components/pie-chart": "./src/components/pie-chart.ts",
   "./components/select": "./src/components/select.ts",
+  "./components/spinner": "./src/components/spinner.ts",
   "./components/table": "./src/components/table.ts",
+  "./components/tabs": "./src/components/tabs.ts",
 };

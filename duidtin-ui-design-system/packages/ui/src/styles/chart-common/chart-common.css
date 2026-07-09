@@ -1,0 +1,15 @@
+.ui-chart {
+  @apply ui:w-full;
+}
+
+.ui-chart :is(.recharts-cartesian-axis-tick-value) {
+  @apply ui:fill-gray-500 ui:text-xs ui:dark:fill-gray-400;
+}
+
+.ui-chart :is(.recharts-legend-item-text) {
+  @apply ui:text-gray-600! ui:text-xs! ui:dark:text-gray-300!;
+}
+
+.ui-chart :is(.recharts-default-tooltip) {
+  @apply ui:rounded-md! ui:border-gray-200! ui:text-xs! ui:shadow-lg! ui:dark:border-gray-700! ui:dark:bg-gray-900!;
+}

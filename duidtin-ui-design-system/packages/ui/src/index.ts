@@ -27,3 +27,12 @@ export type { ModalContentProps, ModalRootProps, ModalSectionProps } from "./com
 
 export { Tabs } from "./components/tabs";
 export type { TabsListProps, TabsPanelProps, TabsRootProps, TabsTabProps } from "./components/tabs";
+
+export { BarChart } from "./components/bar-chart";
+export type { BarChartRootProps, BarChartSeries } from "./components/bar-chart";
+
+export { LineChart } from "./components/line-chart";
+export type { LineChartRootProps, LineChartSeries } from "./components/line-chart";
+
+export { PieChart } from "./components/pie-chart";
+export type { PieChartDatum, PieChartRootProps } from "./components/pie-chart";
