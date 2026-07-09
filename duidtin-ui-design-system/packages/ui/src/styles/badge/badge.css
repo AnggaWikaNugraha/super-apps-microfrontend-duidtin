@@ -1,0 +1,64 @@
+.ui-badge {
+  @apply ui:inline-flex ui:items-center ui:gap-1 ui:rounded-full ui:px-2.5 ui:py-0.5 ui:text-xs ui:font-medium ui:leading-4;
+}
+
+.ui-badge--outlined {
+  @apply ui:bg-transparent ui:border;
+}
+
+.ui-badge--solid.ui-badge--default {
+  @apply ui:bg-gray-700 ui:text-white;
+}
+.ui-badge--solid.ui-badge--primary {
+  @apply ui:bg-blue-600 ui:text-white;
+}
+.ui-badge--solid.ui-badge--success {
+  @apply ui:bg-green-600 ui:text-white;
+}
+.ui-badge--solid.ui-badge--danger {
+  @apply ui:bg-red-600 ui:text-white;
+}
+.ui-badge--solid.ui-badge--warning {
+  @apply ui:bg-amber-500 ui:text-white;
+}
+.ui-badge--solid.ui-badge--info {
+  @apply ui:bg-sky-600 ui:text-white;
+}
+
+.ui-badge--soft.ui-badge--default {
+  @apply ui:bg-gray-100 ui:text-gray-700 ui:dark:bg-gray-800 ui:dark:text-gray-300;
+}
+.ui-badge--soft.ui-badge--primary {
+  @apply ui:bg-blue-100 ui:text-blue-700 ui:dark:bg-blue-900/40 ui:dark:text-blue-300;
+}
+.ui-badge--soft.ui-badge--success {
+  @apply ui:bg-green-100 ui:text-green-700 ui:dark:bg-green-900/40 ui:dark:text-green-300;
+}
+.ui-badge--soft.ui-badge--danger {
+  @apply ui:bg-red-100 ui:text-red-700 ui:dark:bg-red-900/40 ui:dark:text-red-300;
+}
+.ui-badge--soft.ui-badge--warning {
+  @apply ui:bg-amber-100 ui:text-amber-700 ui:dark:bg-amber-900/40 ui:dark:text-amber-300;
+}
+.ui-badge--soft.ui-badge--info {
+  @apply ui:bg-sky-100 ui:text-sky-700 ui:dark:bg-sky-900/40 ui:dark:text-sky-300;
+}
+
+.ui-badge--outlined.ui-badge--default {
+  @apply ui:border-gray-300 ui:text-gray-700 ui:dark:border-gray-700 ui:dark:text-gray-300;
+}
+.ui-badge--outlined.ui-badge--primary {
+  @apply ui:border-blue-300 ui:text-blue-700 ui:dark:border-blue-700 ui:dark:text-blue-300;
+}
+.ui-badge--outlined.ui-badge--success {
+  @apply ui:border-green-300 ui:text-green-700 ui:dark:border-green-700 ui:dark:text-green-300;
+}
+.ui-badge--outlined.ui-badge--danger {
+  @apply ui:border-red-300 ui:text-red-700 ui:dark:border-red-700 ui:dark:text-red-300;
+}
+.ui-badge--outlined.ui-badge--warning {
+  @apply ui:border-amber-300 ui:text-amber-700 ui:dark:border-amber-700 ui:dark:text-amber-300;
+}
+.ui-badge--outlined.ui-badge--info {
+  @apply ui:border-sky-300 ui:text-sky-700 ui:dark:border-sky-700 ui:dark:text-sky-300;
+}
