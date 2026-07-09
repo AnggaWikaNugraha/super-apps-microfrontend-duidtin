@@ -1,0 +1,27 @@
+.ui-button {
+  @apply ui:inline-flex ui:items-center ui:justify-center ui:gap-2 ui:rounded-md ui:font-medium ui:transition-colors ui:focus-visible:outline-none ui:focus-visible:ring-2 ui:disabled:opacity-50 ui:disabled:pointer-events-none;
+}
+
+.ui-button--solid.ui-button--primary {
+  @apply ui:bg-blue-600 ui:text-white ui:hover:bg-blue-700;
+}
+
+.ui-button--solid.ui-button--default {
+  @apply ui:bg-gray-900 ui:text-white ui:hover:bg-gray-800;
+}
+
+.ui-button--outline.ui-button--primary {
+  @apply ui:border ui:border-blue-600 ui:text-blue-600 ui:hover:bg-blue-50;
+}
+
+.ui-button--outline.ui-button--default {
+  @apply ui:border ui:border-gray-300 ui:text-gray-900 ui:hover:bg-gray-50;
+}
+
+.ui-button--sm {
+  @apply ui:h-8 ui:px-3 ui:text-sm;
+}
+
+.ui-button--md {
+  @apply ui:h-10 ui:px-4 ui:text-base;
+}
