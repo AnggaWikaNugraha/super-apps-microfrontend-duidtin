@@ -1,6 +1,6 @@
 # x-duidtin
 
-Super-app microfrontend berbasis Module Federation. Satu repo, beberapa bagian independen yang digabung di runtime — bukan di-bundle jadi satu build.
+Super-app microfrontend berbasis Module Federation.
 
 Bagian yang direncanakan:
 
