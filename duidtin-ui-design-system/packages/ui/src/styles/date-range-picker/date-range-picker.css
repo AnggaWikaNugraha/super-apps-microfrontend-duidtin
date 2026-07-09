@@ -1,0 +1,25 @@
+.ui-date-range-picker {
+  @apply ui:flex ui:items-end ui:gap-2;
+}
+
+.ui-date-range-picker__field {
+  @apply ui:flex ui:flex-col ui:gap-1;
+}
+
+.ui-date-range-picker__label {
+  @apply ui:text-xs ui:font-medium ui:text-gray-600 ui:dark:text-gray-400;
+}
+
+.ui-date-range-picker__input {
+  @apply ui:rounded-md ui:border ui:border-gray-300 ui:bg-white ui:px-3 ui:py-2 ui:text-sm ui:text-gray-900;
+  @apply ui:outline-none ui:transition-colors;
+  @apply ui:dark:border-gray-700 ui:dark:bg-gray-900 ui:dark:text-gray-100;
+}
+
+.ui-date-range-picker__input:focus {
+  @apply ui:border-blue-500 ui:ring-2 ui:ring-blue-500/20;
+}
+
+.ui-date-range-picker__separator {
+  @apply ui:pb-2 ui:text-gray-400 ui:dark:text-gray-500;
+}

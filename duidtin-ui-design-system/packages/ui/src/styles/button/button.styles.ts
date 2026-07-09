@@ -1,7 +1,5 @@
 import { tv } from "tailwind-variants";
 
-import type { VariantProps } from "tailwind-variants";
-
 export const buttonVariants = tv({
   base: ["ui-button"],
   variants: {
@@ -24,5 +22,3 @@ export const buttonVariants = tv({
     size: "md",
   },
 });
-
-export type ButtonVariants = VariantProps<typeof buttonVariants>;

@@ -5,12 +5,9 @@ import { Cell as CellPrimitive, Column as ColumnPrimitive, Row as RowPrimitive, 
 import { tableVariants } from "../../styles/table/table.styles";
 import { composeTwRenderProps } from "../../utils";
 
-import type { CellProps, ColumnProps, RowProps, TableBodyProps, TableHeaderProps, TableProps } from "react-aria-components";
-import type { TableVariants } from "../../styles/table/table.styles";
+import type { TableBodyProps, TableCellRootProps, TableColumnRootProps, TableHeaderProps, TableRootProps, TableRowProps } from "../../types/table/table.types";
 
-interface RootProps extends TableProps, TableVariants {}
-
-const Root = ({ className, size, ...rest }: RootProps) => {
+const Root = ({ className, size, ...rest }: TableRootProps) => {
   const slots = tableVariants({ size });
   return <TablePrimitive className={composeTwRenderProps(className, slots.base())} data-slot="table" {...rest} />;
 };
@@ -20,9 +17,7 @@ const Header = <T extends object>({ className, ...rest }: TableHeaderProps<T>) =
   return <TableHeaderPrimitive className={composeTwRenderProps(className, slots.header())} data-slot="table-header" {...rest} />;
 };
 
-interface ColumnRootProps extends ColumnProps, TableVariants {}
-
-const Column = ({ className, size, ...rest }: ColumnRootProps) => {
+const Column = ({ className, size, ...rest }: TableColumnRootProps) => {
   const slots = tableVariants({ size });
   return <ColumnPrimitive className={composeTwRenderProps(className, slots.column())} data-slot="table-column" {...rest} />;
 };
@@ -32,14 +27,12 @@ const Body = <T extends object>({ className, ...rest }: TableBodyProps<T>) => {
   return <TableBodyPrimitive className={composeTwRenderProps(className, slots.body())} data-slot="table-body" {...rest} />;
 };
 
-const Row = <T extends object>({ className, ...rest }: RowProps<T>) => {
+const Row = <T extends object>({ className, ...rest }: TableRowProps<T>) => {
   const slots = tableVariants();
   return <RowPrimitive className={composeTwRenderProps(className, slots.row())} data-slot="table-row" {...rest} />;
 };
 
-interface CellRootProps extends CellProps, TableVariants {}
-
-const Cell = ({ className, size, ...rest }: CellRootProps) => {
+const Cell = ({ className, size, ...rest }: TableCellRootProps) => {
   const slots = tableVariants({ size });
   return <CellPrimitive className={composeTwRenderProps(className, slots.cell())} data-slot="table-cell" {...rest} />;
 };

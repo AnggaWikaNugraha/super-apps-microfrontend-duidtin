@@ -7,4 +7,4 @@ export const Card = Object.assign(Root, {
   Footer,
 });
 
-export type { CardVariants } from "../../styles/card/card.styles";
+export type { CardRootProps, CardSectionProps, CardVariants } from "../../types/card/card.types";

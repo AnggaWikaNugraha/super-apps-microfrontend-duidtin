@@ -1,7 +1,5 @@
 import { tv } from "tailwind-variants";
 
-import type { VariantProps } from "tailwind-variants";
-
 export const tableVariants = tv({
   slots: {
     base: ["ui-table"],
@@ -21,5 +19,3 @@ export const tableVariants = tv({
     size: "md",
   },
 });
-
-export type TableVariants = VariantProps<typeof tableVariants>;

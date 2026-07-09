@@ -4,3 +4,5 @@
 @import "./card/card.css";
 @import "./badge/badge.css";
 @import "./table/table.css";
+@import "./select/select.css";
+@import "./date-range-picker/date-range-picker.css";

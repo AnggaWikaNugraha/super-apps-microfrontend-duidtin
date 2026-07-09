@@ -24,7 +24,7 @@ Dari root repo ini (`x-duidtin/duidtin-ui-design-system/`):
 ## Status saat ini
 
 Sudah ada:
-- 4 komponen di `packages/ui`: `Button`, `Card`, `Badge`, `Table` — lengkap dengan style, build, dan Storybook.
+- 6 komponen di `packages/ui`: `Button`, `Card`, `Badge`, `Table`, `Select`, `DateRangePicker` — lengkap dengan style, build, dan Storybook.
 - `apps/producer` expose semua komponen di atas + `globals` lewat Module Federation, dengan codegen exposes otomatis dan tipe TypeScript lintas-remote (`dts`) sudah dikonfigurasi.
 
 Belum ada:

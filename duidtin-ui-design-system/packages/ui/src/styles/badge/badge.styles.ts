@@ -1,7 +1,5 @@
 import { tv } from "tailwind-variants";
 
-import type { VariantProps } from "tailwind-variants";
-
 export const badgeVariants = tv({
   base: ["ui-badge"],
   defaultVariants: {
@@ -24,5 +22,3 @@ export const badgeVariants = tv({
     },
   },
 });
-
-export type BadgeVariants = VariantProps<typeof badgeVariants>;

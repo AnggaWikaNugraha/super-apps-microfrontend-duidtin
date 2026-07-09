@@ -1,7 +1,5 @@
 import { tv } from "tailwind-variants";
 
-import type { VariantProps } from "tailwind-variants";
-
 export const cardVariants = tv({
   base: ["ui-card"],
   variants: {
@@ -21,5 +19,3 @@ export const cardVariants = tv({
     variant: "elevated",
   },
 });
-
-export type CardVariants = VariantProps<typeof cardVariants>;

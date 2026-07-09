@@ -9,4 +9,4 @@ export const Table = Object.assign(Root, {
   Cell,
 });
 
-export type { TableVariants } from "../../styles/table/table.styles";
+export type { TableCellRootProps, TableColumnRootProps, TableRootProps, TableVariants } from "../../types/table/table.types";

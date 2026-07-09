@@ -1,2 +1,2 @@
 export { Root as Button } from "./root";
-export type { ButtonVariants } from "../../styles/button/button.styles";
+export type { ButtonRootProps, ButtonVariants } from "../../types/button/button.types";
