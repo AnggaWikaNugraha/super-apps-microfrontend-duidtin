@@ -1,53 +1,67 @@
 # x-duidtin
 
-Repo latihan microfrontend (Module Federation) — pola arsitekturnya niru `qcash-ui` + `qcash-ui-design-system`, tapi digabung jadi **satu repo tunggal** (bukan repo terpisah per bagian seperti aslinya).
+Super-app microfrontend berbasis Module Federation. Satu repo, beberapa bagian independen yang digabung di runtime — bukan di-bundle jadi satu build.
 
 Bagian yang direncanakan:
 
-| Folder | Peran | Analog di `qcash-ui` |
-|---|---|---|
-| `duidtin-ui-design-system/` | Global component & style, di-expose sebagai remote Module Federation | `qcash-global-component` / `qcash-ui-design-system` |
-| `duidtin-layout/` (nanti) | Header/footer, layout bersama tiap halaman | `qcash-ui-header-footer` |
-| `duidtin-ui/` (nanti) | Host — shell, routing, consumer semua remote | `qcash-ui` |
+- **`duidtin-ui/`** (nanti) — host: shell, routing, consumer semua remote.
+- **`duidtin-ui-design-system/`** — global component & style, di-expose sebagai remote Module Federation.
+- **`duidtin-layout/`** (nanti) — header/footer, layout bersama di tiap halaman.
 
-Fokus dulu: **`duidtin-ui-design-system`**.
+Detail implementasi tiap bagian dijelaskan di README masing-masing folder. Dokumen ini fokus ke alur arsitektur secara keseluruhan.
 
 ---
 
-## `duidtin-ui-design-system`
+## Alur Arsitektur
 
-Sama seperti `qcash-ui-design-system`, dibangun pakai **Rslib** — tapi Rslib dipakai untuk **dua tujuan berbeda** di dua folder berbeda:
-
-```
-duidtin-ui-design-system/
-  packages/
-    ui/                 # komponen + style, library biasa (BUKAN Module Federation)
-  apps/
-    producer/           # yang beneran jadi remote MF (loadRemote-able)
-```
-
-### `packages/ui` — pabrik komponen
-
-- Build pakai Rslib format `"esm"` — output-nya paket npm biasa (`dist/` berisi ESM + `.d.ts`).
-- Nggak ada satu baris pun soal Module Federation di sini. Bisa dites/dipakai standalone.
-- Analog `packages/components` + `packages/styles` di `qcash-ui-design-system` (digabung jadi satu folder dulu, biar simpel — belum perlu dipecah granular untuk skala latihan).
-
-### `apps/producer` — pengepakan jadi remote MF
-
-- Juga build pakai Rslib, tapi dengan `lib.format: "mf"` dikombinasikan dengan plugin `@module-federation/rsbuild-plugin` (`pluginModuleFederation`).
-- Kombinasi ini yang menghasilkan `remoteEntry.js` + daftar `exposes` — inilah yang nanti di-`loadRemote()` oleh `duidtin-ui` (host).
-- Isinya cuma `import` dari `packages/ui`, lalu re-expose lewat config MF. Tidak menulis komponen sendiri.
-
-### Alur singkatnya
+### 1. Build time
 
 ```
-packages/ui  (Rslib "esm", library biasa)
-      │
-      ▼  di-import sebagai dependency
-apps/producer  (Rslib "mf" + pluginModuleFederation → remoteEntry.js)
-      │
-      ▼  loadRemote("duidtin-ui-design-system/<nama>")
-duidtin-ui (host, belum dibuat)
+next.config.js (duidtin-ui)
+  └─▶ federation plugin didaftarkan
+        remotes: {}   ← sengaja kosong, di-resolve runtime bukan build time
+        exposes: {}   ← host cuma consumer, nggak pernah jadi remote buat repo lain
 ```
 
-Referensi lengkap pola aslinya ada di [`qcash-ui-design-system/apps/producer/rslib.config.ts`](../qcash-ui-design-system/apps/producer/rslib.config.ts) dan dokumentasi arsitektur di [`CLAUDE.md`](../CLAUDE.md).
+### 2. Boot
+
+```
+pages/_app.tsx (top-level, sebelum render apapun)
+  └─▶ federationInit()                          [services/federation/init.ts]
+        ├─▶ getAllFeatures()                     [services/federation/registry.ts] → semua remote: global + per-fitur
+        ├─▶ getModuleEntry(name)                  [services/federation/registry.ts] → tiap remote → URL environment
+        ├─▶ init({ name, remotes, plugins })       → daftarkan semua remote ke MF runtime (belum fetch apapun)
+        ├─▶ window.__FEDERATION_LOADED = true
+        └─▶ dynamicLoadStyles(globalFeatures)       [services/federation/loader.ts] → loadRemote(name + "/globals")
+                                                       (design-system, layout — cegah flash tanpa style)
+```
+
+### 3. Preload per halaman
+
+```
+provider.tsx useEffect
+  └─▶ waitForFederation()                         [components/federation/provider.tsx]
+  └─▶ loadModulesByRoute(router.pathname)          [services/federation/useModuleLoading.ts]
+        ├─▶ getModulesForRoute(route)              [registry.ts] → filter fitur, hasil: nama yang match
+        └─▶ untuk TIAP module yang match, PARALEL:
+              ├─▶ loadLocalesForModule(moduleName)   → load file i18n
+              └─▶ loadModule(moduleName)             [useModuleLoading.ts]
+                    └─▶ dynamicLoadStyles(moduleName) [loader.ts] → loadRemote(name + "/globals")
+                                                         (warm-up container, BELUM render)
+```
+
+### 4. Render sebenarnya
+
+```
+pages/<fitur>/<sub-halaman>/index.tsx
+  └─▶ loadRemote("<nama-remote>/<sub-halaman>")     → fetch JS chunk komponen + RENDER
+  └─▶ loadRemote("duidtin-layout/default")            → layout, remote terpisah, membungkus konten
+```
+
+### 5. Error handling
+
+```
+RetryPlugin          → hook loadEntryError/getModuleFactory → fetch script gagal (network) → retry beberapa kali
+fallbackPlugin        → hook errorLoadRemote, setelah retry habis → ganti modul jadi komponen fallback
+RemoteErrorBoundary   → React Error Boundary, bungkus {children} → modul berhasil dimuat tapi CRASH saat render
+```
