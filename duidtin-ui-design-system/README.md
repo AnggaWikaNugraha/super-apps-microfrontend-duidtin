@@ -29,7 +29,7 @@ Sudah ada:
 
 Belum ada:
 - Host (`duidtin-ui`) — jadi `loadRemote()` belum pernah bener-bener dites dari sisi konsumen, verifikasi baru sebatas cek `mf-manifest.json`.
-- `duidtin-layout` — belum dibuat sama sekali.
+- `duidtin-ui-layout` — belum dibuat sama sekali.
 - Config deploy/container.
 
 ## Stack

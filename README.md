@@ -6,7 +6,7 @@ Bagian yang direncanakan:
 
 - **`duidtin-ui/`** (nanti) — host: shell, routing, consumer semua remote.
 - **`duidtin-ui-design-system/`** — global component & style, di-expose sebagai remote Module Federation.
-- **`duidtin-layout/`** (nanti) — header/footer, layout bersama di tiap halaman.
+- **`duidtin-ui-layout/`** (nanti) — header/footer, layout bersama di tiap halaman.
 
 Detail implementasi tiap bagian dijelaskan di README masing-masing folder. Dokumen ini fokus ke alur arsitektur secara keseluruhan.
 
@@ -55,7 +55,7 @@ provider.tsx useEffect
 ```
 pages/<fitur>/<sub-halaman>/index.tsx
   └─▶ loadRemote("<nama-remote>/<sub-halaman>")     → fetch JS chunk komponen + RENDER
-  └─▶ loadRemote("duidtin-layout/default")            → layout, remote terpisah, membungkus konten
+  └─▶ loadRemote("duidtin_ui_layout/default")         → layout, remote terpisah, membungkus konten
 ```
 
 ### 5. Error handling
