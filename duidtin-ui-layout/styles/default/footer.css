@@ -1,0 +1,15 @@
+.lyt-footer {
+  @apply lyt:border-t lyt:border-gray-200 lyt:bg-white;
+}
+
+.lyt-footer__inner {
+  @apply lyt:mx-auto lyt:flex lyt:w-full lyt:max-w-6xl lyt:flex-col lyt:gap-2 lyt:px-6 lyt:py-6 lyt:text-sm lyt:text-gray-500 lyt:md:flex-row lyt:md:items-center lyt:md:justify-between;
+}
+
+.lyt-footer__links {
+  @apply lyt:flex lyt:items-center lyt:gap-4;
+}
+
+.lyt-footer__link {
+  @apply lyt:transition-colors lyt:hover:text-gray-900;
+}

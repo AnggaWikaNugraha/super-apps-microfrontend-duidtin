@@ -1,0 +1,7 @@
+.lyt-layout {
+  @apply lyt:flex lyt:min-h-screen lyt:flex-col lyt:bg-gray-50;
+}
+
+.lyt-layout__main {
+  @apply lyt:mx-auto lyt:w-full lyt:max-w-6xl lyt:flex-1 lyt:px-6 lyt:py-8;
+}

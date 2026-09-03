@@ -11,7 +11,7 @@ const Root = ({ data, height = 256, showLegend = true, valueFormatter, className
     <div className={["ui-chart", className].filter(Boolean).join(" ")} data-slot="pie-chart" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <RechartsPieChart>
-          <Tooltip formatter={(value: number) => (valueFormatter ? valueFormatter(value) : value)} />
+          <Tooltip formatter={(value: unknown) => (valueFormatter ? valueFormatter(Number(value)) : String(value))} />
           {showLegend && <Legend />}
           <Pie data={data} dataKey="value" nameKey="name" innerRadius={innerRadius} outerRadius="80%">
             {data.map((entry, i) => (

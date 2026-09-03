@@ -7,7 +7,11 @@ export default defineConfig({
     {
       format: "esm",
       dts: true,
-      source: { entry: { index: ["./src/**", "!./src/**/*.stories.tsx"] } },
+      // file .css sengaja dikecualiin di sini: entry ini bundle:false, jadi tiap file
+      // diproses SENDIRI-SENDIRI — file css komponen nggak punya konteks
+      // `@import "tailwindcss" prefix(ui)`, jadi `@apply ui:...`-nya bakal error.
+      // CSS-nya digabung & dikompilasi di lib kedua (index.tailwind) di bawah.
+      source: { entry: { index: ["./src/**", "!./src/**/*.stories.tsx", "!./src/**/*.css"] } },
       bundle: false,
     },
     {

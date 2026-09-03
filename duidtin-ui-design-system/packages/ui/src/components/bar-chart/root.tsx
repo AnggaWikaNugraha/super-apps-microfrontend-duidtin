@@ -14,7 +14,7 @@ const Root = ({ data, categoryKey, series, height = 256, showLegend = true, show
           {showGrid && <CartesianGrid strokeDasharray="3 3" />}
           <XAxis dataKey={categoryKey} />
           <YAxis tickFormatter={valueFormatter} />
-          <Tooltip formatter={(value: number) => (valueFormatter ? valueFormatter(value) : value)} />
+          <Tooltip formatter={(value: unknown) => (valueFormatter ? valueFormatter(Number(value)) : String(value))} />
           {showLegend && <Legend />}
           {series.map((s, i) => (
             <Bar key={s.dataKey} dataKey={s.dataKey} name={s.name ?? s.dataKey} fill={s.color ?? getChartColor(i)} radius={[4, 4, 0, 0]} />

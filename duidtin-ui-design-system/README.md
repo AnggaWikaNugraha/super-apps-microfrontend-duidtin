@@ -1,229 +1,237 @@
 # duidtin-ui-design-system
 
-Global component & style library, di-expose sebagai remote Module Federation untuk dikonsumsi host (`duidtin-ui`) dan bagian lain yang membutuhkan.
+**English** · [Bahasa Indonesia](README.id.md)
 
-Dibangun pakai **Rslib**, dipakai untuk dua tujuan berbeda di dua folder berbeda:
+A global component & style library, exposed as a Module Federation remote to be consumed by the host (`duidtin-ui`) and anything else that needs it.
+
+Built with **Rslib**, used for two different purposes in two different folders:
 
 ```
 duidtin-ui-design-system/
   packages/
-    ui/                 # komponen + style, library biasa (BUKAN Module Federation)
+    ui/                 # components + styles, an ordinary library (NOT Module Federation)
   apps/
-    producer/           # yang beneran jadi remote MF (loadRemote-able)
+    producer/           # the part that actually becomes an MF remote (loadRemote-able)
 ```
 
-## Cara mulai
+## Getting started
 
-Dari root repo ini (`x-duidtin/duidtin-ui-design-system/`):
+From the root of this repo (`x-duidtin/duidtin-ui-design-system/`):
 
-1. `bun install` — install semua dependency (root + `packages/ui` + `apps/producer` sekaligus, lewat workspaces).
-2. `bun run build` — build `packages/ui` dulu, baru `apps/producer` (urutan otomatis lewat Turborepo). Hasil: `dist/` di `packages/ui`, `dist/mf/` (`remoteEntry.js` + manifest) di `apps/producer`.
-3. `bun run storybook` — buka preview komponen di `localhost:6006`. Keluar dari server-nya pakai `q` atau Ctrl+C dua kali (karena `turbo.json` pakai `"ui": "tui"`).
-4. `bun run dev:producer` — nyalain dev server `apps/producer` (`--filter=@duidtin/producer --filter=@duidtin/ui`, biar `packages/ui` ikut ke-watch juga), serve `remoteEntry.js` live di `http://localhost:3001` — buat cek/debug remote MF-nya sebelum ada host beneran yang konsumsi.
+1. `bun install` — installs every dependency (root + `packages/ui` + `apps/producer` at once, via workspaces).
+2. `bun run build` — builds `packages/ui` first, then `apps/producer` (Turborepo orders this automatically). Output: `dist/` in `packages/ui`, `dist/mf/` (`remoteEntry.js` + manifest) in `apps/producer`.
+3. `bun run storybook` — opens the component preview at `localhost:6006`. Quit the server with `q` or Ctrl+C twice (because `turbo.json` uses `"ui": "tui"`).
+4. `bun run dev:producer` — starts the `apps/producer` dev server (`--filter=@duidtin/producer --filter=@duidtin/ui`, so `packages/ui` is watched too) and serves `remoteEntry.js` live at `http://localhost:3001/design-system/static/remoteEntry.js` — this is what `duidtin-ui-layout` (and later the host) points at during local development.
 
-## Status saat ini
+## Current status
 
-Sudah ada:
-- 13 komponen di `packages/ui`: `Button`, `Card`, `Badge`, `Table`, `Select`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart` — lengkap dengan style, build, dan Storybook. Chart pakai dependency baru `recharts`.
-- `apps/producer` expose semua komponen di atas + `globals` lewat Module Federation, dengan codegen exposes otomatis dan tipe TypeScript lintas-remote (`dts`) sudah dikonfigurasi.
+Done:
+- 13 components in `packages/ui`: `Button`, `Card`, `Badge`, `Table`, `Select`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart` — complete with styles, build, and Storybook. The charts pull in one new dependency, `recharts`.
+- `apps/producer` exposes all of the above plus `globals` over Module Federation, with automatic exposes codegen and cross-remote TypeScript types (`dts`) configured.
+- `loadRemote()` is proven to work from a real consumer: `duidtin-ui-layout` renders this remote's `Button` & `Badge` in the browser, CSS included.
 
-Belum ada:
-- Host (`duidtin-ui`) — jadi `loadRemote()` belum pernah bener-bener dites dari sisi konsumen, verifikasi baru sebatas cek `mf-manifest.json`.
-- `duidtin-ui-layout` — belum dibuat sama sekali.
-- Config deploy/container.
+Not done:
+- The host (`duidtin-ui`).
+- Deploy/container config.
 
 ## Stack
 
 - **Bun** — package manager & workspace runner (`bun install`, `bun run <script>`).
-- **Turborepo** — orkestrasi task lintas paket (`build`, `dev`, `check-types`, `storybook`), otomatis urutin build berdasar dependency antar paket.
-- **TypeScript** — strict mode, tiap paket punya `tsconfig.json` sendiri yang extends dari root.
-- **Rslib** — build tool utama, dipakai dua cara beda: format `"esm"` buat `packages/ui` (paket library biasa), format `"mf"` (+ `@module-federation/rsbuild-plugin`) buat `apps/producer` (remote Module Federation).
-- **React 18** + **react-aria-components** — primitif komponen accessible yang di-wrap tiap komponen `packages/ui`.
-- **Tailwind CSS v4** (prefix `ui:`) + **tailwind-variants** + **tailwind-merge** — styling & komposisi variant per komponen.
-- **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — mekanisme expose komponen ke konsumen luar (`duidtin-ui` nanti), termasuk generate tipe TypeScript lintas-remote.
-- **Storybook** (builder Vite) — preview & dokumentasi visual komponen saat develop, terpisah total dari alur Module Federation.
+- **Turborepo** — cross-package task orchestration (`build`, `dev`, `check-types`, `storybook`), automatically ordering builds by inter-package dependencies.
+- **TypeScript** — strict mode; each package has its own `tsconfig.json` extending the root one.
+- **Rslib** — the main build tool, used two different ways: format `"esm"` for `packages/ui` (an ordinary library package), format `"mf"` (+ `@module-federation/rsbuild-plugin`) for `apps/producer` (the Module Federation remote).
+- **React 18** + **react-aria-components** — the accessible component primitives each `packages/ui` component wraps.
+- **Tailwind CSS v4** (prefix `ui:`) + **tailwind-variants** + **tailwind-merge** — styling & per-component variant composition.
+- **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — the mechanism that exposes components to outside consumers (`duidtin-ui` later), including cross-remote TypeScript type generation.
+- **Storybook** (Vite builder) — visual preview & documentation during development, entirely separate from the Module Federation path.
 
-## Daftar Komponen
+## Component list
 
-**Data & tampilan**
-- `Button` — wrap primitif `react-aria-components` Button. Varian `variant` (solid/outline) × `color` (primary/default) × `size` (sm/md).
-- `Card` — compound (`Card`, `Card.Header`, `Card.Body`, `Card.Footer`). Varian `size` (sm/md/lg) × `variant` (elevated/outlined/soft).
-- `Badge` — varian `variant` (solid/soft/outlined) × `color` (default/primary/success/danger/warning/info).
-- `Table` — compound (`Table`, `Table.Header`, `Table.Column`, `Table.Body`, `Table.Row`, `Table.Cell`). Mode statis pakai primitif Table `react-aria-components` (bukan `<table>` HTML biasa) — dapat ARIA grid + keyboard nav gratis.
+**Data & display**
+- `Button` — wraps the `react-aria-components` Button primitive. Variants: `variant` (solid/outline) × `color` (primary/default) × `size` (sm/md).
+- `Card` — compound (`Card`, `Card.Header`, `Card.Body`, `Card.Footer`). Variants: `size` (sm/md/lg) × `variant` (elevated/outlined/soft).
+- `Badge` — variants: `variant` (solid/soft/outlined) × `color` (default/primary/success/danger/warning/info).
+- `Table` — compound (`Table`, `Table.Header`, `Table.Column`, `Table.Body`, `Table.Row`, `Table.Cell`). Static mode uses the `react-aria-components` Table primitive (not a plain HTML `<table>`) — you get ARIA grid semantics + keyboard navigation for free.
 
-**Filter & input**
-- `Select` — compound (`Select`, `Select.Label`, `Select.Trigger`, `Select.Popover`, `Select.Item`), dropdown pakai primitif Select `react-aria-components`.
-- `DateRangePicker` — 2 `<input type="date">` native (Dari/Sampai), bukan kalender custom — keputusan simplifikasi (lihat catatan di bawah).
+**Filters & input**
+- `Select` — compound (`Select`, `Select.Label`, `Select.Trigger`, `Select.Popover`, `Select.Item`); the dropdown uses the `react-aria-components` Select primitive.
+- `DateRangePicker` — two native `<input type="date">` fields (From/To) rather than a custom calendar — a deliberate simplification (see the note below).
 
 **Feedback & state**
-- `Spinner` — SVG custom (gradient `currentColor`), animasi `animate-spin`. Varian `color` (6 warna) × `size` (sm/md/lg/xl).
-- `Alert` — compound (`Alert`, `Alert.Icon`, `Alert.Content`, `Alert.Title`, `Alert.Description`). Varian `variant` (6 warna), warna icon ngikut otomatis lewat CSS descendant selector.
+- `Spinner` — a custom SVG (`currentColor` gradient) with `animate-spin`. Variants: `color` (6 colors) × `size` (sm/md/lg/xl).
+- `Alert` — compound (`Alert`, `Alert.Icon`, `Alert.Content`, `Alert.Title`, `Alert.Description`). Variants: `variant` (6 colors); the icon color follows automatically through a CSS descendant selector.
 
-**Overlay & navigasi**
-- `Modal` — compound (`Modal.Root`, `Modal.Content`, `Modal.Heading`, `Modal.Body`, `Modal.Footer`), pakai `DialogTrigger` + `ModalOverlay` + `Modal` + `Dialog` dari `react-aria-components` — animasi enter/exit, focus-trap, esc-to-close otomatis dari primitifnya.
-- `Tabs` — compound (`Tabs`, `Tabs.List`, `Tabs.Tab`, `Tabs.Panel`), primitif Tabs native `react-aria-components`.
+**Overlay & navigation**
+- `Modal` — compound (`Modal.Root`, `Modal.Content`, `Modal.Heading`, `Modal.Body`, `Modal.Footer`), built on `DialogTrigger` + `ModalOverlay` + `Modal` + `Dialog` from `react-aria-components` — enter/exit animation, focus trap, and esc-to-close all come from the primitives.
+- `Tabs` — compound (`Tabs`, `Tabs.List`, `Tabs.Tab`, `Tabs.Panel`), on the native `react-aria-components` Tabs primitive.
 
-**Chart** (satu-satunya kategori yang butuh dependency tambahan: `recharts`)
-- `BarChart` — bar chart multi-series. Props: `data`, `categoryKey`, `series` (array `{ dataKey, name?, color? }`).
-- `LineChart` — line chart multi-series, pola props sama dengan `BarChart`.
-- `PieChart` — pie/donut chart (`innerRadius` buat mode donut). Props: `data` (array `{ name, value, color? }`).
+**Charts** (the only category needing an extra dependency: `recharts`)
+- `BarChart` — multi-series bar chart. Props: `data`, `categoryKey`, `series` (an array of `{ dataKey, name?, color? }`).
+- `LineChart` — multi-series line chart, same prop shape as `BarChart`.
+- `PieChart` — pie/donut chart (`innerRadius` gives you donut mode). Props: `data` (an array of `{ name, value, color? }`).
 
-Semua komponen ikut pola yang sama di "Alur nambah komponen baru" di bawah — punya file terpisah di `styles/`, `types/`, `components/`. Beberapa (`DateRangePicker`, `BarChart`/`LineChart`/`PieChart`) sengaja disederhanakan dari padanan penuhnya (kalender segmented+popover, custom tooltip/legend) demi kecepatan build tanpa sistem design token yang belum ada di repo ini.
+Every component follows the same pattern described in "Adding a new component" below — separate files under `styles/`, `types/`, `components/`. A few (`DateRangePicker`, `BarChart`/`LineChart`/`PieChart`) are deliberately simplified versions of their full counterparts (segmented calendar + popover, custom tooltip/legend) to keep the build moving without a design token system, which this repo doesn't have yet.
 
-## Alur singkatnya
+## The flow in short
 
 ```
-packages/ui  (Rslib "esm", library biasa)
+packages/ui  (Rslib "esm", an ordinary library)
       │
-      ▼  di-import sebagai dependency
+      ▼  imported as a dependency
 apps/producer  (Rslib "mf" + pluginModuleFederation → remoteEntry.js)
       │
-      ▼  loadRemote("duidtin_ui_design_system/<nama>")
+      ▼  loadRemote("duidtin_ui_design_system/<name>")
 duidtin-ui (host)
 ```
 
-## Alur nambah komponen baru
+## Adding a new component
 
-Dari nulis komponen sampai bisa di-`loadRemote` dari luar:
+From writing the component to having it `loadRemote`-able from outside:
 
 ```
-1. packages/ui/src/styles/<nama>/<nama>.styles.ts   → definisi variant (tv())
-2. packages/ui/src/styles/<nama>/<nama>.css          → class BEM prefix "ui-", @apply Tailwind
-3. packages/ui/src/styles/index.tailwind.css          → tambah @import "./<nama>/<nama>.css";
-        (kalau lupa langkah ini, class-nya ada tapi CSS-nya nggak pernah ke-compile/ke-include)
-4. packages/ui/src/components/<nama>/root.tsx         → komponen React, wrap primitif react-aria-components,
-                                                          pakai buttonVariants/<nama>Variants dari langkah 1
-5. packages/ui/src/components/<nama>/index.ts          → barrel lokal: export { Root as <Nama> }
-6. packages/ui/src/index.ts                            → tambah: export { <Nama> } from "./components/<nama>";
-        (kalau lupa langkah ini, komponennya ada tapi nggak bisa diimpor dari "@duidtin/ui" langsung)
+1. packages/ui/src/styles/<name>/<name>.styles.ts   → variant definitions (tv())
+2. packages/ui/src/styles/<name>/<name>.css          → BEM classes with the "ui-" prefix, @apply Tailwind
+3. packages/ui/src/styles/index.tailwind.css          → add @import "./<name>/<name>.css";
+        (skip this and the classes exist but the CSS is never compiled/included)
+4. packages/ui/src/components/<name>/root.tsx         → the React component, wrapping a react-aria-components
+                                                          primitive, using the <name>Variants from step 1
+5. packages/ui/src/components/<name>/index.ts          → local barrel: export { Root as <Name> }
+6. packages/ui/src/index.ts                            → add: export { <Name> } from "./components/<name>";
+        (skip this and the component exists but can't be imported from "@duidtin/ui" directly)
 
-── opsional tapi disarankan sebelum lanjut ──
-7. packages/ui/src/components/<nama>/<nama>.stories.tsx → cek visual di Storybook dulu (bun run storybook)
-                                                            sebelum lanjut ke expose MF
+── optional but recommended before moving on ──
+7. packages/ui/src/components/<name>/<name>.stories.tsx → check it visually in Storybook (bun run storybook)
+                                                            before going on to the MF expose
 
 ── build packages/ui ──
-8. bun run build (di packages/ui, atau dari root lewat turbo)
-        → hasilkan dist/ terbaru, termasuk dist/components/<nama>/root.js + .d.ts
+8. bun run build (in packages/ui, or from the root through turbo)
+        → produces a fresh dist/, including dist/components/<name>/root.js + .d.ts
 
-── expose lewat apps/producer (OTOMATIS, lihat bagian "Codegen exposes" di bawah) ──
-9. scripts/generate-components.ts jalan otomatis sebelum build (prebuild)
-        → scan packages/ui/src/components/*, generate shim apps/producer/src/components/<nama>.ts
-          + update apps/producer/src/components/component-exposes.ts
-        (dulunya 2 langkah manual — sekarang cukup pastikan nama folder komponen di packages/ui benar,
-         sisanya di-generate)
+── expose through apps/producer (AUTOMATIC, see "Exposes codegen" below) ──
+9. scripts/generate-components.ts runs automatically before the build (prebuild)
+        → scans packages/ui/src/components/*, generates the apps/producer/src/components/<name>.ts shim
+          and updates apps/producer/src/components/component-exposes.ts
+        (this used to be 2 manual steps — now you just need the component's folder name in
+         packages/ui to be right, and the rest is generated)
 
 ── build apps/producer ──
-10. bun run build (di apps/producer, atau dari root — turbo otomatis build packages/ui dulu karena dependsOn: ["^build"])
-        → remoteEntry.js + mf-manifest.json ter-update, ada entry expose komponen baru
-        → sekaligus generate tipe TypeScript-nya ke folder @mf-types (lihat "Tipe lintas-remote (MF dts)")
+10. bun run build (in apps/producer, or from the root — turbo builds packages/ui first because of dependsOn: ["^build"])
+        → remoteEntry.js + mf-manifest.json are updated with an expose entry for the new component
+        → and the TypeScript types are generated into the @mf-types folder (see "Cross-remote types")
 
-── verifikasi ──
-11. cek apps/producer/dist/mf/mf-manifest.json — pastikan key "./components/<nama>" muncul di situ
-        (belum ada host buat test loadRemote() beneran, jadi verifikasi sementara cuma sampai sini)
+── verify ──
+11. check apps/producer/dist/mf/mf-manifest.json — make sure the "./components/<name>" key shows up there
+        (there is no host to test a real loadRemote() against yet, so verification stops here for now)
 ```
 
-Poin yang paling gampang kelupaan sekarang cuma langkah 3 dan 6 (nambah file baru di `packages/ui` tapi lupa daftarin ke `index.tailwind.css`/barrel `index.ts`) — bagian expose ke `apps/producer` (dulu langkah 9-10 manual) sudah otomatis lewat codegen, jadi risiko lupa di situ hilang.
+The steps easiest to forget are now just 3 and 6 (adding new files in `packages/ui` but forgetting to register them in `index.tailwind.css` / the `index.ts` barrel) — the expose side (steps 9-10, formerly manual) is automated through codegen, so that particular risk is gone.
 
-## Codegen exposes (`apps/producer/scripts/generate-components.ts`)
+## Exposes codegen (`apps/producer/scripts/generate-components.ts`)
 
-Script ini yang menghilangkan langkah manual "bikin shim + daftarin ke `component-exposes.ts`" tiap nambah komponen baru:
+This script is what removed the manual "write a shim + register it in `component-exposes.ts`" step for every new component:
 
-- Jalan otomatis lewat `prebuild` (dan juga di awal `dev`) — begitu `bun run build` dipanggil di `apps/producer`, script ini jalan duluan sebelum `rslib build`.
-- Baca semua nama folder di `packages/ui/src/components/`, konversi ke PascalCase (`button` → `Button`) — asumsinya nama folder dan nama komponen yang di-export selalu selaras (konvensi yang sudah dipakai sejak awal).
-- Generate file shim `apps/producer/src/components/<nama>.ts` isinya cuma re-export dari `@duidtin/ui`, dan generate ulang seluruh isi `component-exposes.ts` dari daftar folder yang ketemu.
-- Konsekuensinya: `apps/producer/src/components/component-exposes.ts` dan tiap file shim `<nama>.ts` di folder itu **jadi file hasil generate**, bukan yang ditulis manual lagi — kalau diedit manual, akan ketiban pas `prebuild` jalan lagi.
+- Runs automatically through `prebuild` (and at the start of `dev` too) — so when `bun run build` is called in `apps/producer`, this runs before `rslib build`.
+- Reads every folder name under `packages/ui/src/components/` and converts it to PascalCase (`button` → `Button`) — this assumes the folder name and the exported component name always line up, which is the convention used from the start.
+- Generates the `apps/producer/src/components/<name>.ts` shim, which is nothing but a re-export from `@duidtin/ui`, and regenerates the entire contents of `component-exposes.ts` from the folders it found.
+- The consequence: `apps/producer/src/components/component-exposes.ts` and every `<name>.ts` shim in that folder are **generated files**, not hand-written ones — edit them by hand and the next `prebuild` will overwrite you.
 
-## Tipe lintas-remote (MF `dts`)
+## Cross-remote types (MF `dts`)
 
-`pluginModuleFederation` di `apps/producer/rslib.config.ts` punya blok `dts: { generateTypes, consumeTypes, displayErrorInTerminal }` (butuh devDependency `@module-federation/typescript`):
+`pluginModuleFederation` in `apps/producer/rslib.config.ts` carries a `dts: { generateTypes, consumeTypes, displayErrorInTerminal }` block (requires the `@module-federation/typescript` devDependency):
 
-- `generateTypes: { extractThirdParty: true, typesFolder: "@mf-types" }` — waktu `apps/producer` di-build, otomatis generate deskripsi tipe TypeScript dari semua yang di-`exposes`, ditaruh di folder `@mf-types` (di-`.gitignore`, karena ini output generated, bukan source).
-- `consumeTypes: { typesFolder: "@mf-types" }` — sisi ini yang dipakai kalau `apps/producer` sendiri nanti perlu **konsumsi** tipe dari remote lain (belum relevan sekarang karena belum ada remote lain yang dikonsumsi, tapi disiapkan dari awal biar konsisten).
-- `displayErrorInTerminal: true` — kalau proses generate tipe ini gagal, errornya muncul jelas di terminal build, bukan cuma silent-fail.
-- Efeknya buat konsumen (nanti `duidtin-ui`): `loadRemote("duidtin_ui_design_system/components/button")` bisa dapat autocomplete & type-check props `Button` beneran, bukan `any` — asal host-nya juga setup fitur `dts` MF yang sama di sisi consume.
+- `generateTypes: { extractThirdParty: true, typesFolder: "@mf-types" }` — when `apps/producer` builds, TypeScript type descriptions for everything in `exposes` are generated into the `@mf-types` folder (which is `.gitignore`d, since it is generated output, not source).
+- `consumeTypes: { typesFolder: "@mf-types" }` — the other side, used if `apps/producer` itself ever needs to **consume** types from another remote (not relevant yet, since it consumes none, but wired up from the start for consistency).
+- `displayErrorInTerminal: true` — if type generation fails, the error shows up clearly in the build terminal instead of failing silently.
+- What this buys consumers (`duidtin-ui` later): `loadRemote("duidtin_ui_design_system/components/button")` gets real autocomplete and prop type-checking for `Button` rather than `any` — as long as the host sets up the same MF `dts` feature on its consume side.
 
-## Preview komponen (Storybook)
+## Component preview (Storybook)
 
-`packages/ui` punya Storybook sendiri (`.storybook/main.ts`, `.storybook/preview.ts`) — murni tool dev, **terpisah total** dari alur Module Federation. Storybook cuma import komponen langsung dari `src/` (bukan lewat `loadRemote`), tujuannya buat preview visual & dokumentasi tiap komponen saat develop — bukan bagian dari yang dikonsumsi `apps/producer`/host. Kalau Storybook dihapus, `remoteEntry.js` yang dikonsumsi repo lain tetap jalan normal, nggak ada ketergantungan.
+`packages/ui` has its own Storybook (`.storybook/main.ts`, `.storybook/preview.ts`) — purely a dev tool, **entirely separate** from the Module Federation path. Storybook imports components straight from `src/` (not through `loadRemote`); its purpose is visual preview & documentation during development, not part of what `apps/producer`/the host consumes. Delete Storybook and the `remoteEntry.js` other repos consume keeps working — there is no dependency between them.
 
-- Builder pakai Vite (`@storybook/react-vite`), bukan Rslib/Rsbuild — Storybook jalan independen dari pipeline build produksi paket ini.
-- `viteFinal` di `.storybook/main.ts` nambahin plugin `@tailwindcss/vite`, supaya class utility Tailwind (prefix `ui:`) ke-compile pas Storybook jalan — tanpa ini, komponen bakal tampil unstyled di Storybook walau class-nya ada.
-- `.storybook/preview.ts` nge-`import` `../src/styles/index.tailwind.css` secara global, jadi semua story otomatis dapat style tanpa perlu di-import ulang tiap file story.
-- Tiap komponen punya file `<nama>.stories.tsx` di folder yang sama (`src/components/button/button.stories.tsx`), isinya beberapa "story" (kombinasi props) yang bisa di-browse satu-satu di UI Storybook.
-- Jalankan `bun run storybook` di `packages/ui` (setelah `bun install`) untuk buka preview-nya di `localhost:6006`.
+- The builder is Vite (`@storybook/react-vite`), not Rslib/Rsbuild — Storybook runs independently of this package's production build pipeline.
+- `viteFinal` in `.storybook/main.ts` adds the `@tailwindcss/vite` plugin so Tailwind utility classes (the `ui:` prefix) compile while Storybook runs — without it components render unstyled in Storybook even though the classes are there.
+- `.storybook/preview.ts` imports `../src/styles/index.tailwind.css` globally, so every story gets the styles without re-importing them per story file.
+- Each component has a `<name>.stories.tsx` file in its own folder (`src/components/button/button.stories.tsx`) containing several "stories" (prop combinations) you can browse one by one in the Storybook UI.
+- Run `bun run storybook` in `packages/ui` (after `bun install`) to open the preview at `localhost:6006`.
 
 
-## `packages/ui` — pabrik komponen
+## `packages/ui` — the component factory
 
-- Build pakai Rslib format `"esm"` — output-nya paket npm biasa (`dist/` berisi ESM + `.d.ts`).
-- Nggak ada satu baris pun soal Module Federation di sini. Bisa dites/dipakai standalone.
+- Built with Rslib format `"esm"` — the output is an ordinary npm package (`dist/` holding ESM + `.d.ts`).
+- Not a single line about Module Federation lives here. It can be tested and used standalone.
 
-## `apps/producer` — pengepakan jadi remote MF
+## `apps/producer` — packaging it as an MF remote
 
-- Juga build pakai Rslib, tapi dengan `lib.format: "mf"` dikombinasikan dengan plugin `@module-federation/rsbuild-plugin` (`pluginModuleFederation`).
-- Kombinasi ini yang menghasilkan `remoteEntry.js` + daftar `exposes` — inilah yang nanti di-`loadRemote()` oleh host.
-- Isinya cuma `import` dari `packages/ui`, lalu re-expose lewat config MF. Tidak menulis komponen sendiri.
+- Also built with Rslib, but with `lib.format: "mf"` combined with the `@module-federation/rsbuild-plugin` plugin (`pluginModuleFederation`).
+- That combination is what produces `remoteEntry.js` + the `exposes` list — the thing the host will `loadRemote()`.
+- Its contents are only `import`s from `packages/ui` re-exposed through MF config. It writes no components of its own.
 
-## `package.json` root
+## Root `package.json`
 
-- `"private": true` — mencegah root package ini ke-publish ke npm registry secara nggak sengaja. Ini standar buat root monorepo, karena root-nya sendiri cuma wadah workspace, bukan paket yang dipublish. Paket yang beneran mau dipublish (`@duidtin/ui`, dst) mengatur `private`-nya sendiri-sendiri.
-- `"workspaces": ["apps/*", "packages/*"]` — memberi tahu Bun bahwa semua folder di dalam `apps/` dan `packages/` yang punya `package.json` sendiri adalah bagian dari monorepo yang sama, bukan dependency eksternal. Efeknya: semua di-install jadi satu `node_modules` di root (lebih hemat & cepat), dan paket-paket ini bisa saling `import` satu sama lain langsung by name (misal `apps/producer` import `@duidtin/ui`) tanpa perlu publish ke npm dulu — package manager otomatis bikin symlink lokal ke folder paketnya.
+- `"private": true` — keeps this root package from being accidentally published to the npm registry. Standard for a monorepo root, since the root is only a workspace container, not a published package. Packages that genuinely are published (`@duidtin/ui` and friends) set their own `private` field.
+- `"workspaces": ["apps/*", "packages/*"]` — tells Bun that every folder under `apps/` and `packages/` with its own `package.json` is part of the same monorepo, not an external dependency. The effect: everything installs into one `node_modules` at the root (cheaper & faster), and these packages can `import` each other by name (e.g. `apps/producer` importing `@duidtin/ui`) without publishing to npm first — the package manager symlinks the local folders.
 
-## `package.json` `apps/producer`
+## `apps/producer` `package.json`
 
-- `"name"` — nama paket di dalam workspace. Jarang dipakai paket lain buat `import` balik ke `apps/producer`, karena perannya consumer (mengonsumsi `@duidtin/ui`), bukan yang di-consume.
-- `"version"` — formalitas. `apps/producer` nggak pernah dipublish ke npm (dijalankan/di-deploy sebagai remote Module Federation, bukan lewat `npm install`), jadi angka ini nggak pernah benar-benar dipakai buat resolusi dependency.
-- `"type": "module"` — bilang ke Node.js bahwa file `.js` di paket ini pakai sintaks ESM (`import`/`export`), bukan CommonJS (`require`/`module.exports`).
-- `"exports"`, `"types"`, `"files"` — pola standar entry point paket npm biasa (nunjuk ke `dist/index.js`, `dist/index.d.ts`, dan folder yang ikut ter-publish). Untuk `apps/producer` sendiri, tiga field ini sebenarnya **nggak relevan** dengan alur pemakaian sebenarnya — cara dia beneran dikonsumsi bukan lewat `import "@duidtin/producer"` biasa, tapi lewat `loadRemote()` Module Federation yang fetch `remoteEntry.js` di runtime. Field ini dipertahankan mengikuti pola paket library (`packages/ui`) walau tidak terpakai di jalur MF-nya.
+- `"name"` — the package name inside the workspace. Rarely used by other packages to `import` back into `apps/producer`, since its role is consumer (of `@duidtin/ui`), not consumed.
+- `"version"` — a formality. `apps/producer` is never published to npm (it is run/deployed as a Module Federation remote, not installed via `npm install`), so this number never really participates in dependency resolution.
+- `"type": "module"` — tells Node.js that `.js` files in this package use ESM syntax (`import`/`export`), not CommonJS (`require`/`module.exports`).
+- `"exports"`, `"types"`, `"files"` — the standard entry-point pattern for an npm package (pointing at `dist/index.js`, `dist/index.d.ts`, and the folders that ship). For `apps/producer` itself these three fields are actually **irrelevant** to how it is really used — it is consumed not through a plain `import "@duidtin/producer"` but through Module Federation's `loadRemote()`, which fetches `remoteEntry.js` at runtime. They are kept to match the library package pattern (`packages/ui`) even though the MF path doesn't use them.
 
-## `package.json` `packages/ui`
+## `packages/ui` `package.json`
 
-- `"name"` — `@duidtin/ui`, ini yang dipakai `apps/producer` buat `import { Button } from "@duidtin/ui"`. Beda dari `apps/producer` yang namanya jarang dipakai balik, paket ini justru inti yang di-consume paket lain.
-- `"version"` — formalitas, sama seperti `apps/producer`. Bun resolve ke folder lokal lewat `"workspaces"` di root, bukan berdasar nomor versi ini.
-- `"type": "module"` — sama seperti `apps/producer`, semua file dianggap ESM (`import`/`export`), bukan CommonJS.
-- `"sideEffects": false` — beda dari `apps/producer`. Field ini bilang ke bundler bahwa nggak ada file di paket ini yang punya efek samping cuma dari di-import. Efeknya: bundler boleh tree-shake agresif — kalau `apps/producer` cuma pakai `Button`, komponen lain yang nggak diimpor beneran dibuang dari bundle, bukan ikut kebawa. Field ini penting untuk paket library seperti ini, beda dari `apps/producer` yang nggak butuh ini sama sekali karena dia sendiri jadi entry akhir, bukan sesuatu yang di-tree-shake orang lain.
-- `"exports"` — di sini field ini benar-benar terpakai (beda dari `apps/producer` yang dead weight):
-  - `"."` → entry utama (`import ... from "@duidtin/ui"`), dengan kondisi `"development"` yang nunjuk ke `src/index.ts` langsung (dipakai tooling mode dev, biar nggak perlu nunggu build dulu tiap ubah kode) dan `"import"`/`"default"` yang nunjuk ke hasil build `dist/index.js`.
-  - `"./*"` → wildcard subpath, ini yang bikin bisa `import { Button } from "@duidtin/ui/components/button"` (deep import per komponen), bukan cuma lewat barrel `index.ts`. Berguna kalau komponennya makin banyak dan orang cuma mau ambil satu tanpa nge-load seluruh barrel.
-  - `"./css"` → entry khusus buat CSS-nya, ini yang dipakai `apps/producer/src/styles/index.css` lewat `@import "@duidtin/ui/css";`.
-- `"types"` dan `"files"` — fungsinya sama dengan di `apps/producer` (fallback tipe buat tooling lama, dan pembatasan isi paket kalau dipublish), tapi di sini memang relevan — paket ini didesain buat diimpor langsung lewat `exports` di atas, bukan lewat `loadRemote()`.
+- `"name"` — `@duidtin/ui`, which is what `apps/producer` uses for `import { Button } from "@duidtin/ui"`. Unlike `apps/producer`, whose name is rarely referenced back, this package is the one other packages consume.
+- `"version"` — a formality, same as `apps/producer`. Bun resolves it to the local folder through the root `"workspaces"` field, not by version number.
+- `"type": "module"` — same as `apps/producer`; every file is treated as ESM (`import`/`export`), not CommonJS.
+- `"sideEffects": false` — different from `apps/producer`. This field tells bundlers that no file in this package has side effects merely from being imported. The effect: bundlers may tree-shake aggressively — if `apps/producer` only uses `Button`, the other components are genuinely dropped from the bundle rather than dragged along. It matters for a library package like this one, and not at all for `apps/producer`, which is itself a final entry rather than something others tree-shake.
+- `"exports"` — here the field genuinely earns its keep (unlike in `apps/producer`, where it is dead weight):
+  - `"."` → the main entry (`import ... from "@duidtin/ui"`), with a `"development"` condition pointing straight at `src/index.ts` (used by dev-mode tooling, so you don't have to rebuild on every change) and `"import"`/`"default"` pointing at the built `dist/index.js`.
+  - `"./*"` → the wildcard subpath, which is what makes `import { Button } from "@duidtin/ui/components/button"` (per-component deep imports) work, rather than only going through the `index.ts` barrel. Useful as the component count grows and someone wants just one without loading the whole barrel.
+  - `"./css"` → a dedicated entry for the CSS, used by `apps/producer/src/styles/index.css` via `@import "@duidtin/ui/css";`.
+- `"types"` and `"files"` — the same purpose as in `apps/producer` (a type fallback for older tooling, and limiting package contents if published), but here they are genuinely relevant: this package is designed to be imported directly through the `exports` above, not through `loadRemote()`.
 
-## `rslib.config.ts` `packages/ui`
+## `packages/ui` `rslib.config.ts`
 
-- `plugins: [pluginReact()]` — nambahin dukungan compile JSX/TSX (`.tsx` file) ke pipeline build Rslib. Tanpa ini, file kayak `root.tsx` nggak bisa di-parse.
-- `output: { target: "web" }` — bilang ke Rslib target runtime-nya browser (bukan Node.js server), mempengaruhi polyfill/transform apa yang dipakai saat compile.
-- `lib: [...]` — isinya 2 entri, masing-masing hasilkan output terpisah:
-  - **Entri pertama** (build kode komponen): `format: "esm"` (output pakai sintaks `import`/`export` modern), `dts: true` (sekaligus generate file `.d.ts` — ini yang bikin `apps/producer` dapat autocomplete/type-check saat `import { Button } from "@duidtin/ui"`), `source.entry.index: ["./src/**", "!./src/**/*.stories.tsx"]` (entry point-nya seluruh isi folder `src/` lewat glob, dikurangi file `*.stories.tsx` — file story itu tooling Storybook doang, bukan bagian paket yang di-build/di-publish, jadi sengaja di-exclude dari entry supaya nggak ikut di-generate `.d.ts`-nya; key `"index"` cuma nama grup, bukan berarti cuma `index.ts` yang di-build), `bundle: false` (tiap file source tetap jadi file output terpisah, 1:1 mapping, nggak digabung jadi satu file besar — ini yang bikin field `"./*"` di `exports` `package.json` bisa jalan buat deep import per file, dan yang bikin tree-shaking di `sideEffects: false` beneran efektif).
-  - **Entri kedua** (build CSS terpisah): entry-nya `./src/styles/index.tailwind.css`, bukan file `.ts`/`.tsx` — Rslib (lewat Rsbuild/Rspack di baliknya) bisa proses CSS juga. Key `"index.tailwind"` nentuin nama file hasilnya (`dist/index.tailwind.css`), yang di-reference field `"./css"` di `exports` `package.json` dan di-`@import` oleh `apps/producer/src/styles/index.css`. `dts: false` karena CSS nggak butuh file `.d.ts`.
-- Dipisah 2 entri (bukan 1) karena sifatnya beda: kode components pakai `bundle: false` (tetap satu-satu per file), sementara CSS nggak relevan dengan opsi `bundle`, dan `dts` cuma masuk akal buat entri kode, bukan CSS.
+- `plugins: [pluginReact()]` — adds JSX/TSX (`.tsx`) compilation support to the Rslib build pipeline. Without it, a file like `root.tsx` can't be parsed.
+- `output: { target: "web" }` — tells Rslib the runtime target is the browser (not a Node.js server), which affects which polyfills/transforms are applied.
+- `lib: [...]` — two entries, each producing separate output:
+  - **First entry** (building the component code): `format: "esm"` (modern `import`/`export` output), `dts: true` (also generates `.d.ts` files — this is what gives `apps/producer` autocomplete/type-checking on `import { Button } from "@duidtin/ui"`), `source.entry.index: ["./src/**", "!./src/**/*.stories.tsx", "!./src/**/*.css"]` (the entry point is the whole `src/` folder via glob, minus `*.stories.tsx` files — stories are Storybook tooling, not part of the built/published package, so they are deliberately excluded so no `.d.ts` is generated for them; the `"index"` key is just a group name, it does not mean only `index.ts` gets built), `bundle: false` (each source file stays a separate output file, mapped 1:1, rather than merged into one big file — this is what makes the `"./*"` field in `package.json` `exports` work for per-file deep imports, and what makes the tree-shaking implied by `sideEffects: false` actually effective).
+  - **Second entry** (building the CSS separately): its entry is `./src/styles/index.tailwind.css`, not a `.ts`/`.tsx` file — Rslib (through Rsbuild/Rspack underneath) can process CSS too. The `"index.tailwind"` key determines the output filename (`dist/index.tailwind.css`), which the `"./css"` field in `package.json` `exports` references and which `apps/producer/src/styles/index.css` `@import`s. `dts: false` because CSS needs no `.d.ts`.
+- They are split into 2 entries (not 1) because they behave differently: the component code uses `bundle: false` (staying one file per source file), while `bundle` is irrelevant to CSS, and `dts` only makes sense for the code entry.
+- `.css` files are also excluded from the first entry (`"!./src/**/*.css"`) — because `bundle: false` makes each file processed **on its own**, so a per-component CSS file would reach PostCSS without the `@import "tailwindcss" prefix(ui)` context from `index.tailwind.css`, and its `@apply ui:...` would error out immediately (`Cannot apply utility class 'ui:inline-flex' because the 'ui' variant does not exist`). The CSS is combined and compiled in the second entry instead. The per-file copies that would land in `dist/` are never used anyway — `exports` only points at `dist/index.tailwind.css` through the `"./css"` field.
 
-## `rslib.config.ts` `apps/producer`
+## `packages/ui` `postcss.config.mjs`
 
-- `const MF_PUBLIC_PATH = process.env.MF_PUBLIC_PATH || "/design-system/static/"` — URL prefix tempat aset (JS chunk, CSS) remote ini di-serve saat production. Bisa di-override lewat environment variable saat build/deploy, default `/design-system/static/` kalau env var nggak di-set.
-- `server: { port: 3001 }` — port dev server-nya sendiri. Begitu `bun run dev` di folder ini, `remoteEntry.js` bisa diakses di `http://localhost:3001/design-system/static/remoteEntry.js` — port-nya (`3001`, dari `server.port`) dan path-nya (`/design-system/static/...`, dari `MF_PUBLIC_PATH`/`assetPrefix`) dua hal beda yang digabung jadi satu URL. Catatan: `3000` nanti dipakai host (`duidtin-ui`), bukan `apps/producer`.
-- `source: { tsconfigPath: "./tsconfig.json" }` — eksplisit nunjuk tsconfig mana yang dipakai buat baca setting compile (JSX, path, dst).
-- `lib: [{ format: "mf", ... }]` — inti bedanya dari `packages/ui`:
-  - `format: "mf"` — beda dari `"esm"` di `packages/ui`. Format khusus yang, dikombinasikan dengan `pluginModuleFederation`, menghasilkan `remoteEntry.js` (bukan paket npm biasa).
-  - `dev.assetPrefix` dan `output.assetPrefix` — sama-sama pakai `MF_PUBLIC_PATH`, satu buat mode `dev` (server lokal), satu buat `output` (hasil build production). Keduanya harus konsisten supaya browser tahu ke mana harus fetch chunk-chunk komponennya.
-  - `output.distPath: "./dist/mf"` — hasil build masuk ke subfolder `dist/mf`, bukan langsung `dist/` (beda dari `packages/ui`), biar nggak campur kalau nanti ada output lain di `apps/producer`.
-- `pluginModuleFederation({...}, { target: "dual" })` — argumen pertama, config MF-nya sendiri:
-  - `name: "duidtin_ui_design_system"` — nama remote yang dipakai konsumen (nanti `duidtin-ui`) saat manggil `loadRemote("duidtin_ui_design_system/...")`. Harus pakai underscore, bukan strip — strip nggak valid dipakai sebagai nama variabel JavaScript, dan container MF secara default di-export lewat deklarasi `var <name> = {...}` di bundle-nya. Nama ini juga harus konsisten dengan yang di-daftarkan di registry host nanti.
-  - `manifest: true` — selain `remoteEntry.js`, ikut generate `mf-manifest.json` berisi daftar lengkap `exposes` dalam format JSON — berguna buat verifikasi/debug tanpa harus baca isi `remoteEntry.js` yang di-minify.
-  - `filename: "remoteEntry.js"` — nama file entry point yang di-fetch pertama kali sama konsumen.
-  - `exposes: { ...componentExposes, "./globals": "./src/styles/index.css" }` — daftar apa saja yang boleh diambil dari luar. `componentExposes` (dari `component-exposes.ts`) berisi peta komponen, ditambah satu entri manual `"./globals"` buat CSS-nya.
-  - `shared: { react: {...}, "react-dom": {...}, "react/jsx-runtime": {...} }` — ini yang paling gampang jadi sumber bug kalau salah: bilang ke Module Federation runtime supaya `react`/`react-dom` jangan di-bundle sendiri di dalam remote ini, tapi pakai instance yang sama dengan host. `singleton: true` maksa cuma ada 1 instance React aktif di seluruh halaman (kalau nggak di-share, bisa muncul error "Invalid hook call" karena dua React beda instance jalan bareng). `requiredVersion: false` berarti nggak strict soal versi persis harus sama.
-  - `{ target: "dual" }` (argumen kedua) — nentuin remote ini di-build supaya bisa dikonsumsi baik dari sisi client (browser) maupun server (kalau host-nya nanti pakai SSR).
-- `plugins: [pluginReact({ fastRefresh: false })]` — sama kayak di `packages/ui` (dukungan JSX/TSX), tapi `fastRefresh` sengaja dimatikan — fitur hot-reload komponen React biasanya nggak reliable dipakai bareng Module Federation, jadi dimatikan di sisi remote.
+It holds exactly one thing: the `@tailwindcss/postcss` plugin. Without this file, `rslib build` copies `@apply ui:...` verbatim into `dist/index.tailwind.css` and the consumer's browser ignores it — components render, but unstyled. Storybook is unaffected because it compiles Tailwind itself through `@tailwindcss/vite` in `.storybook/main.ts`, a completely different path from `rslib build`. That is why this bug only surfaced when `duidtin-ui-layout` started `loadRemote`-ing the components.
+
+## `apps/producer` `rslib.config.ts`
+
+- `const MF_PUBLIC_PATH = process.env.MF_PUBLIC_PATH || "/design-system/static/"` — the URL prefix where this remote's assets (JS chunks, CSS) are served from. The default is a relative path, which suits production where every remote shares one domain. During development it is deliberately overridden with an absolute URL through the `dev` script (`MF_PUBLIC_PATH=http://localhost:3001/design-system/static/ rslib mf-dev`) — because the consumer runs on a different port, and with a relative prefix the chunks would be looked for on the consumer's own origin (`localhost:3002/...`) and fail.
+- `dev: { hmr: false, liveReload: false }` — this remote is consumed by other apps, and the rsbuild dev client that gets injected into `remoteEntry.js` calls `location.reload()` on the **consumer's** page, not its own. The result is the host page reloading over and over with the remote components never getting a chance to render. Turned off: watch/rebuild still runs, there is just no auto-reload on the consumer side.
+- `server: { port: 3001 }` — the dev server's own port. Once `bun run dev` runs in this folder (`rslib mf-dev`, not `rslib build --watch` — the latter starts no HTTP server at all), `remoteEntry.js` is reachable at `http://localhost:3001/design-system/static/remoteEntry.js` — the port (`3001`, from `server.port`) and the path (`/design-system/static/...`, from `MF_PUBLIC_PATH`/`assetPrefix`) are two separate things combined into one URL. Note: `3000` is reserved for the host (`duidtin-ui`) later, not `apps/producer`.
+- `source: { tsconfigPath: "./tsconfig.json" }` — points explicitly at which tsconfig supplies the compile settings (JSX, paths, and so on).
+- `lib: [{ format: "mf", ... }]` — the core difference from `packages/ui`:
+  - `format: "mf"` — unlike `"esm"` in `packages/ui`. A dedicated format that, combined with `pluginModuleFederation`, produces `remoteEntry.js` rather than an ordinary npm package.
+  - `dev.assetPrefix` and `output.assetPrefix` — both use `MF_PUBLIC_PATH`, one for `dev` mode (the local server) and one for `output` (the production build). They must stay consistent so the browser knows where to fetch the component chunks from.
+  - `output.distPath: "./dist/mf"` — build output goes into the `dist/mf` subfolder rather than straight into `dist/` (unlike `packages/ui`), keeping it separate should `apps/producer` ever emit other output.
+- `pluginModuleFederation({...}, { target: "dual" })` — the first argument is the MF config itself:
+  - `name: "duidtin_ui_design_system"` — the remote name consumers (`duidtin-ui` later) use when calling `loadRemote("duidtin_ui_design_system/...")`. It must use underscores, not hyphens — a hyphen is not valid in a JavaScript variable name, and an MF container is exported by default through a `var <name> = {...}` declaration in its bundle. This name must also match what the host registry registers later.
+  - `manifest: true` — alongside `remoteEntry.js`, also generates `mf-manifest.json` listing every `exposes` entry in JSON — handy for verification/debugging without reading minified `remoteEntry.js`.
+  - `filename: "remoteEntry.js"` — the name of the entry-point file consumers fetch first.
+  - `exposes: { ...componentExposes, "./globals": "./src/styles/index.css" }` — the list of what outsiders may pull. `componentExposes` (from `component-exposes.ts`) holds the component map, plus one manual `"./globals"` entry for the CSS.
+  - `shared: { react: {...}, "react-dom": {...}, "react/jsx-runtime": {...} }` — the easiest source of bugs if you get it wrong: it tells the Module Federation runtime not to bundle `react`/`react-dom` inside this remote but to use the same instance as the host. `singleton: true` forces exactly one active React instance across the whole page (without sharing, you can hit "Invalid hook call" from two different React instances running side by side). `requiredVersion: false` means it is not strict about the versions matching exactly.
+  - `{ target: "dual" }` (the second argument) — builds this remote so it can be consumed from both the client (browser) and the server (should the host use SSR later).
+- `plugins: [pluginReact({ fastRefresh: false })]` — same as in `packages/ui` (JSX/TSX support), but `fastRefresh` is deliberately off — React's hot-reload feature is generally unreliable alongside Module Federation, so it is disabled on the remote side.
 
 ## `tsconfig.json` — root, `packages/ui`, `apps/producer`
 
-Ada 3 file, hubungannya lewat `"extends"` — bukan berdiri sendiri-sendiri.
+There are 3 files, related through `"extends"` rather than standing alone.
 
-- **Root** (`tsconfig.json`) — base config, isinya compiler options yang sama buat semua paket (`target`, `lib`, `module`, `moduleResolution`, `jsx`, `strict`, dst). Sengaja nggak punya `include`/`outDir`/`rootDir`, karena bukan dipakai buat compile langsung, cuma template yang di-*extend* paket lain. Kalau ada aturan baru yang mau berlaku ke semua paket, cukup diubah di sini sekali.
-- **`packages/ui/tsconfig.json`** dan **`apps/producer/tsconfig.json`** — sama-sama `"extends": "../../tsconfig.json"` (warisi semua rules dari root), lalu nambahin yang spesifik ke folder masing-masing: `outDir: "./dist"` (hasil compile taruh di `dist/` folder itu sendiri), `rootDir: "./src"` (struktur `dist/` ngikutin struktur `src/`), `include: ["src"]` (cuma berlaku ke file di `src/` folder itu, nggak nyasar baca file paket sebelah).
-- **`packages/ui/tsconfig.json`** juga punya `exclude: ["src/**/*.stories.tsx"]` — file Storybook nggak boleh ikut proses generate `.d.ts` (dijalankan `tsc` berdasar `tsconfig.json`, terpisah dari entry glob Rslib di `rslib.config.ts`). Awalnya cuma di-exclude dari `source.entry` Rslib, tapi itu cuma ngaruh ke bundling — `tsc` tetap baca `include: ["src"]` dan ikut masuk ke file story kalau nggak di-exclude juga di sini.
-- Dipisah per paket (bukan satu tsconfig buat semua) karena `outDir`/`rootDir`/`include` sifatnya relatif ke folder masing-masing — kalau digabung satu, hasil build antar paket bakal saling tabrakan lokasi output-nya.
+- **Root** (`tsconfig.json`) — the base config, holding the compiler options shared by every package (`target`, `lib`, `module`, `moduleResolution`, `jsx`, `strict`, and so on). It deliberately has no `include`/`outDir`/`rootDir`, because it is not used to compile anything directly — it is a template the other packages extend. A new rule meant to apply everywhere is changed here once.
+- **`packages/ui/tsconfig.json`** and **`apps/producer/tsconfig.json`** — both `"extends": "../../tsconfig.json"` (inheriting every rule from the root), then add what is specific to their folder: `outDir: "./dist"` (compile output lands in that folder's own `dist/`), `rootDir: "./src"` (the `dist/` structure mirrors `src/`), `include: ["src"]` (scoped to files in that folder's `src/`, so it doesn't wander into the neighbouring package).
+- **`packages/ui/tsconfig.json`** also carries `exclude: ["src/**/*.stories.tsx"]` — Storybook files must not take part in `.d.ts` generation (which `tsc` runs based on `tsconfig.json`, separate from Rslib's entry globs in `rslib.config.ts`). They were originally only excluded from Rslib's `source.entry`, but that only affects bundling — `tsc` still reads `include: ["src"]` and would pick up the story files unless they are excluded here too.
+- They are split per package (rather than one tsconfig for everything) because `outDir`/`rootDir`/`include` are relative to their own folder — merged into one, the packages' build outputs would collide.
 
-Dua kegunaan nyata tsconfig ini di repo:
-1. Script `check-types` (`tsc --noEmit`) — murni type-checking, cari error, nggak menghasilkan file apa pun.
-2. Dibaca Rslib lewat `source.tsconfigPath: "./tsconfig.json"` (ada di `apps/producer/rslib.config.ts`) — Rslib pakai ini buat tahu setting JSX, path, dst, dan juga buat generate file `.d.ts` (opsi `dts: true` di `packages/ui/rslib.config.ts`). Transpile JS-nya sendiri tetap dikerjakan Rslib/Rspack, bukan `tsc` — makanya ada `"isolatedModules": true` di root, syarat supaya tiap file bisa di-transpile satu-satu tanpa perlu tahu isi file lain.
+Two concrete uses for these tsconfigs in this repo:
+1. The `check-types` script (`tsc --noEmit`) — pure type-checking, hunting for errors, emitting no files.
+2. Read by Rslib through `source.tsconfigPath: "./tsconfig.json"` (in `apps/producer/rslib.config.ts`) — Rslib uses it to learn the JSX settings, paths, and so on, and also to generate `.d.ts` files (the `dts: true` option in `packages/ui/rslib.config.ts`). The JS transpilation itself is still done by Rslib/Rspack, not `tsc` — which is why `"isolatedModules": true` is set at the root, the requirement that lets each file be transpiled on its own without knowing the contents of the others.

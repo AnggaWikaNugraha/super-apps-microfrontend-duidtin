@@ -9,10 +9,12 @@
     }
   },
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "prebuild": "bun run scripts/generate-components.ts",
-    "dev": "bun run scripts/generate-components.ts && rslib build --watch",
+    "dev": "MF_PUBLIC_PATH=http://localhost:3001/design-system/static/ rslib mf-dev",
     "build": "rslib build",
     "check-types": "tsc --noEmit"
   },

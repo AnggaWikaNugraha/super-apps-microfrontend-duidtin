@@ -12,6 +12,15 @@ export default defineConfig({
   server: {
     port: 3001,
   },
+  // Remote ini dikonsumsi app lain (duidtin-ui-layout, nanti duidtin-ui). Dev client
+  // rsbuild yang ikut ke-inject di remoteEntry.js bakal manggil location.reload()
+  // di halaman KONSUMEN — hasilnya halaman host reload terus-terusan dan komponen
+  // remote nggak pernah sempat kerender. Dimatiin: rebuild tetap jalan (watch),
+  // cuma nggak ada auto-reload di sisi konsumen.
+  dev: {
+    hmr: false,
+    liveReload: false,
+  },
   source: {
     tsconfigPath: "./tsconfig.json",
   },
