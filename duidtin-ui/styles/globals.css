@@ -1,0 +1,27 @@
+/* Prefix `app` — dipisah dari `ui` (design-system) dan `lyt` (layout) supaya
+   utility class ketiganya nggak saling tabrakan waktu dirender bareng. */
+@import "tailwindcss" prefix(app);
+
+.app-page {
+  @apply app:flex app:flex-col app:gap-6;
+}
+
+.app-page__title {
+  @apply app:text-2xl app:font-semibold app:text-gray-900;
+}
+
+.app-page__lead {
+  @apply app:max-w-2xl app:text-sm app:text-gray-600;
+}
+
+.app-page__grid {
+  @apply app:grid app:gap-4 app:sm:grid-cols-2;
+}
+
+.app-page__stat-label {
+  @apply app:text-xs app:text-gray-500;
+}
+
+.app-page__stat-value {
+  @apply app:mt-1 app:text-2xl app:font-bold app:text-gray-900;
+}

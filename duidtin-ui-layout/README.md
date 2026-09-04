@@ -22,9 +22,9 @@ Done and verified working:
 - The header consumes `Button` & `Badge` from `duidtin_ui_design_system` through `loadRemote()` — the "a remote calling another remote" pattern is proven to actually render in a browser (not merely to build), styles included.
 - `styles/globals.css` exposed as `./globals`.
 - `pages/index.tsx` is a guard page, and `exposePages: false` keeps it from being exposed.
+- **Mounted by the real host.** `duidtin-ui` renders this layout through `loadRemote("duidtin_ui_layout/default")`, verified in a browser. That first mount is what uncovered item 8 under "Snags".
 
 Not done:
-- The host (`duidtin-ui`) — so this layout has never been mounted through the real path (`loadRemote("duidtin_ui_layout/default")` from a host).
 - Real auth/context bridging — `onLogout` & `userName` are still plain props, not wired to any provider.
 - i18n, deploy/container config.
 
@@ -191,7 +191,7 @@ Three distinct moments: `exposes`/`remotes` freeze at **build**, the remote entr
 
 ## Snags we hit (and why the fixes look like that)
 
-None of the seven below were in the original plan; all of them surfaced once this repo became the design system's first real consumer. Items 3-6 are fixed in the `duidtin-ui-design-system` repo, not here; item 7 is still open.
+None of the eight below were in the original plan. Items 1-7 surfaced once this repo became the design system's first real consumer; item 8 only surfaced once the `duidtin-ui` host made this repo a *consumed* remote for the first time. Items 3-6 are fixed in the `duidtin-ui-design-system` repo, not here; item 7 is still open.
 
 1. **`nextjs-mf` needs a local webpack.** The build died immediately: `process.env.NEXT_PRIVATE_LOCAL_WEBPACK is not set to true`. Fix: `npm install webpack` plus the env var prefixed onto the `dev`/`build` scripts — both, not either.
 
@@ -217,6 +217,24 @@ None of the seven below were in the original plan; all of them surfaced once thi
    - **Empty out `remotes` in `module-federation.config.mjs`** (to `{}`) so the runtime is the only thing registering it. This is the pattern the `qcash-ui` host uses. It is safe because this repo never statically `import()`s a remote module — everything goes through `loadRemote()`.
    - Or change `init({ remotes })` into `init({ name })` + `registerRemotes([...], { force: true })`, which overrides the old entry explicitly.
 
+8. **This repo's own chunks were fetched from the host's origin — the mirror image of item 4.** The moment `duidtin-ui` tried `loadRemote("duidtin_ui_layout/default")`, `remoteEntry.js` loaded fine but everything inside it died with:
+
+   ```
+   ChunkLoadError: Loading chunk __federation_expose_default failed.
+   (error: http://localhost:3000/layout/_next/static/chunks/__federation_expose_default.js)
+                           ^^^^ the HOST's port, not this repo's
+   ```
+
+   Cause: without an `assetPrefix`, webpack's `publicPath` is `auto`, which resolves relative to **the page currently open** — and that page belongs to the host (`:3000`), not to this repo (`:3002`). This is exactly the same failure the design system already fixed in item 4; this repo had it all along, but it was invisible because until now this repo had only ever been a *consumer*, never a *consumed* remote. Nothing loads its chunks cross-origin until a host exists.
+
+   Fix: `assetPrefix: process.env.MF_PUBLIC_PATH` in `next.config.mjs`, with `MF_PUBLIC_PATH=http://localhost:3002/layout` prefixed onto the `dev` script — the same shape as the design system's fix. Production is unaffected, since every remote shares one domain there and `basePath` is enough.
+
+   Diagnosing it was harder than it should have been: `nextjs-mf` injects an internal plugin whose `errorLoadRemote` logs only `"duidtin_ui_layout/default offline"` and swallows the error object. The real `ChunkLoadError` only appeared after the host's own `fallbackPlugin` was changed to log `error` too.
+
 ## Next steps
 
-Build the `duidtin-ui` host (port 3000): a remote registry + `federationInit()` + `loadRemote("duidtin_ui_layout/default")` to wrap every page, registering `duidtin_ui_design_system` in its own remotes at the same time. The full flow is laid out in the [root README](../README.md).
+The `duidtin-ui` host now exists and renders this layout for real, so the loop is closed. What remains here:
+
+- **Item 7 above is still open** — and it now matters more than before. The host registers `duidtin_ui_design_system` in its own remotes too, so a wrong build-time URL in this repo has a second path to bite in production.
+- Real auth/context bridging — `onLogout` and `userName` are still plain props, wired to nothing.
+- i18n and deploy/container config.

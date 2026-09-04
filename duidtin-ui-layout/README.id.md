@@ -22,9 +22,9 @@ Sudah ada dan sudah diverifikasi jalan:
 - Header konsumsi `Button` & `Badge` dari `duidtin_ui_design_system` lewat `loadRemote()` — pola "remote manggil remote lain" sudah kebukti kerender beneran di browser (bukan cuma build sukses), lengkap dengan style-nya.
 - `styles/globals.css` di-expose sebagai `./globals`.
 - `pages/index.tsx` halaman guard, `exposePages: false` — nggak ikut ke-expose.
+- **Sudah dipasang host beneran.** `duidtin-ui` render layout ini lewat `loadRemote("duidtin_ui_layout/default")`, diverifikasi di browser. Pemasangan pertama itu yang membongkar ganjalan poin 8 di bawah.
 
 Belum ada:
-- Host (`duidtin-ui`) — jadi layout ini belum pernah dipasang lewat jalur yang sebenarnya (`loadRemote("duidtin_ui_layout/default")` dari host).
 - Bridging auth/context beneran — `onLogout` & `userName` masih props biasa, belum nyantol ke provider apapun.
 - i18n, config deploy/container.
 
@@ -191,32 +191,34 @@ Tiga waktu yang beda: `exposes`/`remotes` beku pas **build**, entry remote didaf
 
 ## Ganjalan yang ketemu (dan kenapa fix-nya begitu)
 
-Tujuh hal berikut nggak ada di rencana awal, semuanya baru kelihatan waktu repo ini jadi konsumen nyata pertama design-system. Poin 3-6 fix-nya ada di repo `duidtin-ui-design-system`, bukan di sini; poin 7 masih terbuka.
+> Rincian lengkap poin 1-7 ada di [versi Inggris](README.md#snags-we-hit-and-why-the-fixes-look-like-that) — belum diterjemahkan. Ringkasannya:
+>
+> 1. `nextjs-mf` butuh webpack lokal (`NEXT_PRIVATE_LOCAL_WEBPACK=true` + install `webpack`, dua-duanya).
+> 2. `enhanced-resolve` ≥5.19 bikin build Next 14 crash — dipin `5.18.3` lewat `overrides`.
+> 3. `rslib build --watch` nggak nyalain HTTP server — diganti `rslib mf-dev` (fix di design-system).
+> 4. `assetPrefix` relatif bikin chunk design-system diminta ke origin konsumen (fix di design-system).
+> 5. Dev client rsbuild ke-bundle ke `remoteEntry.js` dan manggil `location.reload()` di halaman konsumen (fix di design-system).
+> 6. Tailwind nggak ke-compile pas `rslib build`, ketutup Storybook yang compile sendiri (fix di design-system).
+> 7. `remotes` runtime **nggak** nimpa yang build-time — **masih terbuka**.
 
-1. **`nextjs-mf` butuh webpack lokal.** Build langsung mati: `process.env.NEXT_PRIVATE_LOCAL_WEBPACK is not set to true`. Fix: `npm install webpack` + prefix env var di script `dev`/`build` — dua-duanya, bukan salah satu.
+8. **Chunk repo ini sendiri diminta ke origin host — kebalikan persis dari poin 4.** Begitu `duidtin-ui` manggil `loadRemote("duidtin_ui_layout/default")`, `remoteEntry.js` sukses dimuat tapi semua isinya mati dengan:
 
-2. **`enhanced-resolve` terlalu baru bikin build Next 14 crash.** Setelah webpack lokal dipasang, muncul `TypeError: _resolveContext_stack.delete is not a function`. Penyebabnya `enhanced-resolve` ≥5.19 ganti `resolveContext.stack` dari `Set` beneran jadi linked-list yang cuma mirip-`Set` (nggak punya `.delete`), padahal plugin internal Next masih manggil `.delete`. Fix: `overrides` di `package.json` pin ke `5.18.3`.
+   ```
+   ChunkLoadError: Loading chunk __federation_expose_default failed.
+   (error: http://localhost:3000/layout/_next/static/chunks/__federation_expose_default.js)
+                           ^^^^ port HOST, bukan port repo ini
+   ```
 
-3. **Remote-nya nggak ke-serve.** `apps/producer` di design-system dulu `dev`-nya `rslib build --watch` — itu cuma nulis ke `dist/`, nggak nyalain HTTP server, jadi `http://localhost:3001` nggak ada isinya. Fix (di design-system): ganti ke `rslib mf-dev`.
+   Penyebabnya: tanpa `assetPrefix`, `publicPath` webpack jadi `auto`, yang di-resolve relatif terhadap **halaman yang lagi dibuka** — dan halaman itu punya host (`:3000`), bukan punya repo ini (`:3002`). Ini kegagalan yang **kelasnya sama persis** dengan poin 4 yang sudah diperbaiki di design-system; repo ini sebenarnya kena sejak awal, cuma nggak kelihatan karena sampai sekarang repo ini cuma pernah jadi **konsumen**, belum pernah jadi remote yang **dikonsumsi**. Nggak ada yang narik chunk-nya lintas origin selama host belum ada.
 
-4. **Chunk remote di-fetch ke origin yang salah.** `assetPrefix` design-system isinya path relatif (`/design-system/static/`), jadi pas dikonsumsi dari `localhost:3002` chunk-nya dicari di `localhost:3002/design-system/static/...` → `ChunkLoadError`. Fix (di design-system): pas dev, `MF_PUBLIC_PATH` diisi URL absolut (`http://localhost:3001/design-system/static/`). Di production nggak masalah karena semua remote satu domain.
+   Fix: `assetPrefix: process.env.MF_PUBLIC_PATH` di `next.config.mjs`, plus `MF_PUBLIC_PATH=http://localhost:3002/layout` di depan script `dev` — bentuknya sama dengan fix design-system. Production nggak kena: di sana semua remote satu domain dan `basePath` sudah cukup.
 
-5. **Halaman host reload terus-terusan.** Dev client rsbuild ikut ke-bundle di `remoteEntry.js`, dan begitu di-load dia manggil `location.reload()` di halaman **konsumen** — halaman ini reload berulang dan komponen remote nggak pernah sempat kerender. Fix (di design-system): `dev: { hmr: false, liveReload: false }` di `rslib.config.ts` producer.
-
-6. **Komponen remote kerender tapi polos, tanpa style.** `dist/index.tailwind.css` punya design-system ternyata isinya masih `@apply ui:...` mentah — Tailwind-nya nggak pernah dikompilasi pas `rslib build`, cuma di-copy apa adanya. Selama ini ke-tutupan Storybook yang compile Tailwind-nya sendiri lewat `@tailwindcss/vite`, jadi komponennya kelihatan bener di Storybook padahal CSS yang dipublish rusak. Fix (di design-system): tambah `postcss.config.mjs` di `packages/ui` + kecualiin file `.css` dari entry `bundle: false`.
-
-7. **`remotes` runtime ternyata NGGAK nimpa yang build-time — masih terbuka.** `module-federation.config.mjs` daftarin `duidtin_ui_design_system` ke `http://localhost:3001/...` (hardcode), dan `pages/_app.tsx` daftarin nama yang sama ke hasil `getBaseFederationUrl()`. Asumsinya yang runtime menang. Yang beneran terjadi kebalikannya:
-
-   - URL build-time ke-inline ke webpack runtime chunk dan didaftarkan pas bootstrap, **sebelum** modul `_app.tsx` dieksekusi.
-   - `init()` di `_app.tsx` pakai `name` yang sama, jadi runtime **pakai ulang instance yang sudah ada** (`getGlobalFederationInstance`) — bukan bikin baru.
-   - Merge remote-nya lewat `formatAndRegisterRemote(...)` yang manggil `registerRemote(remote, res, { force: false })`. Kalau nama remote sudah kedaftar dan `force` nggak diset, entry baru **dibuang diam-diam** — nggak ada warning sama sekali (pesan warning-nya cuma dipanggil di cabang `force: true`).
-
-   Efeknya: di production `duidtin-ui-layout` bakal nyari design-system di `http://localhost:3001` dan gagal. Sekarang belum kelihatan karena baru dijalanin di dev lokal — di situ `getBaseFederationUrl()` kebetulan mengembalikan `http://localhost:3001` juga, persis sama dengan yang build-time, jadi salah-benarnya nggak kebedain.
-
-   Dua opsi fix (belum diterapkan):
-   - **Kosongkan `remotes` di `module-federation.config.mjs`** (jadi `{}`), biar runtime satu-satunya yang daftarin. Ini pola yang dipakai host `qcash-ui`. Aman karena repo ini nggak pernah `import()` modul remote secara statis — semua lewat `loadRemote()`.
-   - Atau ganti `init({ remotes })` jadi `init({ name })` + `registerRemotes([...], { force: true })`, yang eksplisit nimpa entry lama.
+   Mendiagnosisnya lebih susah dari seharusnya: `nextjs-mf` nyuntik plugin internal yang `errorLoadRemote`-nya cuma nge-log `"duidtin_ui_layout/default offline"` dan menelan objek error-nya. `ChunkLoadError` aslinya baru kelihatan setelah `fallbackPlugin` di host diubah supaya ikut nge-log `error`.
 
 ## Langkah berikutnya
 
-Bikin host `duidtin-ui` (port 3000): registry remote + `federationInit()` + `loadRemote("duidtin_ui_layout/default")` buat bungkus tiap halaman, sekaligus daftarin `duidtin_ui_design_system` di remotes-nya sendiri. Alur lengkapnya sudah dijabarin di [README root](../README.id.md).
+Host `duidtin-ui` sudah ada dan sudah render layout ini beneran, jadi lingkarannya nutup. Yang tersisa di repo ini:
+
+- **Poin 7 di atas masih terbuka** — dan sekarang taruhannya lebih besar. Host juga mendaftarkan `duidtin_ui_design_system` di remotes-nya sendiri, jadi URL build-time yang salah di repo ini punya jalur kedua buat menggigit di production.
+- Bridging auth/context beneran — `onLogout` & `userName` masih props kosong, belum nyantol ke apapun.
+- i18n dan config deploy/container.
