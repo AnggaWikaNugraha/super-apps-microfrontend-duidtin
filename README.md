@@ -4,22 +4,6 @@
 
 A Module Federation-based microfrontend super-app.
 
-The parts:
-
-- **`duidtin-ui/`** (port 3000) — the host: shell, routing, consumer of every remote. Working.
-- **`duidtin-ui-design-system/`** (port 3001) — global components & styles, exposed as a Module Federation remote. 13 components, working.
-- **`duidtin-ui-layout/`** (port 3002) — header/footer, the shared layout wrapped around every page. Working, and proven in both directions: it consumes the design system, and the host consumes it.
-
-Implementation details for each part live in that folder's own README. This document focuses on the overall architecture flow.
-
-## Status
-
-All three now compose into a single page, **verified in a browser** rather than merely building: `localhost:3000` shows the header and footer from `duidtin-ui-layout` wrapping host content, with `duidtin-ui-design-system` components pulled in through **two paths at once** — host → design system directly, and host → layout → design system.
-
-React stays a **single instance** across all three repos. Concrete evidence: a button loaded through the layout and a button loaded directly by the host share the same React Aria ID prefix — had React been duplicated, the prefixes would differ.
-
-Not there yet: **the first feature remote**. The host's `featureRegistry` is still empty, so section 4 (render) below is exercised only by the layout, and section 3 (per-page preload) is fully scaffolded but nothing runs through it.
-
 ### Running it
 
 Three terminals, remotes before the host:
@@ -36,78 +20,134 @@ If a remote isn't running the page still renders — the failed part is swapped 
 
 ## Architecture flow
 
+Diagrams of the five phases. The explanation of each function — parameters, return values, and example data — lives in the [`duidtin-ui` README](duidtin-ui/README.md#architecture-flow).
+
 ### 1. Build time
 
 ```
 next.config.mjs (duidtin-ui)
-  └─▶ federation plugin registered
-        remotes: {}   ← deliberately empty, resolved at runtime rather than build time
-        exposes: {}   ← the host is only a consumer, never a remote for other repos
+  └─▶ NextFederationPlugin({ ...federationConfig })
+        name     : "duidtin_ui"
+        filename : "static/chunks/remoteEntry.js"
+        remotes  : {}    ← deliberately empty, resolved at runtime not build time
+        exposes  : {}    ← the host is only a consumer, never a remote
+        shared   : {}    ← nextjs-mf auto-shares react/react-dom/next
 ```
 
 ### 2. Boot
 
 ```
-pages/_app.tsx (top level, before anything renders)
-  └─▶ federationInit()                          [services/federation/init.ts]
-        ├─▶ getAllFeatures()                     [services/federation/utils/registry.ts] → every remote: global + per-feature
-        ├─▶ getModuleEntry(name)                  [services/federation/utils/module-entry.ts] → each remote → environment URL
-        ├─▶ init({ name, remotes, plugins })       → register every remote with the MF runtime (nothing fetched yet)
-        ├─▶ window.__FEDERATION_LOADED = true
-        └─▶ dynamicLoadStyles(globalFeatures)       [services/federation/utils/loader.ts] → loadRemote(name + "/globals")
-                                                       (design-system, layout — prevents a flash of unstyled content)
+pages/_app.tsx  (top level, client only, before React renders anything)
+  └─▶ federationInit()                                   → Promise<void>
+        │
+        ├─  guard  window.__FEDERATION_LOADED            → return if already true
+        │
+        ├─▶ getAllFeatures()                             → FeatureMetadata[]
+        │     [...globalFeatures, ...Object.values(featureRegistry)]
+        │     → [{ name, entryPath, devOrigin, routes }, …]
+        │
+        ├─▶ getModuleEntry(name)                         → string
+        │     ├─▶ getFeatureByName(name)                 → FeatureMetadata | undefined
+        │     └─▶ getFeatureEntryUrl(feature)            → string
+        │           └─▶ getBaseFederationUrl(devOrigin)  → string
+        │                 !window       → devOrigin
+        │                 localhost     → devOrigin
+        │                 anything else → window.location.origin
+        │     → "http://localhost:3002/layout/_next/static/chunks/remoteEntry.js"
+        │
+        ├─▶ init({ name, remotes, plugins })             → FederationHost
+        │     remotes : [{ name, entry }, …]
+        │     plugins : [ RetryPlugin({ retryTimes: 3, retryDelay: 1000 }),
+        │                 fallbackPlugin() ]
+        │     → registered with the MF runtime, ZERO bytes fetched
+        │
+        ├─  window.__FEDERATION_LOADED = true            → boolean
+        │
+        └─▶ getGlobalFeatures().map(dynamicLoadStyles)   → Promise<boolean>[]
+              └─▶ loadRemote(name + "/globals")          → Promise<unknown>
+                    GET :3001/design-system/static/remoteEntry.js?t=…
+                    GET :3002/layout/_next/static/chunks/remoteEntry.js?t=…
+                    GET :3001/design-system/static/__federation_expose_globals.css
+                    GET :3001/design-system/static/__federation_expose_globals.js
+                    GET :3002/layout/_next/static/chunks/__federation_expose_globals.js
 ```
 
 ### 3. Per-page preload
 
 ```
-provider.tsx useEffect
-  └─▶ waitForFederation()                         [components/federation/provider.tsx]
-  └─▶ loadModulesByRoute(router.pathname)          [components/federation/hooks/useModuleLoading.ts]
-        ├─▶ getModulesForRoute(route)              [utils/registry.ts] → filters featureRegistry, WITHOUT globalFeatures
-        └─▶ for EACH matching module:
-              └─▶ loadModule(moduleName)             [hooks/useModuleLoading.ts]
-                    └─▶ dynamicLoadStyles(moduleName) [utils/loader.ts] → loadRemote(name + "/globals")
-                                                         (warms the container up, does NOT render yet)
+<ModuleFederationProvider>                               → JSX.Element
+  │                                                        <RemoteErrorBoundary>{children}</…>
+  ├─▶ useRouter()                                        → NextRouter
+  ├─▶ useModuleLoading()                                 → { loadModulesByRoute, moduleStatus }
+  │     ├─ useState<Record<string, ModuleStatus>>        → moduleStatus
+  │     └─ useRef<Set<string>>                           → requestedRef
+  ├─  useState<string | null>                            → loadedForPath
+  │
+  └─▶ useEffect  [router.pathname changes]
+        ├─  guard  loadedForPath === pathname            → return
+        ├─  guard  isStale (cleanup)                     → return if the route changed meanwhile
+        │
+        ├─▶ waitForFederation(5000, 200)                 → Promise<boolean>
+        │     polls window.__FEDERATION_LOADED every 200ms, gives up after 5 seconds
+        │
+        └─▶ loadModulesByRoute(route)                    → void
+              │
+              ├─▶ getModulesForRoute(route)              → string[]
+              │     Object.values(featureRegistry)       → FeatureMetadata[]   (WITHOUT globalFeatures)
+              │       .filter(f => f.routes.some(…))     → FeatureMetadata[]
+              │       .map(f => f.name)                  → string[]
+              │     └─▶ isRouteMatch(pattern, route, matchType) → boolean
+              │           "exact"  → route === pattern
+              │           "prefix" → route === pattern || route.startsWith(pattern + "/")
+              │
+              └─▶ loadModule(name)                       → Promise<void>   (void, all in parallel)
+                    ├─  guard  requestedRef.has(name)    → return
+                    ├─  requestedRef  Set {} → Set { name }
+                    ├─  moduleStatus  {} → { name: "loading" }
+                    ├─▶ dynamicLoadStyles(name)          → Promise<boolean>
+                    │     └─▶ loadRemote(name + "/globals") → Promise<unknown>
+                    └─  moduleStatus  → { name: "loaded" | "error" }
 ```
-
-`getModulesForRoute()` deliberately excludes `globalFeatures` — those were loaded unconditionally in section 2 and need no route matching.
-
-> While `featureRegistry` is empty this section is **always a no-op**. The scaffolding is deliberate, so adding the first feature remote is one registry entry. `loadLocalesForModule()` (i18n) has no equivalent here yet.
 
 ### 4. The actual render
 
 ```
 pages/<feature>/<sub-page>/index.tsx
-  └─▶ loadRemote("<remote-name>/<sub-page>")        → fetch the component's JS chunk + RENDER
-  └─▶ loadRemote("duidtin_ui_layout/default")         → the layout, a separate remote, wraps the content
+  └─▶ _app.tsx  Component.getLayout(<Page />)            → ReactNode
+        │          fallback: (page) => page
+        │
+        └─▶ <DefaultLayout>   ← remoteComponent("duidtin_ui_layout/default")
+              │
+              │  remoteComponent(path, pick?)            → ComponentType
+              │    called at IMPORT time → zero fetches
+              │    loader runs at MOUNT  → only then it fetches
+              │
+              ├─▶ loadRemote("duidtin_ui_layout/default")   → Promise<unknown>
+              │     → keys ["default"]
+              │     GET :3002/layout/_next/.../__federation_expose_default.js
+              │
+              └─▶ <Page />
+                    ├─▶ loadRemote(".../components/card")   → keys ["Card", "default"]
+                    │     pick → mod.Card.Header | mod.Card.Body
+                    └─▶ loadRemote(".../components/button") → keys ["Button", "default"]
+                          GET :3001/design-system/static/__federation_expose_components__card.js
+                          GET :3001/design-system/static/__federation_expose_components__button.js
+
+  all of it goes through dynamic(loader, { ssr: false })  → a Loadable component
 ```
-
-This is what genuinely puts components on screen, and it is entirely independent of the registry — written by hand, one file per page, through the `getLayout` pattern. `ssr: false` is mandatory: the module is fetched at runtime from another origin and does not exist while Next prerenders on the server.
-
-Today it is exercised only by the layout (`pages/index.tsx`), because no feature remote exists yet.
 
 ### 5. Error handling
 
 ```
-RetryPlugin          → script fetch failed (network) → retry 3×, 1 second apart
-fallbackPlugin        → errorLoadRemote hook, after retries are exhausted → swap the module for a fallback component
-RemoteErrorBoundary   → a React error boundary wrapping {children} → module loaded fine but CRASHED while rendering
+script fetch fails (network)
+  └─▶ RetryPlugin                      retry 3×, 1 second apart
+        └─ still failing
+             └─▶ fallbackPlugin        errorLoadRemote({ id, error }) hook
+                   → { default: () => <Fallback moduleId={id} /> }
+                      ▲ the SAME shape as a successful module, so next/dynamic
+                        needs to know nothing about failure
+
+module loaded SUCCESSFULLY, then CRASHES while rendering
+  └─▶ RemoteErrorBoundary              getDerivedStateFromError(error)
+        → state { error } → replacement UI
 ```
-
-The first two layers are about failing to **LOAD**; the third is about a module that loaded successfully and then **crashed while rendering** — a case that never reaches the `errorLoadRemote` hook.
-
-## Cross-repo snags already hit
-
-Two failures with **exactly the same root cause**, found at two different moments — worth remembering because it will recur with every new remote:
-
-| | Found when | Remote at fault | Symptom |
-|---|---|---|---|
-| 1 | the layout started consuming the design system | `duidtin-ui-design-system` | chunks requested from `:3002` (the layout's origin) |
-| 2 | the host started consuming the layout | `duidtin-ui-layout` | chunks requested from `:3000` (the host's origin) |
-
-Both: webpack's `publicPath` was `auto`, which resolves relative to **the page currently open**, not to the remote's own origin. `remoteEntry.js` loads fine, but the chunks inside it 404.
-
-**The rule for every new remote:** during dev, `assetPrefix` (or `MF_PUBLIC_PATH`) **must be an absolute URL pointing at that remote's own origin**. Production doesn't need it — every remote shares one domain there and `basePath` is enough.
-
-This bug is invisible from inside the remote's own repo: it only appears once some OTHER repo consumes it across origins.
