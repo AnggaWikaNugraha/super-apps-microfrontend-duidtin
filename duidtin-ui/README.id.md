@@ -456,11 +456,36 @@ Dia **tidak me-render satu pun komponen remote**. `children` diteruskan apa adan
 }
 ```
 
-Tapi perhatikan cara provider memakainya:
+##### Membaca baris `const { loadModulesByRoute } = useModuleLoading();`
+
+Baris ini sering bikin bingung karena dua hal terjadi sekaligus: **memanggil hook**, lalu **membongkar objek hasilnya**. Kalau dipecah jadi dua langkah:
+
+```ts
+// LANGKAH 1 — panggil hook, tampung hasilnya utuh
+const hasil = useModuleLoading();
+
+// `hasil` sekarang berisi:
+// {
+//   loadModulesByRoute: ƒ (route) => void,
+//   moduleStatus:       {},
+// }
+
+// LANGKAH 2 — ambil satu properti jadi variabel sendiri
+const loadModulesByRoute = hasil.loadModulesByRoute;
+```
+
+Dua langkah itu bisa ditulis jadi satu baris pakai **object destructuring**:
 
 ```ts
 const { loadModulesByRoute } = useModuleLoading();
-//      ^^^^^^^^^^^^^^^^^^ hanya ini yang diambil
+//      ^^^^^^^^^^^^^^^^^^
+//      nama di dalam kurung kurawal HARUS sama dengan nama properti di objeknya
+```
+
+Kalau ingin mengambil dua-duanya sekaligus, tinggal tambah koma:
+
+```ts
+const { loadModulesByRoute, moduleStatus } = useModuleLoading();
 ```
 
 **`moduleStatus` dipulangkan tapi tidak pernah di-destructure.** Sekarang dia benar-benar data mati — tidak ada UI yang membacanya. Sengaja disiapkan supaya indikator loading atau retry manual bisa ditambahkan nanti tanpa menyentuh jalur loading-nya.
@@ -710,6 +735,77 @@ if (process.env.NODE_ENV === "development") {
 
 Yang di-fetch juga sama: `remoteEntry.js` dulu, lalu chunk `globals`-nya. Yang **belum** di-fetch di fase ini adalah JS chunk komponen halamannya — itu baru terjadi di FASE 3.
 
+#### Contoh utuh — satu navigasi, nilai di tiap langkah
+
+Menyambungkan keempat fungsi tadi dalam satu alur. Contoh ini memakai feature remote **hipotetis** `duidtin_ui_transaksi` di port 3003 — belum ada di repo, tapi begitulah bentuknya nanti.
+
+```
+Pengguna klik link ke /transaksi
+│
+│  router.pathname berubah: "/" → "/transaksi"
+▼
+useEffect jalan
+│
+├─ penjaga: loadedForPath ("/") !== "/transaksi"  → lanjut
+│
+├─▶ waitForFederation()
+│      parameter : ()  — pakai default (5000, 200)
+│      return    : true                      ← flag menyala sejak FASE 1
+│
+└─▶ loadModulesByRoute("/transaksi")
+      parameter : "/transaksi"
+      return    : undefined                  ← void
+      │
+      ├─▶ getModulesForRoute("/transaksi")
+      │      parameter : "/transaksi"
+      │      return    : ["duidtin_ui_transaksi"]
+      │      │
+      │      └─ di dalamnya, untuk tiap entry featureRegistry:
+      │            isRouteMatch("/transaksi", "/transaksi", "prefix")
+      │              parameter : (pattern, route, matchType)
+      │              return    : true
+      │
+      └─ for (const name of ["duidtin_ui_transaksi"]) …
+           │
+           └─▶ loadModule("duidtin_ui_transaksi")     ← void, tidak ditunggu
+                 parameter : "duidtin_ui_transaksi"
+                 return    : Promise<void>
+                 │
+                 ├─ requestedRef : Set {} → Set { "duidtin_ui_transaksi" }
+                 ├─ moduleStatus : {} → { "duidtin_ui_transaksi": "loading" }
+                 │
+                 └─▶ dynamicLoadStyles("duidtin_ui_transaksi")
+                       parameter : "duidtin_ui_transaksi"
+                       return    : Promise<boolean> → true
+                       │
+                       └─▶ loadRemote("duidtin_ui_transaksi/globals")
+                             parameter : "duidtin_ui_transaksi/globals"
+                             return    : Promise<unknown> → modul CSS
+                             │
+                             └─ JARINGAN (2 request, selalu):
+                                GET :3003/transaksi/_next/static/chunks/remoteEntry.js
+                                GET :3003/transaksi/_next/static/chunks/__federation_expose_globals.js
+                 │
+                 ├─ moduleStatus : → { "duidtin_ui_transaksi": "loaded" }
+                 └─ console      : [MFE] FASE 2 warm-up "duidtin_ui_transaksi" → ok
+      │
+      ▼
+   setLoadedForPath("/transaksi")   ← supaya render berikutnya tidak mengulang
+```
+
+Perhatikan bentuk datanya berubah di tiap turun satu tingkat:
+
+| Tingkat | Nilainya | Tipe |
+|---|---|---|
+| pemicu | `"/transaksi"` | `string` |
+| `getModulesForRoute` | `["duidtin_ui_transaksi"]` | `string[]` |
+| `loadModule` | `"duidtin_ui_transaksi"` | `string` |
+| `dynamicLoadStyles` | `"duidtin_ui_transaksi"` | `string` |
+| `loadRemote` | `"duidtin_ui_transaksi/globals"` | `string` ← `"/globals"` ditempel di sini |
+| jaringan | 2 URL | request HTTP |
+
+Satu route (`string`) berubah jadi daftar nama (`string[]`), lalu tiap nama diproses satu-satu sampai jadi request HTTP. Sufiks `"/globals"` baru ditempelkan di langkah paling akhir, di dalam `dynamicLoadStyles`.
+
 #### Bukti fase ini benar-benar jalan — dan benar-benar opsional
 
 Diuji dengan mendaftarkan `duidtin_ui_layout` sementara di `featureRegistry` dengan `routes: ["/uji"]`:
@@ -740,19 +836,229 @@ Baris pertama itu intinya: di `/` fase ini **sama sekali tidak jalan**, tapi lay
 
 ### FASE 3 — Render sebenarnya (`pages/index.tsx`)
 
-Ini yang **beneran** naruh komponen ke layar, dan dia **total independen dari `registry.ts`** — ditulis manual per file halaman.
-
-```tsx
-const DefaultLayout = dynamic(() => loadRemote("duidtin_ui_layout/default"), { ssr: false });
-
-HomePage.getLayout = (page) => <DefaultLayout>{page}</DefaultLayout>;
+```
+Browser buka "/"
+  └─▶ Next routing → pages/index.tsx
+        └─▶ _app.tsx
+              └─▶ Component.getLayout(<HomePage />)          → ReactNode
+                    └─▶ <DefaultLayout>                       ← komponen hasil remoteComponent()
+                          │
+                          ├─ (saat MOUNT) loader jalan:
+                          │     loadRemote("duidtin_ui_layout/default")  → Promise<unknown>
+                          │       → { default: ƒ }
+                          │     dinormalkan jadi { default: ComponentType }
+                          │
+                          └─▶ <HomePage />  di dalamnya ada <Card> <Button>
+                                └─ tiap komponen remote mount → loader-nya sendiri jalan
 ```
 
-Aturan mainnya:
+Ini fase yang **beneran naruh komponen ke layar**, dan dia **total independen dari `registry.ts`** — string-nya ditulis manual per file halaman.
 
-- **`ssr: false` wajib** — modulnya di-fetch runtime dari origin lain, nggak ada wujudnya waktu Next prerender di server.
-- **Layout ikut jadi remote**, dimuat terpisah di tiap halaman lewat pola `getLayout`.
-- **Nggak di-generate otomatis** dari registry. Nambah sub-halaman baru = ubah 2 repo: `exposes` baru di remote-nya + file page baru di sini.
+#### 1. `remoteComponent(path, pick?)` → `ComponentType`
+
+Pabrik komponen. Semua jembatan ke remote dibuat lewat fungsi ini.
+
+| | |
+|---|---|
+| **Parameter 1** | `path: string` — `"duidtin_ui_layout/default"` |
+| **Parameter 2** | `pick?: (mod) => ComponentType` — opsional, lihat bagian 3 |
+| **Memulangkan** | komponen React (hasil `next/dynamic`), **bukan** promise |
+
+```ts
+// masukan:  "duidtin_ui_layout/default"
+// keluaran: komponen React yang siap dipakai sebagai <DefaultLayout />
+export const DefaultLayout = remoteComponent<DefaultLayoutProps>("duidtin_ui_layout/default");
+```
+
+##### Kapan `loadRemote` sebenarnya jalan — ini yang sering salah dikira
+
+Baris `export const DefaultLayout = remoteComponent(...)` jalan **saat modul di-import**, yaitu segera setelah bundle dimuat. Tapi **`loadRemote` di dalamnya BELUM jalan saat itu.**
+
+```
+saat modul di-import          remoteComponent() dipanggil
+                              → dynamic() dipanggil
+                              → dapat komponen Loadable
+                              → loadRemote BELUM jalan, nol fetch
+
+saat komponen di-MOUNT        loader dijalankan next/dynamic
+  (<DefaultLayout /> dirender)  → loadRemote("duidtin_ui_layout/default")
+                                → fetch chunk komponennya
+                                → komponen asli menggantikan placeholder
+```
+
+Jadi mendefinisikan 20 jembatan remote di satu file tidak memicu 20 fetch. Yang dirender saja yang di-fetch.
+
+#### 2. `loadRemote(path)` → `Promise<unknown>`
+
+| | |
+|---|---|
+| **Parameter** | `path: string` — `"<nama-container>/<key exposes tanpa './'>"` |
+| **Memulangkan** | modul mentah — **bentuknya beda-beda tiap remote** |
+
+Ini bentuk aslinya, direkam dari runtime:
+
+```ts
+// masukan:  "duidtin_ui_layout/default"
+// keluaran: keys ["default"]                 typeof default = "function"
+
+// masukan:  "duidtin_ui_design_system/components/button"
+// keluaran: keys ["Button", "default"]       typeof default = "function"
+
+// masukan:  "duidtin_ui_design_system/components/card"
+// keluaran: keys ["Card", "default"]         typeof default = "function"
+```
+
+Design-system mengekspor **named DAN default** untuk tiap komponen:
+
+```ts
+// duidtin-ui-design-system/apps/producer/src/components/button.ts
+export { Button } from "@duidtin/ui";
+export { Button as default } from "@duidtin/ui";
+```
+
+sedangkan layout cuma punya `default`. Bentuk yang berbeda inilah yang harus diseragamkan sebelum diserahkan ke `next/dynamic`.
+
+#### 3. `pick(mod)` → `ComponentType` — kenapa perlu
+
+`next/dynamic` mensyaratkan modul berbentuk `{ default: Component }`. Tanpa `pick`, jembatan mengambil `mod.default`. Tapi ada kasus yang tidak bisa dilayani `default`.
+
+`Card` adalah **compound component** — punya sub-komponen sebagai properti:
+
+```ts
+export const Card = Object.assign(Root, { Root, Header, Body, Footer });
+```
+
+Masalahnya: **`next/dynamic` membungkus modul jadi komponen Loadable, dan properti statis tidak ikut terbawa.** Jadi `Card.Header` hilang kalau diambil lewat `default`. Solusinya memuat expose yang sama dengan `pick` berbeda:
+
+```ts
+// tanpa pick → ambil mod.default
+export const Card = remoteComponent<CardProps>(`${DESIGN_SYSTEM}/components/card`);
+
+// dengan pick → ambil anggota lain dari modul yang SAMA
+export const CardHeader = remoteComponent<CardSectionProps>(
+  `${DESIGN_SYSTEM}/components/card`,
+  (mod) => (mod as unknown as CardModule).Card.Header,
+);
+```
+
+```ts
+// masukan pick:  { Card: ƒ (punya .Header, .Body, .Footer), default: ƒ }
+// keluaran pick: ƒ Header
+```
+
+Konsekuensinya terlihat di runtime: `loadRemote(".../components/card")` terpanggil **3×** dalam satu halaman (`Card`, `CardHeader`, `CardBody`). Bukan 3× fetch — MF meng-cache container dan chunk-nya, jadi dua panggilan berikutnya dilayani dari memori.
+
+#### 4. `dynamic(loader, { ssr: false })` → komponen Loadable
+
+| | |
+|---|---|
+| **Parameter 1** | fungsi loader yang memulangkan `Promise<{ default: ComponentType }>` |
+| **Parameter 2** | `{ ssr: false }` |
+| **Memulangkan** | komponen React yang bisa langsung dipakai di JSX |
+
+**`ssr: false` wajib, bukan pilihan.** Modulnya di-fetch runtime dari origin lain; saat Next melakukan prerender di server, remote itu belum ada wujudnya. Tanpa `ssr: false`, build gagal atau hidrasi tidak cocok.
+
+#### 5. `HomePage.getLayout(page)` → `ReactNode`
+
+Properti yang ditempel ke komponen halaman — bukan prop React, melainkan properti fungsi JavaScript biasa.
+
+| | |
+|---|---|
+| **Parameter** | `page: ReactElement` — elemen halamannya sendiri |
+| **Memulangkan** | halaman yang sudah dibungkus layout |
+
+```tsx
+// masukan:  <HomePage />
+// keluaran:
+<DefaultLayout activePath="/" userName="Angga" onLogout={...}>
+  <HomePage />
+</DefaultLayout>
+```
+
+Lalu `_app.tsx` yang memanggilnya:
+
+```tsx
+const getLayout = Component.getLayout ?? ((page: ReactElement) => page);
+//                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//                                        default: kembalikan apa adanya
+return <ModuleFederationProvider>{getLayout(<Component {...pageProps} />)}</ModuleFederationProvider>;
+```
+
+**Kenapa pola ini perlu di host MFE.** Layout-nya sendiri remote. Kalau dibungkus langsung di `_app.tsx`, halaman yang tidak butuh layout (login, error) ikut menunggu remote layout dimuat. Dengan `getLayout`, tiap halaman menentukan sendiri — halaman tanpa `getLayout` otomatis memakai fungsi identitas dan tidak memuat layout sama sekali.
+
+#### Contoh utuh — buka `/`, dari URL sampai DOM
+
+```
+Browser buka http://localhost:3000/
+│
+├─ Next cocokkan URL → pages/index.tsx
+│
+├─▶ _app.tsx
+│     Component            = HomePage
+│     Component.getLayout  ada → dipakai
+│     hasil: <ModuleFederationProvider>
+│              <DefaultLayout …><HomePage /></DefaultLayout>
+│            </ModuleFederationProvider>
+│
+├─▶ <DefaultLayout> MOUNT
+│     └─▶ loadRemote("duidtin_ui_layout/default")
+│           keluaran : { default: ƒ }
+│           JARINGAN : GET :3002/layout/_next/.../__federation_expose_default.js
+│           → placeholder diganti komponen asli
+│
+└─▶ <HomePage /> dirender di dalamnya
+      ├─▶ <Card> MOUNT     → loadRemote(".../components/card")   → { Card, default }
+      ├─▶ <CardHeader>     → modul SAMA, dari cache, pick .Card.Header
+      ├─▶ <CardBody>       → modul SAMA, dari cache, pick .Card.Body
+      └─▶ <Button> MOUNT   → loadRemote(".../components/button") → { Button, default }
+            JARINGAN : GET :3001/design-system/static/__federation_expose_components__card.js
+                       GET :3001/design-system/static/__federation_expose_components__button.js
+```
+
+DOM yang dihasilkan — ketiga repo bercampur dalam satu pohon:
+
+```html
+<div class="lyt-layout">                          <!-- duidtin_ui_layout -->
+  <header class="lyt-header">
+    <span class="ui-badge ui-badge--soft" …>      <!-- design-system LEWAT layout -->
+    <button class="ui-button …" id="react-aria9439377283-:r2:">Keluar</button>
+  </header>
+  <main class="lyt-layout__main">
+    <div class="app-page">                        <!-- host sendiri -->
+      <div class="ui-card ui-card--elevated" …>   <!-- design-system LANGSUNG ke host -->
+      <button class="ui-button …" id="react-aria9439377283-:r6:">Buat Transaksi</button>
+    </div>
+  </main>
+</div>
+```
+
+Perhatikan dua `id` React Aria itu: `:r2:` dimuat lewat layout, `:r6:` dimuat langsung host, tapi **prefiksnya sama** (`react-aria9439377283`). Kalau React kedobelan, prefiksnya akan berbeda. Ini bukti mekanis bahwa share scope-nya benar.
+
+#### Yang di-fetch di fase ini, dan yang TIDAK
+
+| | Di-fetch di | Contoh |
+|---|---|---|
+| `remoteEntry.js` (container) | FASE 1 / FASE 2 | `remoteEntry.js?t=…` |
+| Chunk `globals` (CSS) | FASE 1 / FASE 2 | `__federation_expose_globals.js` |
+| **Chunk komponen** | **FASE 3** | `__federation_expose_default.js` |
+
+Karena container sudah hangat sejak fase sebelumnya, FASE 3 tinggal mengambil chunk komponennya saja. Itulah manfaat warm-up di FASE 2.
+
+#### Aturan main yang tidak dijaga apa pun
+
+- **Path berkas = path URL = key `exposes`.** Ketiganya disinkronkan manual. `pages/transaksi/index.tsx` ↔ URL `/transaksi` ↔ `exposes["./base"]` di remote-nya.
+- **Tidak di-generate** dari `registry.ts`. Menambah satu sub-halaman = mengubah **2 repo**.
+- **Salah ketik baru ketahuan di browser** — `Module "..." does not exist in container.` TypeScript maupun build tidak mengecek silang antar repo.
+
+#### Ringkasan — fungsi memulangkan apa
+
+| Fungsi | Parameter | Memulangkan |
+|---|---|---|
+| `remoteComponent` | `path: string`, `pick?` | `ComponentType` (komponen, bukan promise) |
+| `loadRemote` | `path: string` | `Promise<unknown>` — bentuk beda tiap remote |
+| `pick` | `mod: Record<string, unknown>` | `ComponentType` |
+| `dynamic` | `loader`, `{ ssr: false }` | komponen Loadable |
+| `HomePage.getLayout` | `page: ReactElement` | `ReactNode` (halaman terbungkus layout) |
 
 ### FASE 4 — Error handling, 3 lapis untuk 3 jenis kegagalan
 

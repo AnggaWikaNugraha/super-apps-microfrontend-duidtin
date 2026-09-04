@@ -448,11 +448,36 @@ It renders **no remote component whatsoever**. `children` passes straight throug
 }
 ```
 
-But look at how the provider actually consumes it:
+##### Reading the line `const { loadModulesByRoute } = useModuleLoading();`
+
+This line trips people up because two things happen at once: **calling the hook**, then **unpacking the object it returns**. Split into two steps:
+
+```ts
+// STEP 1 — call the hook, keep the whole result
+const result = useModuleLoading();
+
+// `result` now holds:
+// {
+//   loadModulesByRoute: ƒ (route) => void,
+//   moduleStatus:       {},
+// }
+
+// STEP 2 — pull one property out into its own variable
+const loadModulesByRoute = result.loadModulesByRoute;
+```
+
+Those two steps collapse into one line via **object destructuring**:
 
 ```ts
 const { loadModulesByRoute } = useModuleLoading();
-//      ^^^^^^^^^^^^^^^^^^ this is all it takes
+//      ^^^^^^^^^^^^^^^^^^
+//      the name inside the braces MUST match the property name on the object
+```
+
+To take both at once, just add a comma:
+
+```ts
+const { loadModulesByRoute, moduleStatus } = useModuleLoading();
 ```
 
 **`moduleStatus` is returned but never destructured.** Right now it is genuinely dead data — no UI reads it. It is deliberately prepared so a loading indicator or manual retry can be added later without touching the loading path.
@@ -702,6 +727,77 @@ if (process.env.NODE_ENV === "development") {
 
 What gets fetched is identical too: `remoteEntry.js` first, then its `globals` chunk. What is **not** fetched in this phase is the page component's JS chunk — that only happens in PHASE 3.
 
+#### A full worked example — one navigation, values at every step
+
+Connecting all four functions in a single flow. This example uses a **hypothetical** feature remote `duidtin_ui_transaksi` on port 3003 — it doesn't exist in the repo yet, but this is the shape it will take.
+
+```
+User clicks a link to /transaksi
+│
+│  router.pathname changes: "/" → "/transaksi"
+▼
+useEffect runs
+│
+├─ guard: loadedForPath ("/") !== "/transaksi"  → continue
+│
+├─▶ waitForFederation()
+│      parameter : ()  — using defaults (5000, 200)
+│      returns   : true                      ← flag has been set since PHASE 1
+│
+└─▶ loadModulesByRoute("/transaksi")
+      parameter : "/transaksi"
+      returns   : undefined                  ← void
+      │
+      ├─▶ getModulesForRoute("/transaksi")
+      │      parameter : "/transaksi"
+      │      returns   : ["duidtin_ui_transaksi"]
+      │      │
+      │      └─ inside, for each featureRegistry entry:
+      │            isRouteMatch("/transaksi", "/transaksi", "prefix")
+      │              parameters : (pattern, route, matchType)
+      │              returns    : true
+      │
+      └─ for (const name of ["duidtin_ui_transaksi"]) …
+           │
+           └─▶ loadModule("duidtin_ui_transaksi")     ← void, never awaited
+                 parameter : "duidtin_ui_transaksi"
+                 returns   : Promise<void>
+                 │
+                 ├─ requestedRef : Set {} → Set { "duidtin_ui_transaksi" }
+                 ├─ moduleStatus : {} → { "duidtin_ui_transaksi": "loading" }
+                 │
+                 └─▶ dynamicLoadStyles("duidtin_ui_transaksi")
+                       parameter : "duidtin_ui_transaksi"
+                       returns   : Promise<boolean> → true
+                       │
+                       └─▶ loadRemote("duidtin_ui_transaksi/globals")
+                             parameter : "duidtin_ui_transaksi/globals"
+                             returns   : Promise<unknown> → the CSS module
+                             │
+                             └─ NETWORK (always 2 requests):
+                                GET :3003/transaksi/_next/static/chunks/remoteEntry.js
+                                GET :3003/transaksi/_next/static/chunks/__federation_expose_globals.js
+                 │
+                 ├─ moduleStatus : → { "duidtin_ui_transaksi": "loaded" }
+                 └─ console      : [MFE] FASE 2 warm-up "duidtin_ui_transaksi" → ok
+      │
+      ▼
+   setLoadedForPath("/transaksi")   ← so the next render doesn't repeat the work
+```
+
+Notice how the data changes shape at each level down:
+
+| Level | Value | Type |
+|---|---|---|
+| trigger | `"/transaksi"` | `string` |
+| `getModulesForRoute` | `["duidtin_ui_transaksi"]` | `string[]` |
+| `loadModule` | `"duidtin_ui_transaksi"` | `string` |
+| `dynamicLoadStyles` | `"duidtin_ui_transaksi"` | `string` |
+| `loadRemote` | `"duidtin_ui_transaksi/globals"` | `string` ← `"/globals"` is appended here |
+| network | 2 URLs | HTTP requests |
+
+One route (`string`) becomes a list of names (`string[]`), then each name is processed individually until it becomes HTTP requests. The `"/globals"` suffix is only appended at the very last step, inside `dynamicLoadStyles`.
+
 #### Proof this phase really runs — and really is optional
 
 Tested by temporarily registering `duidtin_ui_layout` in `featureRegistry` with `routes: ["/uji"]`:
@@ -732,19 +828,231 @@ That first row is the whole point: on `/` this phase **did not run at all**, yet
 
 ### PHASE 3 — The actual render (`pages/index.tsx`)
 
-This is what genuinely puts components on screen, and it is **entirely independent of `registry.ts`** — written by hand, one file per page.
-
-```tsx
-const DefaultLayout = dynamic(() => loadRemote("duidtin_ui_layout/default"), { ssr: false });
-
-HomePage.getLayout = (page) => <DefaultLayout>{page}</DefaultLayout>;
+```
+Browser opens "/"
+  └─▶ Next routing → pages/index.tsx
+        └─▶ _app.tsx
+              └─▶ Component.getLayout(<HomePage />)          → ReactNode
+                    └─▶ <DefaultLayout>                       ← a component made by remoteComponent()
+                          │
+                          ├─ (on MOUNT) the loader runs:
+                          │     loadRemote("duidtin_ui_layout/default")  → Promise<unknown>
+                          │       → { default: ƒ }
+                          │     normalised into { default: ComponentType }
+                          │
+                          └─▶ <HomePage />  containing <Card> and <Button>
+                                └─ each remote component mounts → its own loader runs
 ```
 
-The rules:
+This is the phase that **actually puts components on screen**, and it is **entirely independent of `registry.ts`** — the strings are written by hand, one page file at a time.
 
-- **`ssr: false` is mandatory** — the module is fetched at runtime from another origin, so it does not exist while Next prerenders on the server.
-- **The layout is a remote too**, loaded separately on each page via the `getLayout` pattern.
-- **Nothing is generated** from the registry. Adding a sub-page means touching 2 repos: a new `exposes` entry in the remote, and a new page file here.
+#### 1. `remoteComponent(path, pick?)` → `ComponentType`
+
+A component factory. Every bridge to a remote is built through this function.
+
+| | |
+|---|---|
+| **Parameter 1** | `path: string` — `"duidtin_ui_layout/default"` |
+| **Parameter 2** | `pick?: (mod) => ComponentType` — optional, see section 3 |
+| **Returns** | a React component (from `next/dynamic`), **not** a promise |
+
+```ts
+// in:  "duidtin_ui_layout/default"
+// out: a React component ready to use as <DefaultLayout />
+export const DefaultLayout = remoteComponent<DefaultLayoutProps>("duidtin_ui_layout/default");
+```
+
+##### When `loadRemote` actually runs — the part people get wrong
+
+The line `export const DefaultLayout = remoteComponent(...)` runs **when the module is imported**, right after the bundle loads. But **`loadRemote` inside it does NOT run then.**
+
+```
+at module import       remoteComponent() is called
+                       → dynamic() is called
+                       → a Loadable component comes back
+                       → loadRemote has NOT run, zero fetches
+
+at component MOUNT     next/dynamic runs the loader
+  (<DefaultLayout /> renders)  → loadRemote("duidtin_ui_layout/default")
+                               → fetches the component chunk
+                               → the real component replaces the placeholder
+```
+
+So defining 20 remote bridges in one file does not trigger 20 fetches. Only what renders gets fetched.
+
+#### 2. `loadRemote(path)` → `Promise<unknown>`
+
+| | |
+|---|---|
+| **Parameter** | `path: string` — `"<container name>/<exposes key without './'>"` |
+| **Returns** | the raw module — **its shape differs per remote** |
+
+Here are the real shapes, captured at runtime:
+
+```ts
+// in:  "duidtin_ui_layout/default"
+// out: keys ["default"]                 typeof default = "function"
+
+// in:  "duidtin_ui_design_system/components/button"
+// out: keys ["Button", "default"]       typeof default = "function"
+
+// in:  "duidtin_ui_design_system/components/card"
+// out: keys ["Card", "default"]         typeof default = "function"
+```
+
+The design system exports **both named AND default** for every component:
+
+```ts
+// duidtin-ui-design-system/apps/producer/src/components/button.ts
+export { Button } from "@duidtin/ui";
+export { Button as default } from "@duidtin/ui";
+```
+
+while the layout only has a `default`. These differing shapes are exactly what has to be normalised before handing anything to `next/dynamic`.
+
+#### 3. `pick(mod)` → `ComponentType` — why it exists
+
+`next/dynamic` requires a module shaped `{ default: Component }`. Without `pick`, the bridge takes `mod.default`. But there is a case `default` cannot serve.
+
+`Card` is a **compound component** — it carries sub-components as properties:
+
+```ts
+export const Card = Object.assign(Root, { Root, Header, Body, Footer });
+```
+
+The problem: **`next/dynamic` wraps the module in a Loadable component, and static properties do not survive.** So `Card.Header` is lost if you go through `default`. The fix is to load the same expose with a different `pick`:
+
+```ts
+// without pick → take mod.default
+export const Card = remoteComponent<CardProps>(`${DESIGN_SYSTEM}/components/card`);
+
+// with pick → take a different member of the SAME module
+export const CardHeader = remoteComponent<CardSectionProps>(
+  `${DESIGN_SYSTEM}/components/card`,
+  (mod) => (mod as unknown as CardModule).Card.Header,
+);
+```
+
+```ts
+// pick in:  { Card: ƒ (has .Header, .Body, .Footer), default: ƒ }
+// pick out: ƒ Header
+```
+
+The consequence shows up at runtime: `loadRemote(".../components/card")` fires **3×** on one page (`Card`, `CardHeader`, `CardBody`). Not 3 fetches though — MF caches the container and the chunk, so the last two are served from memory.
+
+#### 4. `dynamic(loader, { ssr: false })` → a Loadable component
+
+| | |
+|---|---|
+| **Parameter 1** | a loader function returning `Promise<{ default: ComponentType }>` |
+| **Parameter 2** | `{ ssr: false }` |
+| **Returns** | a React component usable directly in JSX |
+
+**`ssr: false` is mandatory, not a preference.** The module is fetched at runtime from another origin; while Next prerenders on the server, that remote does not exist yet. Without `ssr: false` the build fails or hydration mismatches.
+
+#### 5. `HomePage.getLayout(page)` → `ReactNode`
+
+A property attached to the page component — not a React prop, just an ordinary JavaScript function property.
+
+| | |
+|---|---|
+| **Parameter** | `page: ReactElement` — the page element itself |
+| **Returns** | the page wrapped in its layout |
+
+```tsx
+// in:
+<HomePage />
+
+// out:
+<DefaultLayout activePath="/" userName="Angga" onLogout={...}>
+  <HomePage />
+</DefaultLayout>
+```
+
+And `_app.tsx` is what calls it:
+
+```tsx
+const getLayout = Component.getLayout ?? ((page: ReactElement) => page);
+//                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//                                        fallback: return it unchanged
+return <ModuleFederationProvider>{getLayout(<Component {...pageProps} />)}</ModuleFederationProvider>;
+```
+
+**Why this pattern is needed in an MFE host.** The layout is itself a remote. Wrapping it directly in `_app.tsx` would make pages that need no layout (login, error) wait for the layout remote anyway. With `getLayout`, each page decides for itself — a page without `getLayout` falls back to the identity function and loads no layout at all.
+
+#### A full worked example — opening `/`, from URL to DOM
+
+```
+Browser opens http://localhost:3000/
+│
+├─ Next matches the URL → pages/index.tsx
+│
+├─▶ _app.tsx
+│     Component            = HomePage
+│     Component.getLayout  exists → used
+│     result: <ModuleFederationProvider>
+│               <DefaultLayout …><HomePage /></DefaultLayout>
+│             </ModuleFederationProvider>
+│
+├─▶ <DefaultLayout> MOUNTS
+│     └─▶ loadRemote("duidtin_ui_layout/default")
+│           out      : { default: ƒ }
+│           NETWORK  : GET :3002/layout/_next/.../__federation_expose_default.js
+│           → the placeholder is replaced by the real component
+│
+└─▶ <HomePage /> renders inside it
+      ├─▶ <Card> MOUNTS    → loadRemote(".../components/card")   → { Card, default }
+      ├─▶ <CardHeader>     → SAME module, from cache, pick .Card.Header
+      ├─▶ <CardBody>       → SAME module, from cache, pick .Card.Body
+      └─▶ <Button> MOUNTS  → loadRemote(".../components/button") → { Button, default }
+            NETWORK : GET :3001/design-system/static/__federation_expose_components__card.js
+                      GET :3001/design-system/static/__federation_expose_components__button.js
+```
+
+The resulting DOM — all three repos interleaved in one tree:
+
+```html
+<div class="lyt-layout">                          <!-- duidtin_ui_layout -->
+  <header class="lyt-header">
+    <span class="ui-badge ui-badge--soft" …>      <!-- design system VIA the layout -->
+    <button class="ui-button …" id="react-aria9439377283-:r2:">Keluar</button>
+  </header>
+  <main class="lyt-layout__main">
+    <div class="app-page">                        <!-- the host's own markup -->
+      <div class="ui-card ui-card--elevated" …>   <!-- design system DIRECTLY from the host -->
+      <button class="ui-button …" id="react-aria9439377283-:r6:">Buat Transaksi</button>
+    </div>
+  </main>
+</div>
+```
+
+Look at those two React Aria `id`s: `:r2:` was loaded through the layout, `:r6:` directly by the host, yet **the prefix is identical** (`react-aria9439377283`). Had React been duplicated, the prefixes would differ. That is mechanical proof the shared scope is correct.
+
+#### What this phase fetches, and what it does NOT
+
+| | Fetched in | Example |
+|---|---|---|
+| `remoteEntry.js` (the container) | PHASE 1 / PHASE 2 | `remoteEntry.js?t=…` |
+| The `globals` chunk (CSS) | PHASE 1 / PHASE 2 | `__federation_expose_globals.js` |
+| **The component chunk** | **PHASE 3** | `__federation_expose_default.js` |
+
+Because the container was warmed in an earlier phase, PHASE 3 only has to fetch the component chunk. That is precisely the payoff of PHASE 2's warm-up.
+
+#### Rules that nothing enforces
+
+- **File path = URL path = `exposes` key.** All three are kept in sync by hand. `pages/transaksi/index.tsx` ↔ URL `/transaksi` ↔ `exposes["./base"]` in its remote.
+- **Nothing is generated** from `registry.ts`. Adding one sub-page means editing **2 repos**.
+- **A typo only surfaces in the browser** — `Module "..." does not exist in container.` Neither TypeScript nor the build cross-checks across repos.
+
+#### Summary — what each function returns
+
+| Function | Parameters | Returns |
+|---|---|---|
+| `remoteComponent` | `path: string`, `pick?` | `ComponentType` (a component, not a promise) |
+| `loadRemote` | `path: string` | `Promise<unknown>` — shape differs per remote |
+| `pick` | `mod: Record<string, unknown>` | `ComponentType` |
+| `dynamic` | `loader`, `{ ssr: false }` | a Loadable component |
+| `HomePage.getLayout` | `page: ReactElement` | `ReactNode` (the page wrapped in its layout) |
 
 ### PHASE 4 — Error handling: 3 layers for 3 kinds of failure
 
