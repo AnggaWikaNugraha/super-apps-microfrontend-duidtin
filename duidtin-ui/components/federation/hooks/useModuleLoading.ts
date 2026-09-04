@@ -29,6 +29,13 @@ export const useModuleLoading = () => {
 
     const isLoaded = await dynamicLoadStyles(moduleName);
 
+    // FASE 2 nggak punya jejak visual apapun — nggak ada yang berubah di layar
+    // waktu dia jalan. Tanpa log ini satu-satunya cara mastiin dia beneran
+    // kepanggil adalah ngintip Network tab. Dev-only, nggak ikut ke production.
+    if (process.env.NODE_ENV === "development") {
+      console.info(`[MFE] FASE 2 warm-up "${moduleName}" → ${isLoaded ? "ok" : "GAGAL"}`);
+    }
+
     // Gagal → dilepas dari daftar "sudah diminta", supaya navigasi berikutnya
     // ke route yang sama boleh nyoba lagi (dev server remote-nya mungkin baru nyala).
     if (!isLoaded) requestedRef.current.delete(moduleName);
