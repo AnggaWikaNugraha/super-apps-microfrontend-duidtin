@@ -4,6 +4,81 @@
 
 Super-app microfrontend berbasis Module Federation.
 
+## Tiap remote boleh beda stack
+
+Module Federation menyatukan aplikasi **saat runtime lewat kontrak**, bukan saat build. Kontraknya cuma tiga hal: nama container, daftar `exposes`, dan share scope. Selama ketiganya cocok, tiap repo bebas memilih framework dan bundler-nya sendiri — tidak ada satu pun `npm install` di antara mereka.
+
+### 1. `duidtin-ui` — host
+
+- **Port** — 3000
+- **Framework** — Next.js 14.2.35, Pages Router
+- **Bundler** — webpack 5.105.0 (`NEXT_PRIVATE_LOCAL_WEBPACK=true`)
+- **Plugin MF** — `@module-federation/nextjs-mf` 8.8.54
+- **MF runtime** — `@module-federation/runtime` 0.24.1 + `retry-plugin` 0.24.1
+- **React** — 18.3.1
+- **Tailwind** — v4.1.18, prefix `app`
+- **Path** — tidak ada `basePath`; host memegang root domain
+- **Peran** — shell: routing, registry remote, consumer semua remote
+- **Catatan** — `remotes: {}` dan `exposes: {}` sengaja dikosongkan; daftar remote di-resolve runtime, bukan build time
+
+### 2. `duidtin-ui-design-system` — pustaka komponen
+
+- **Port** — 3001
+- **Framework** — tidak pakai Next sama sekali
+- **Bundler** — Rslib 0.19.5 + Rsbuild (`@rsbuild/plugin-react` 1.4.4)
+- **Struktur** — monorepo Turborepo 2.9.6, package manager bun 1.3.8 (`apps/producer` + `packages/ui`)
+- **Plugin MF** — `@module-federation/rsbuild-plugin` 0.24.1
+- **React** — 18.3.1
+- **Tailwind** — v4.1.18, prefix `ui`
+- **Path** — `/design-system/static/`
+- **Peran** — 13 komponen UI + style, di-expose satu per satu
+- **Catatan** — `dev: { hmr: false, liveReload: false }` wajib; tanpa itu dev client-nya memanggil `location.reload()` di halaman **konsumen**
+
+### 3. `duidtin-ui-layout` — layout bersama
+
+- **Port** — 3002
+- **Framework** — Next.js 14.2.35, Pages Router
+- **Bundler** — webpack 5.105.0 (`NEXT_PRIVATE_LOCAL_WEBPACK=true`)
+- **Plugin MF** — `@module-federation/nextjs-mf` 8.8.54
+- **MF runtime** — 0.24.1
+- **React** — 18.3.1
+- **Tailwind** — v4.1.18, prefix `lyt`
+- **Path** — `basePath: "/layout"`
+- **Peran** — header + footer, membungkus konten tiap halaman
+- **Catatan** — peran ganda: remote buat host, sekaligus konsumen design-system. `assetPrefix` absolut wajib saat dev, kalau tidak chunk-nya diminta ke origin host dan 404
+
+### 4. `duidtin-ui-beranda` — *rencana, belum dibuat*
+
+- **Port** — 3003
+- **Framework** — Next.js 16.2.9
+- **Bundler** — **Rspack** (`next-rspack` 16.2.9)
+- **Plugin MF** — `@module-federation/enhanced` 2.x
+- **React** — 18.3.1 (wajib sama dengan host)
+- **Tailwind** — v4, prefix `brd`
+- **Path** — `basePath: "/beranda"`
+- **Peran** — dashboard korporat: ringkasan saldo, antrean persetujuan, pintasan
+- **Catatan** — Turbopack (bawaan Next 16) tidak mendukung MF, jadi ditukar Rspack. `shared` harus ditulis manual — `enhanced` tidak otomatis menshare React seperti `nextjs-mf`
+
+Tiga perbedaan paling mencolok di atas bukan kebetulan, tapi memang dibiarkan berbeda:
+
+- **Design-system tidak pakai Next sama sekali.** Dia cuma pustaka komponen — tidak butuh routing, tidak butuh SSR. Rslib menghasilkan bundel lebih ramping untuk keperluan itu.
+- **Layout pakai Next** karena nanti perlu menjembatani context aplikasi (auth, menu per peran), bukan sekadar merender komponen.
+- **Beranda pakai Next 16 + Rspack** karena Turbopack (bawaan Next 16) tidak mendukung Module Federation, sedangkan `nextjs-mf` tidak mendukung Next 15+. Rspack jalan tengahnya.
+
+### Yang WAJIB sama
+
+| | Kenapa |
+|---|---|
+| **Versi React** — 18.3.1 di semua repo | di-`shared` sebagai singleton; dua instance React dalam satu halaman langsung `Invalid hook call` |
+| **Nama container** — `duidtin_ui_layout`, dst | string yang dipakai `loadRemote()` di sisi konsumen |
+| **Key `exposes`** — `./base`, `./globals` | dicocokkan manual antar repo, tidak ada yang mengeceknya |
+
+### Yang BOLEH beda
+
+Framework, bundler, plugin MF, versi TypeScript, prefix Tailwind, port, `basePath`, bahkan package manager. Prefix CSS sengaja dibuat berbeda (`app` / `ui` / `lyt` / `brd`) karena keempatnya dirender dalam satu halaman — tanpa prefix berbeda, utility class Tailwind-nya saling tabrakan.
+
+> **Belum terbukti:** `duidtin-ui-beranda` akan memakai MF runtime **2.x**, sedangkan tiga repo lainnya di **0.24.1**. Apakah dua garis versi itu bisa saling bicara belum diuji — itu hal pertama yang akan dicek begitu repo-nya berdiri, dengan expose sesederhana mungkin supaya kalau gagal yang terbuang cuma scaffold.
+
 ### Cara menjalankan
 
 Tiga terminal, remote duluan lalu host:

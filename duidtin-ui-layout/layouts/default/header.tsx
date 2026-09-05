@@ -9,10 +9,23 @@ interface HeaderProps {
   userName?: string;
 }
 
+/**
+ * Menu bawaan — dipakai kalau host nggak ngirim `navItems`.
+ *
+ * `disabled: true` buat fitur yang remote-nya belum dibikin: tetap kelihatan
+ * di menu (biar peta fiturnya jelas) tapi nggak bisa diklik, jadi nggak ada
+ * tautan yang 404. Hapus flag-nya begitu remote-nya jalan.
+ *
+ * Nanti daftar ini idealnya datang dari host berdasarkan peran user (maker
+ * cuma lihat menu bikin, checker lihat menu persetujuan), lewat prop
+ * `navItems` yang sudah tersedia.
+ */
 const DEFAULT_NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Beranda" },
-  { href: "/transaksi", label: "Transaksi" },
-  { href: "/laporan", label: "Laporan" },
+  { href: "/payroll", label: "Payroll", disabled: true },
+  { href: "/transfer", label: "Transfer", disabled: true },
+  { href: "/mutasi", label: "Mutasi", disabled: true },
+  { href: "/persetujuan", label: "Persetujuan", disabled: true },
 ];
 
 const Header = ({ activePath, navItems = DEFAULT_NAV_ITEMS, onLogout, userName }: HeaderProps) => (
@@ -24,15 +37,26 @@ const Header = ({ activePath, navItems = DEFAULT_NAV_ITEMS, onLogout, userName }
       </a>
 
       <nav className="lyt-header__nav">
-        {navItems.map((item: NavItem) => (
-          <a
-            className={`lyt-header__nav-link${item.href === activePath ? " lyt-header__nav-link--active" : ""}`}
-            href={item.href}
-            key={item.href}
-          >
-            {item.label}
-          </a>
-        ))}
+        {navItems.map((item: NavItem) =>
+          item.disabled ? (
+            <span
+              aria-disabled="true"
+              className="lyt-header__nav-link lyt-header__nav-link--disabled"
+              key={item.href}
+              title="Segera hadir"
+            >
+              {item.label}
+            </span>
+          ) : (
+            <a
+              className={`lyt-header__nav-link${item.href === activePath ? " lyt-header__nav-link--active" : ""}`}
+              href={item.href}
+              key={item.href}
+            >
+              {item.label}
+            </a>
+          ),
+        )}
       </nav>
 
       <div className="lyt-header__actions">

@@ -22,6 +22,10 @@
   @apply lyt:rounded-md lyt:px-3 lyt:py-2 lyt:text-sm lyt:font-medium lyt:text-gray-600 lyt:transition-colors lyt:hover:bg-gray-100 lyt:hover:text-gray-900;
 }
 
+.lyt-header__nav-link--disabled {
+  @apply lyt:cursor-not-allowed lyt:text-gray-400 lyt:hover:bg-transparent lyt:hover:text-gray-400;
+}
+
 .lyt-header__nav-link--active {
   @apply lyt:bg-blue-50 lyt:text-blue-700 lyt:hover:bg-blue-50 lyt:hover:text-blue-700;
 }
