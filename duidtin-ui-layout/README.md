@@ -146,9 +146,9 @@ The design system exposes each component with both a named export **and** a `def
 
 ### 4. `pages/index.tsx` — not a preview, just a guard
 
-This layout only truly appears when a host renders it. That page is nothing but a static "this module can't run on its own" message. The consequence: **visual verification during development normally goes through a real host** (`duidtin-ui`). While there is no host, the way to do it is to add a temporary page under `pages/` that renders `<Default>` directly, check it, then delete it again — which is exactly how this repo was first verified.
+This layout only truly appears when a host renders it. That page is nothing but a static "this module can't run on its own" message. The consequence: **visual verification during development goes through the host** (`duidtin-ui` on `:3000`), not through this repo. Back when there was no host, the way to do it was a temporary preview page under `pages/` rendering `<Default>` directly — that page was deleted once the host could mount this layout through the real path.
 
-### 5. Being consumed by the host (`duidtin-ui`, not built yet)
+### 5. Being consumed by the host (`duidtin-ui`) — working
 
 ```
 duidtin-ui (host)
@@ -157,7 +157,7 @@ duidtin-ui (host)
         └─▶ wrap each page's content: <Default>{page content}</Default>
 ```
 
-Worth remembering for later: because `duidtin-ui-layout` itself consumes `duidtin_ui_design_system`, **the host must register `duidtin_ui_design_system` in its own remotes too** (not just `duidtin_ui_layout`) — so the shared `react`/`react-dom` stay a single consistent instance across the whole page rather than colliding as duplicates arriving by two different routes.
+Because `duidtin-ui-layout` itself consumes `duidtin_ui_design_system`, **the host must register `duidtin_ui_design_system` in its own remotes too** (not just `duidtin_ui_layout`) — so the shared `react`/`react-dom` stay a single consistent instance across the whole page rather than colliding as duplicates arriving by two different routes. This is **already done**: the host's `constants/features/registry.ts` registers both as `globalFeatures`, and the result is verified — a button loaded through the layout and one loaded directly by the host share the same React Aria ID prefix.
 
 ### The whole flow in one view
 

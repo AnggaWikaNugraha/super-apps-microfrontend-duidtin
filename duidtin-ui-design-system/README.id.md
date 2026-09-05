@@ -21,17 +21,19 @@ Dari root repo ini (`x-duidtin/duidtin-ui-design-system/`):
 1. `bun install` — install semua dependency (root + `packages/ui` + `apps/producer` sekaligus, lewat workspaces).
 2. `bun run build` — build `packages/ui` dulu, baru `apps/producer` (urutan otomatis lewat Turborepo). Hasil: `dist/` di `packages/ui`, `dist/mf/` (`remoteEntry.js` + manifest) di `apps/producer`.
 3. `bun run storybook` — buka preview komponen di `localhost:6006`. Keluar dari server-nya pakai `q` atau Ctrl+C dua kali (karena `turbo.json` pakai `"ui": "tui"`).
-4. `bun run dev:producer` — nyalain dev server `apps/producer` (`--filter=@duidtin/producer --filter=@duidtin/ui`, biar `packages/ui` ikut ke-watch juga), serve `remoteEntry.js` live di `http://localhost:3001/design-system/static/remoteEntry.js` — ini yang dipakai `duidtin-ui-layout` (dan nanti host) waktu dev lokal.
+4. `bun run dev:producer` — nyalain dev server `apps/producer` (`--filter=@duidtin/producer --filter=@duidtin/ui`, biar `packages/ui` ikut ke-watch juga), serve `remoteEntry.js` live di `http://localhost:3001/design-system/static/remoteEntry.js` — ini yang dipakai `duidtin-ui-layout` dan host `duidtin-ui` waktu dev lokal.
 
 ## Status saat ini
 
 Sudah ada:
 - 13 komponen di `packages/ui`: `Button`, `Card`, `Badge`, `Table`, `Select`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart` — lengkap dengan style, build, dan Storybook. Chart pakai dependency baru `recharts`.
 - `apps/producer` expose semua komponen di atas + `globals` lewat Module Federation, dengan codegen exposes otomatis dan tipe TypeScript lintas-remote (`dts`) sudah dikonfigurasi.
-- `loadRemote()` sudah kebukti jalan dari konsumen nyata: `duidtin-ui-layout` render `Button` & `Badge` dari remote ini di browser, lengkap sama CSS-nya.
+- `loadRemote()` sudah kebukti jalan dari **dua konsumen nyata sekaligus**, keduanya diverifikasi di browser:
+  - `duidtin-ui-layout` render `Button` & `Badge` dari remote ini di header-nya;
+  - host `duidtin-ui` render `Card` & `Button` **langsung**, tanpa lewat layout.
+- React tetap **satu instance** lintas ketiga repo. Buktinya: tombol yang dimuat lewat layout dan tombol yang dimuat langsung host berbagi prefix ID React Aria yang sama — kalau React kedobelan, prefiksnya bakal beda.
 
 Belum ada:
-- Host (`duidtin-ui`).
 - Config deploy/container.
 
 ## Stack
@@ -42,7 +44,7 @@ Belum ada:
 - **Rslib** — build tool utama, dipakai dua cara beda: format `"esm"` buat `packages/ui` (paket library biasa), format `"mf"` (+ `@module-federation/rsbuild-plugin`) buat `apps/producer` (remote Module Federation).
 - **React 18** + **react-aria-components** — primitif komponen accessible yang di-wrap tiap komponen `packages/ui`.
 - **Tailwind CSS v4** (prefix `ui:`) + **tailwind-variants** + **tailwind-merge** — styling & komposisi variant per komponen.
-- **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — mekanisme expose komponen ke konsumen luar (`duidtin-ui` nanti), termasuk generate tipe TypeScript lintas-remote.
+- **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — mekanisme expose komponen ke konsumen luar (`duidtin-ui-layout` dan host `duidtin-ui`), termasuk generate tipe TypeScript lintas-remote.
 - **Storybook** (builder Vite) — preview & dokumentasi visual komponen saat develop, terpisah total dari alur Module Federation.
 
 ## Daftar Komponen
@@ -81,8 +83,11 @@ packages/ui  (Rslib "esm", library biasa)
 apps/producer  (Rslib "mf" + pluginModuleFederation → remoteEntry.js)
       │
       ▼  loadRemote("duidtin_ui_design_system/<nama>")
-duidtin-ui (host)
+duidtin-ui-layout (:3002)  ─┐
+duidtin-ui       (:3000)  ─┴─▶  dua konsumen, dua jalur berbeda
 ```
+
+Perhatikan remote ini dikonsumsi lewat **dua jalur sekaligus**: langsung oleh host, dan tidak langsung lewat layout. Itu sebabnya `react`/`react-dom` wajib singleton — kalau tidak, satu halaman bisa memuat dua instance React dari dua jalur berbeda.
 
 ## Alur nambah komponen baru
 
@@ -121,7 +126,9 @@ Dari nulis komponen sampai bisa di-`loadRemote` dari luar:
 
 ── verifikasi ──
 11. cek apps/producer/dist/mf/mf-manifest.json — pastikan key "./components/<nama>" muncul di situ
-        (belum ada host buat test loadRemote() beneran, jadi verifikasi sementara cuma sampai sini)
+12. nyalain host (duidtin-ui, :3000) + layout (:3002), pakai komponennya lewat
+        loadRemote("duidtin_ui_design_system/components/<nama>") — verifikasi kerender
+        beneran di browser lengkap sama style-nya, bukan cuma build sukses
 ```
 
 Poin yang paling gampang kelupaan sekarang cuma langkah 3 dan 6 (nambah file baru di `packages/ui` tapi lupa daftarin ke `index.tailwind.css`/barrel `index.ts`) — bagian expose ke `apps/producer` (dulu langkah 9-10 manual) sudah otomatis lewat codegen, jadi risiko lupa di situ hilang.
@@ -142,7 +149,7 @@ Script ini yang menghilangkan langkah manual "bikin shim + daftarin ke `componen
 - `generateTypes: { extractThirdParty: true, typesFolder: "@mf-types" }` — waktu `apps/producer` di-build, otomatis generate deskripsi tipe TypeScript dari semua yang di-`exposes`, ditaruh di folder `@mf-types` (di-`.gitignore`, karena ini output generated, bukan source).
 - `consumeTypes: { typesFolder: "@mf-types" }` — sisi ini yang dipakai kalau `apps/producer` sendiri nanti perlu **konsumsi** tipe dari remote lain (belum relevan sekarang karena belum ada remote lain yang dikonsumsi, tapi disiapkan dari awal biar konsisten).
 - `displayErrorInTerminal: true` — kalau proses generate tipe ini gagal, errornya muncul jelas di terminal build, bukan cuma silent-fail.
-- Efeknya buat konsumen (nanti `duidtin-ui`): `loadRemote("duidtin_ui_design_system/components/button")` bisa dapat autocomplete & type-check props `Button` beneran, bukan `any` — asal host-nya juga setup fitur `dts` MF yang sama di sisi consume.
+- Efeknya buat konsumen (`duidtin-ui-layout` & `duidtin-ui`): `loadRemote("duidtin_ui_design_system/components/button")` bisa dapat autocomplete & type-check props `Button` beneran, bukan `any` — asal host-nya juga setup fitur `dts` MF yang sama di sisi consume.
 
 ## Preview komponen (Storybook)
 
@@ -163,7 +170,7 @@ Script ini yang menghilangkan langkah manual "bikin shim + daftarin ke `componen
 ## `apps/producer` — pengepakan jadi remote MF
 
 - Juga build pakai Rslib, tapi dengan `lib.format: "mf"` dikombinasikan dengan plugin `@module-federation/rsbuild-plugin` (`pluginModuleFederation`).
-- Kombinasi ini yang menghasilkan `remoteEntry.js` + daftar `exposes` — inilah yang nanti di-`loadRemote()` oleh host.
+- Kombinasi ini yang menghasilkan `remoteEntry.js` + daftar `exposes` — inilah yang di-`loadRemote()` oleh layout dan host.
 - Isinya cuma `import` dari `packages/ui`, lalu re-expose lewat config MF. Tidak menulis komponen sendiri.
 
 ## `package.json` root
@@ -208,7 +215,7 @@ Cuma satu isinya: plugin `@tailwindcss/postcss`. Tanpa file ini, `rslib build` n
 
 - `const MF_PUBLIC_PATH = process.env.MF_PUBLIC_PATH || "/design-system/static/"` — URL prefix tempat aset (JS chunk, CSS) remote ini di-serve. Default-nya path relatif, cocok buat production di mana semua remote satu domain. Waktu dev sengaja di-override jadi URL absolut lewat script `dev` (`MF_PUBLIC_PATH=http://localhost:3001/design-system/static/ rslib mf-dev`) — soalnya konsumennya jalan di port beda, kalau prefix-nya relatif chunk-nya bakal dicari di origin konsumen (`localhost:3002/...`) dan gagal.
 - `dev: { hmr: false, liveReload: false }` — remote ini dikonsumsi app lain, dan dev client rsbuild yang ikut ke-inject di `remoteEntry.js` bakal manggil `location.reload()` di halaman **konsumen**, bukan di halaman sendiri. Efeknya halaman host reload terus-terusan dan komponen remote nggak pernah sempat kerender. Dimatiin: watch/rebuild tetap jalan, cuma nggak ada auto-reload di sisi konsumen.
-- `server: { port: 3001 }` — port dev server-nya sendiri. Begitu `bun run dev` di folder ini (`rslib mf-dev`, bukan `rslib build --watch` — yang terakhir nggak nyalain HTTP server sama sekali), `remoteEntry.js` bisa diakses di `http://localhost:3001/design-system/static/remoteEntry.js` — port-nya (`3001`, dari `server.port`) dan path-nya (`/design-system/static/...`, dari `MF_PUBLIC_PATH`/`assetPrefix`) dua hal beda yang digabung jadi satu URL. Catatan: `3000` nanti dipakai host (`duidtin-ui`), bukan `apps/producer`.
+- `server: { port: 3001 }` — port dev server-nya sendiri. Begitu `bun run dev` di folder ini (`rslib mf-dev`, bukan `rslib build --watch` — yang terakhir nggak nyalain HTTP server sama sekali), `remoteEntry.js` bisa diakses di `http://localhost:3001/design-system/static/remoteEntry.js` — port-nya (`3001`, dari `server.port`) dan path-nya (`/design-system/static/...`, dari `MF_PUBLIC_PATH`/`assetPrefix`) dua hal beda yang digabung jadi satu URL. Catatan: `3000` dipakai host (`duidtin-ui`), bukan `apps/producer`.
 - `source: { tsconfigPath: "./tsconfig.json" }` — eksplisit nunjuk tsconfig mana yang dipakai buat baca setting compile (JSX, path, dst).
 - `lib: [{ format: "mf", ... }]` — inti bedanya dari `packages/ui`:
   - `format: "mf"` — beda dari `"esm"` di `packages/ui`. Format khusus yang, dikombinasikan dengan `pluginModuleFederation`, menghasilkan `remoteEntry.js` (bukan paket npm biasa).

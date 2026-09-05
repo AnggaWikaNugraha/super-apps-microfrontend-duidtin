@@ -21,17 +21,19 @@ From the root of this repo (`x-duidtin/duidtin-ui-design-system/`):
 1. `bun install` — installs every dependency (root + `packages/ui` + `apps/producer` at once, via workspaces).
 2. `bun run build` — builds `packages/ui` first, then `apps/producer` (Turborepo orders this automatically). Output: `dist/` in `packages/ui`, `dist/mf/` (`remoteEntry.js` + manifest) in `apps/producer`.
 3. `bun run storybook` — opens the component preview at `localhost:6006`. Quit the server with `q` or Ctrl+C twice (because `turbo.json` uses `"ui": "tui"`).
-4. `bun run dev:producer` — starts the `apps/producer` dev server (`--filter=@duidtin/producer --filter=@duidtin/ui`, so `packages/ui` is watched too) and serves `remoteEntry.js` live at `http://localhost:3001/design-system/static/remoteEntry.js` — this is what `duidtin-ui-layout` (and later the host) points at during local development.
+4. `bun run dev:producer` — starts the `apps/producer` dev server (`--filter=@duidtin/producer --filter=@duidtin/ui`, so `packages/ui` is watched too) and serves `remoteEntry.js` live at `http://localhost:3001/design-system/static/remoteEntry.js` — this is what `duidtin-ui-layout` and the host `duidtin-ui` point at during local development.
 
 ## Current status
 
 Done:
 - 13 components in `packages/ui`: `Button`, `Card`, `Badge`, `Table`, `Select`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart` — complete with styles, build, and Storybook. The charts pull in one new dependency, `recharts`.
 - `apps/producer` exposes all of the above plus `globals` over Module Federation, with automatic exposes codegen and cross-remote TypeScript types (`dts`) configured.
-- `loadRemote()` is proven to work from a real consumer: `duidtin-ui-layout` renders this remote's `Button` & `Badge` in the browser, CSS included.
+- `loadRemote()` is proven to work from **two real consumers at once**, both verified in a browser:
+  - `duidtin-ui-layout` renders this remote's `Button` & `Badge` in its header;
+  - the host `duidtin-ui` renders `Card` & `Button` **directly**, without going through the layout.
+- React stays a **single instance** across all three repos. The evidence: a button loaded through the layout and a button loaded directly by the host share the same React Aria ID prefix — had React been duplicated, the prefixes would differ.
 
 Not done:
-- The host (`duidtin-ui`).
 - Deploy/container config.
 
 ## Stack
@@ -42,7 +44,7 @@ Not done:
 - **Rslib** — the main build tool, used two different ways: format `"esm"` for `packages/ui` (an ordinary library package), format `"mf"` (+ `@module-federation/rsbuild-plugin`) for `apps/producer` (the Module Federation remote).
 - **React 18** + **react-aria-components** — the accessible component primitives each `packages/ui` component wraps.
 - **Tailwind CSS v4** (prefix `ui:`) + **tailwind-variants** + **tailwind-merge** — styling & per-component variant composition.
-- **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — the mechanism that exposes components to outside consumers (`duidtin-ui` later), including cross-remote TypeScript type generation.
+- **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — the mechanism that exposes components to outside consumers (`duidtin-ui-layout` and the host `duidtin-ui`), including cross-remote TypeScript type generation.
 - **Storybook** (Vite builder) — visual preview & documentation during development, entirely separate from the Module Federation path.
 
 ## Component list
@@ -81,8 +83,11 @@ packages/ui  (Rslib "esm", an ordinary library)
 apps/producer  (Rslib "mf" + pluginModuleFederation → remoteEntry.js)
       │
       ▼  loadRemote("duidtin_ui_design_system/<name>")
-duidtin-ui (host)
+duidtin-ui-layout (:3002)  ─┐
+duidtin-ui       (:3000)  ─┴─▶  two consumers, two different paths
 ```
+
+Note this remote is consumed through **two paths at once**: directly by the host, and indirectly through the layout. That is why `react`/`react-dom` must be singletons — otherwise one page could end up loading two React instances via two different routes.
 
 ## Adding a new component
 
@@ -121,7 +126,9 @@ From writing the component to having it `loadRemote`-able from outside:
 
 ── verify ──
 11. check apps/producer/dist/mf/mf-manifest.json — make sure the "./components/<name>" key shows up there
-        (there is no host to test a real loadRemote() against yet, so verification stops here for now)
+12. start the host (duidtin-ui, :3000) and the layout (:3002), then use the component through
+        loadRemote("duidtin_ui_design_system/components/<name>") — verify it really renders in
+        the browser with its styles, not merely that the build succeeded
 ```
 
 The steps easiest to forget are now just 3 and 6 (adding new files in `packages/ui` but forgetting to register them in `index.tailwind.css` / the `index.ts` barrel) — the expose side (steps 9-10, formerly manual) is automated through codegen, so that particular risk is gone.
@@ -142,7 +149,7 @@ This script is what removed the manual "write a shim + register it in `component
 - `generateTypes: { extractThirdParty: true, typesFolder: "@mf-types" }` — when `apps/producer` builds, TypeScript type descriptions for everything in `exposes` are generated into the `@mf-types` folder (which is `.gitignore`d, since it is generated output, not source).
 - `consumeTypes: { typesFolder: "@mf-types" }` — the other side, used if `apps/producer` itself ever needs to **consume** types from another remote (not relevant yet, since it consumes none, but wired up from the start for consistency).
 - `displayErrorInTerminal: true` — if type generation fails, the error shows up clearly in the build terminal instead of failing silently.
-- What this buys consumers (`duidtin-ui` later): `loadRemote("duidtin_ui_design_system/components/button")` gets real autocomplete and prop type-checking for `Button` rather than `any` — as long as the host sets up the same MF `dts` feature on its consume side.
+- What this buys consumers (`duidtin-ui-layout` & `duidtin-ui`): `loadRemote("duidtin_ui_design_system/components/button")` gets real autocomplete and prop type-checking for `Button` rather than `any` — as long as the host sets up the same MF `dts` feature on its consume side.
 
 ## Component preview (Storybook)
 
@@ -163,7 +170,7 @@ This script is what removed the manual "write a shim + register it in `component
 ## `apps/producer` — packaging it as an MF remote
 
 - Also built with Rslib, but with `lib.format: "mf"` combined with the `@module-federation/rsbuild-plugin` plugin (`pluginModuleFederation`).
-- That combination is what produces `remoteEntry.js` + the `exposes` list — the thing the host will `loadRemote()`.
+- That combination is what produces `remoteEntry.js` + the `exposes` list — the thing the layout and the host `loadRemote()`.
 - Its contents are only `import`s from `packages/ui` re-exposed through MF config. It writes no components of its own.
 
 ## Root `package.json`
@@ -208,14 +215,14 @@ It holds exactly one thing: the `@tailwindcss/postcss` plugin. Without this file
 
 - `const MF_PUBLIC_PATH = process.env.MF_PUBLIC_PATH || "/design-system/static/"` — the URL prefix where this remote's assets (JS chunks, CSS) are served from. The default is a relative path, which suits production where every remote shares one domain. During development it is deliberately overridden with an absolute URL through the `dev` script (`MF_PUBLIC_PATH=http://localhost:3001/design-system/static/ rslib mf-dev`) — because the consumer runs on a different port, and with a relative prefix the chunks would be looked for on the consumer's own origin (`localhost:3002/...`) and fail.
 - `dev: { hmr: false, liveReload: false }` — this remote is consumed by other apps, and the rsbuild dev client that gets injected into `remoteEntry.js` calls `location.reload()` on the **consumer's** page, not its own. The result is the host page reloading over and over with the remote components never getting a chance to render. Turned off: watch/rebuild still runs, there is just no auto-reload on the consumer side.
-- `server: { port: 3001 }` — the dev server's own port. Once `bun run dev` runs in this folder (`rslib mf-dev`, not `rslib build --watch` — the latter starts no HTTP server at all), `remoteEntry.js` is reachable at `http://localhost:3001/design-system/static/remoteEntry.js` — the port (`3001`, from `server.port`) and the path (`/design-system/static/...`, from `MF_PUBLIC_PATH`/`assetPrefix`) are two separate things combined into one URL. Note: `3000` is reserved for the host (`duidtin-ui`) later, not `apps/producer`.
+- `server: { port: 3001 }` — the dev server's own port. Once `bun run dev` runs in this folder (`rslib mf-dev`, not `rslib build --watch` — the latter starts no HTTP server at all), `remoteEntry.js` is reachable at `http://localhost:3001/design-system/static/remoteEntry.js` — the port (`3001`, from `server.port`) and the path (`/design-system/static/...`, from `MF_PUBLIC_PATH`/`assetPrefix`) are two separate things combined into one URL. Note: `3000` is used by the host (`duidtin-ui`), not `apps/producer`.
 - `source: { tsconfigPath: "./tsconfig.json" }` — points explicitly at which tsconfig supplies the compile settings (JSX, paths, and so on).
 - `lib: [{ format: "mf", ... }]` — the core difference from `packages/ui`:
   - `format: "mf"` — unlike `"esm"` in `packages/ui`. A dedicated format that, combined with `pluginModuleFederation`, produces `remoteEntry.js` rather than an ordinary npm package.
   - `dev.assetPrefix` and `output.assetPrefix` — both use `MF_PUBLIC_PATH`, one for `dev` mode (the local server) and one for `output` (the production build). They must stay consistent so the browser knows where to fetch the component chunks from.
   - `output.distPath: "./dist/mf"` — build output goes into the `dist/mf` subfolder rather than straight into `dist/` (unlike `packages/ui`), keeping it separate should `apps/producer` ever emit other output.
 - `pluginModuleFederation({...}, { target: "dual" })` — the first argument is the MF config itself:
-  - `name: "duidtin_ui_design_system"` — the remote name consumers (`duidtin-ui` later) use when calling `loadRemote("duidtin_ui_design_system/...")`. It must use underscores, not hyphens — a hyphen is not valid in a JavaScript variable name, and an MF container is exported by default through a `var <name> = {...}` declaration in its bundle. This name must also match what the host registry registers later.
+  - `name: "duidtin_ui_design_system"` — the remote name consumers (`duidtin-ui-layout`, `duidtin-ui`) use when calling `loadRemote("duidtin_ui_design_system/...")`. It must use underscores, not hyphens — a hyphen is not valid in a JavaScript variable name, and an MF container is exported by default through a `var <name> = {...}` declaration in its bundle. This name must also match what the host registry registers.
   - `manifest: true` — alongside `remoteEntry.js`, also generates `mf-manifest.json` listing every `exposes` entry in JSON — handy for verification/debugging without reading minified `remoteEntry.js`.
   - `filename: "remoteEntry.js"` — the name of the entry-point file consumers fetch first.
   - `exposes: { ...componentExposes, "./globals": "./src/styles/index.css" }` — the list of what outsiders may pull. `componentExposes` (from `component-exposes.ts`) holds the component map, plus one manual `"./globals"` entry for the CSS.

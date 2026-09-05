@@ -146,9 +146,9 @@ Design-system expose tiap komponen dengan named export **dan** `default`, jadi h
 
 ### 4. `pages/index.tsx` — bukan preview, cuma guard
 
-Layout ini baru kelihatan beneran kalau dirender host. Halaman ini semata pesan statis "modul ini nggak bisa jalan sendirian". Konsekuensinya: **verifikasi visual pas development normalnya lewat host beneran** (`duidtin-ui`). Selama host belum ada, caranya bikin halaman sementara di `pages/` yang render `<Default>` langsung, cek, lalu hapus lagi — itu yang dipakai buat verifikasi pertama repo ini.
+Layout ini baru kelihatan beneran kalau dirender host. Halaman ini semata pesan statis "modul ini nggak bisa jalan sendirian". Konsekuensinya: **verifikasi visual pas development lewat host** (`duidtin-ui` di `:3000`), bukan lewat repo ini. Dulu waktu host belum ada, caranya bikin halaman preview sementara di `pages/` yang render `<Default>` langsung — halaman itu sudah dihapus begitu host bisa memasang layout ini lewat jalur yang sebenarnya.
 
-### 5. Dikonsumsi host (`duidtin-ui`, belum dibuat)
+### 5. Dikonsumsi host (`duidtin-ui`) — sudah jalan
 
 ```
 duidtin-ui (host)
@@ -157,7 +157,7 @@ duidtin-ui (host)
         └─▶ bungkus konten tiap halaman: <Default>{page content}</Default>
 ```
 
-Catatan penting buat nanti: karena `duidtin-ui-layout` sendiri consume `duidtin_ui_design_system`, **host juga wajib daftarin `duidtin_ui_design_system` di remotes-nya sendiri** (bukan cuma `duidtin_ui_layout`) — biar dependency `react`/`react-dom` yang di-share tetap satu instance konsisten di seluruh halaman, nggak kebentur duplikat instance dari dua jalur beda.
+Karena `duidtin-ui-layout` sendiri consume `duidtin_ui_design_system`, **host juga wajib daftarin `duidtin_ui_design_system` di remotes-nya sendiri** (bukan cuma `duidtin_ui_layout`) — biar `react`/`react-dom` yang di-share tetap satu instance di seluruh halaman, nggak kebentur duplikat dari dua jalur beda. Ini **sudah dikerjakan**: `constants/features/registry.ts` di host mendaftarkan keduanya sebagai `globalFeatures`, dan hasilnya sudah diverifikasi — tombol yang dimuat lewat layout dan yang dimuat langsung host berbagi prefix ID React Aria yang sama.
 
 ### Rangkuman satu alur
 
@@ -209,7 +209,7 @@ Tiga waktu yang beda: `exposes`/`remotes` beku pas **build**, entry remote didaf
                            ^^^^ port HOST, bukan port repo ini
    ```
 
-   Penyebabnya: tanpa `assetPrefix`, `publicPath` webpack jadi `auto`, yang di-resolve relatif terhadap **halaman yang lagi dibuka** — dan halaman itu punya host (`:3000`), bukan punya repo ini (`:3002`). Ini kegagalan yang **kelasnya sama persis** dengan poin 4 yang sudah diperbaiki di design-system; repo ini sebenarnya kena sejak awal, cuma nggak kelihatan karena sampai sekarang repo ini cuma pernah jadi **konsumen**, belum pernah jadi remote yang **dikonsumsi**. Nggak ada yang narik chunk-nya lintas origin selama host belum ada.
+   Penyebabnya: tanpa `assetPrefix`, `publicPath` webpack jadi `auto`, yang di-resolve relatif terhadap **halaman yang lagi dibuka** — dan halaman itu punya host (`:3000`), bukan punya repo ini (`:3002`). Ini kegagalan yang **kelasnya sama persis** dengan poin 4 yang sudah diperbaiki di design-system; repo ini sebenarnya kena sejak awal, cuma nggak kelihatan karena sampai saat itu repo ini cuma pernah jadi **konsumen**, belum pernah jadi remote yang **dikonsumsi**. Nggak ada yang narik chunk-nya lintas origin sebelum host ada.
 
    Fix: `assetPrefix: process.env.MF_PUBLIC_PATH` di `next.config.mjs`, plus `MF_PUBLIC_PATH=http://localhost:3002/layout` di depan script `dev` — bentuknya sama dengan fix design-system. Production nggak kena: di sana semua remote satu domain dan `basePath` sudah cukup.
 
