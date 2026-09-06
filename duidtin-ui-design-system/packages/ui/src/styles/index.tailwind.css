@@ -1,5 +1,8 @@
 @import "tailwindcss" prefix(ui);
 
+/* Token dulu — komponen di bawahnya memakainya lewat var(--dtn-*) */
+@import "./tokens.css";
+
 @import "./button/button.css";
 @import "./card/card.css";
 @import "./badge/badge.css";

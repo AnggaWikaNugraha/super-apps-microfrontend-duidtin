@@ -30,11 +30,27 @@ Sudah ada:
 - `apps/producer` expose semua komponen di atas + `globals` lewat Module Federation, dengan codegen exposes otomatis dan tipe TypeScript lintas-remote (`dts`) sudah dikonfigurasi.
 - `loadRemote()` sudah kebukti jalan dari **dua konsumen nyata sekaligus**, keduanya diverifikasi di browser:
   - `duidtin-ui-layout` render `Button` & `Badge` dari remote ini di header-nya;
-  - host `duidtin-ui` render `Card` & `Button` **langsung**, tanpa lewat layout.
-- React tetap **satu instance** lintas ketiga repo. Buktinya: tombol yang dimuat lewat layout dan tombol yang dimuat langsung host berbagi prefix ID React Aria yang sama — kalau React kedobelan, prefiksnya bakal beda.
+  - `duidtin-feature-beranda` render `Card`, `Button`, `Badge` & `Alert` di halaman beranda — dan repo itu jalan di **MF 2.x**, sedangkan remote ini di 0.24.1.
+- React tetap **satu instance** lintas keempat repo, bahkan lintas versi MF. Buktinya: tombol yang dimuat lewat layout (MF 0.24.1) dan tombol yang dimuat lewat beranda (MF 2.x) berbagi prefix ID React Aria yang sama — kalau React kedobelan, prefiksnya bakal beda.
 
 Belum ada:
 - Config deploy/container.
+
+## Token desain (`packages/ui/src/styles/tokens.css`)
+
+Palet, radius, dan bayangan didefinisikan sebagai **CSS custom properties** berprefix `--dtn-`, bukan token Tailwind. Alasannya lintas repo: tiap repo punya build Tailwind sendiri dengan prefix sendiri (`ui`, `lyt`, `fber`), jadi token Tailwind tidak bisa dibagi. Custom properties mengalir di runtime lewat `:root` — begitu CSS remote ini dimuat, layout dan feature remote ikut kebagian nilai yang sama.
+
+Dipakai dari repo lain lewat arbitrary value:
+
+```css
+.lyt-header__brand-mark {
+  @apply lyt:bg-[var(--dtn-primary)];
+}
+```
+
+Sebelum ada lapisan ini, layout meng-hardcode `blue-600` dan harus **ditebak** cocok dengan design-system — begitu salah satu berubah, keduanya melenceng diam-diam.
+
+Gayanya perbankan korporat: biru pekat (`#0b4f9e`, bukan `blue-600` cerah), sudut kecil (5px, bukan 16px), struktur dibangun dari garis tipis alih-alih bayangan tebal, dan komponen lebih padat.
 
 ## Stack
 
@@ -83,11 +99,11 @@ packages/ui  (Rslib "esm", library biasa)
 apps/producer  (Rslib "mf" + pluginModuleFederation → remoteEntry.js)
       │
       ▼  loadRemote("duidtin_ui_design_system/<nama>")
-duidtin-ui-layout (:3002)  ─┐
-duidtin-ui       (:3000)  ─┴─▶  dua konsumen, dua jalur berbeda
+duidtin-ui-layout       (:3002, MF 0.24.1)  ─┐
+duidtin-feature-beranda (:3003, MF 2.x)     ─┴─▶  dua konsumen, dua jalur berbeda
 ```
 
-Perhatikan remote ini dikonsumsi lewat **dua jalur sekaligus**: langsung oleh host, dan tidak langsung lewat layout. Itu sebabnya `react`/`react-dom` wajib singleton — kalau tidak, satu halaman bisa memuat dua instance React dari dua jalur berbeda.
+Perhatikan remote ini dikonsumsi lewat **dua jalur sekaligus** dalam satu halaman: lewat layout (header) dan lewat feature remote (konten). Host sendiri **tidak** mengonsumsinya langsung — dia shell tipis yang tidak merender komponen UI. Itu sebabnya `react`/`react-dom` wajib singleton: kalau tidak, satu halaman bisa memuat dua instance React dari dua jalur berbeda. Dan salah satu konsumen itu jalan di garis versi MF yang berbeda (2.x), yang ternyata tetap berbagi share scope yang sama.
 
 ## Alur nambah komponen baru
 
@@ -126,7 +142,7 @@ Dari nulis komponen sampai bisa di-`loadRemote` dari luar:
 
 ── verifikasi ──
 11. cek apps/producer/dist/mf/mf-manifest.json — pastikan key "./components/<nama>" muncul di situ
-12. nyalain host (duidtin-ui, :3000) + layout (:3002), pakai komponennya lewat
+12. nyalain host (:3000) + layout (:3002) + beranda (:3003), pakai komponennya lewat
         loadRemote("duidtin_ui_design_system/components/<nama>") — verifikasi kerender
         beneran di browser lengkap sama style-nya, bukan cuma build sukses
 ```

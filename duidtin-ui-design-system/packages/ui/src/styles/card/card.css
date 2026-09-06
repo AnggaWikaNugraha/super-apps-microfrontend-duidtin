@@ -1,46 +1,47 @@
 .ui-card {
-  @apply ui:relative ui:rounded-2xl ui:border ui:bg-white ui:text-gray-900 ui:transition-shadow ui:duration-200;
-  @apply ui:dark:border-gray-800 ui:dark:bg-gray-900 ui:dark:text-gray-50;
+  @apply ui:relative ui:border ui:transition-shadow ui:duration-200;
+  @apply ui:rounded-[var(--dtn-radius)] ui:border-[var(--dtn-line)] ui:bg-[var(--dtn-surface)] ui:text-[var(--dtn-ink)];
 }
 
+/* Struktur dibangun dari garis, bukan bayangan tebal */
 .ui-card--elevated {
-  @apply ui:border-transparent ui:shadow-[0_12px_30px_-18px_rgba(15,23,42,0.35)];
-  @apply ui:dark:shadow-[0_12px_30px_-18px_rgba(0,0,0,0.6)];
+  @apply ui:shadow-[var(--dtn-shadow-raised)];
 }
 
 .ui-card--outlined {
-  @apply ui:border-gray-200 ui:shadow-none;
-  @apply ui:dark:border-gray-800;
+  @apply ui:shadow-none;
 }
 
 .ui-card--soft {
-  @apply ui:border-transparent ui:bg-gray-50;
-  @apply ui:dark:bg-gray-800/60;
+  @apply ui:bg-[var(--dtn-surface-muted)] ui:shadow-none;
 }
 
 .ui-card--sm {
-  @apply ui:p-4;
+  @apply ui:p-3.5;
 }
 
 .ui-card--md {
-  @apply ui:p-6;
+  @apply ui:p-4;
 }
 
 .ui-card--lg {
-  @apply ui:p-8;
+  @apply ui:p-6;
 }
 
+/*
+ * Header punya garis pemisah — pola khas layar korporat yang padat data,
+ * biar batas antar blok tetap terbaca tanpa menambah jarak.
+ */
 .ui-card__header {
-  @apply ui:mb-3 ui:text-lg ui:font-semibold ui:leading-tight ui:text-gray-900;
-  @apply ui:dark:text-gray-50;
+  @apply ui:mb-3 ui:border-b ui:pb-2.5 ui:text-sm ui:font-semibold;
+  @apply ui:border-[var(--dtn-line)] ui:text-[var(--dtn-ink)];
 }
 
 .ui-card__body {
-  @apply ui:text-sm ui:leading-relaxed ui:text-gray-600;
-  @apply ui:dark:text-gray-300;
+  @apply ui:text-sm ui:text-[var(--dtn-ink-muted)];
 }
 
 .ui-card__footer {
-  @apply ui:mt-4 ui:flex ui:items-center ui:justify-end ui:gap-2 ui:border-t ui:border-gray-100 ui:pt-4;
-  @apply ui:dark:border-gray-800;
+  @apply ui:mt-3 ui:flex ui:items-center ui:justify-end ui:gap-2 ui:border-t ui:pt-3;
+  @apply ui:border-[var(--dtn-line)];
 }

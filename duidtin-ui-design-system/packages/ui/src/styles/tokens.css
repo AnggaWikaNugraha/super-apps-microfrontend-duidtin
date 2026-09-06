@@ -1,0 +1,58 @@
+/*
+ * Token desain duidtin — palet korporat.
+ *
+ * Sengaja CSS custom properties, BUKAN token Tailwind. Alasannya lintas repo:
+ * tiap repo punya build Tailwind sendiri dengan prefix sendiri (`ui`, `lyt`,
+ * `fber`), jadi token Tailwind nggak bisa dibagi. Custom properties mengalir di
+ * runtime lewat `:root`, jadi begitu remote ini memuat CSS-nya, layout dan
+ * feature remote ikut kebagian nilai yang sama.
+ *
+ * Dipakai dari repo lain lewat arbitrary value:
+ *   @apply lyt:bg-[var(--dtn-primary)]
+ *
+ * Sebelum ada ini, layout meng-hardcode `blue-600` dan harus ditebak cocok
+ * dengan design-system — begitu salah satu berubah, keduanya melenceng diam-diam.
+ */
+:root {
+  /* Biru korporat — lebih pekat dan tenang dari blue-600 bawaan Tailwind */
+  --dtn-primary: #0b4f9e;
+  --dtn-primary-hover: #08407f;
+  --dtn-primary-soft: #eaf1fa;
+  --dtn-primary-line: #b9d0ea;
+
+  /* Teks */
+  --dtn-ink: #0f1c2e;
+  --dtn-ink-muted: #5b6779;
+  --dtn-ink-subtle: #8a94a3;
+
+  /* Permukaan */
+  --dtn-canvas: #f4f6f9;
+  --dtn-surface: #ffffff;
+  --dtn-surface-muted: #f8fafc;
+
+  /* Garis — hairline, bukan bayangan tebal */
+  --dtn-line: #dde3eb;
+  --dtn-line-strong: #c5cedb;
+
+  /* Status */
+  --dtn-success: #0f7a4a;
+  --dtn-success-soft: #e7f4ed;
+  --dtn-warning: #a86a08;
+  --dtn-warning-soft: #fdf3e3;
+  --dtn-danger: #b3261e;
+  --dtn-danger-soft: #fdeceb;
+  --dtn-info: #0b4f9e;
+  --dtn-info-soft: #eaf1fa;
+
+  /*
+   * Sudut sengaja kecil. Perbankan korporat cenderung bersudut tegas —
+   * rounded-2xl (16px) terasa seperti aplikasi konsumen.
+   */
+  --dtn-radius-sm: 3px;
+  --dtn-radius: 5px;
+  --dtn-radius-lg: 8px;
+
+  /* Bayangan tipis; struktur dibangun dari garis, bukan bayangan */
+  --dtn-shadow: 0 1px 2px rgba(15, 28, 46, 0.06);
+  --dtn-shadow-raised: 0 1px 3px rgba(15, 28, 46, 0.1);
+}

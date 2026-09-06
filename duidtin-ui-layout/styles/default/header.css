@@ -1,33 +1,48 @@
+/*
+ * Warna diambil dari token design-system (`var(--dtn-*)`), bukan di-hardcode.
+ * Sebelumnya di sini tertulis `blue-600` yang harus DITEBAK cocok dengan
+ * design-system — begitu salah satu berubah, keduanya melenceng diam-diam.
+ * Token-nya mengalir lewat `:root` waktu CSS design-system dimuat.
+ */
 .lyt-header {
-  @apply lyt:sticky lyt:top-0 lyt:z-40 lyt:border-b lyt:border-gray-200 lyt:bg-white;
+  @apply lyt:sticky lyt:top-0 lyt:z-40 lyt:border-b;
+  @apply lyt:border-[var(--dtn-line)] lyt:bg-[var(--dtn-surface)];
 }
 
+/* Lebih pendek dari 16 — bar korporat memberi ruang lebih ke tabel di bawahnya */
 .lyt-header__inner {
-  @apply lyt:mx-auto lyt:flex lyt:h-16 lyt:w-full lyt:max-w-6xl lyt:items-center lyt:gap-6 lyt:px-6;
+  @apply lyt:mx-auto lyt:flex lyt:h-14 lyt:w-full lyt:max-w-7xl lyt:items-center lyt:gap-6 lyt:px-6;
 }
 
 .lyt-header__brand {
-  @apply lyt:flex lyt:items-center lyt:gap-2 lyt:text-lg lyt:font-semibold lyt:text-gray-900;
+  @apply lyt:flex lyt:items-center lyt:gap-2 lyt:text-base lyt:font-semibold lyt:tracking-tight;
+  @apply lyt:text-[var(--dtn-ink)];
 }
 
 .lyt-header__brand-mark {
-  @apply lyt:flex lyt:h-8 lyt:w-8 lyt:items-center lyt:justify-center lyt:rounded-lg lyt:bg-blue-600 lyt:text-sm lyt:font-bold lyt:text-white;
+  @apply lyt:flex lyt:h-7 lyt:w-7 lyt:items-center lyt:justify-center lyt:text-xs lyt:font-bold lyt:text-white;
+  @apply lyt:rounded-[var(--dtn-radius-sm)] lyt:bg-[var(--dtn-primary)];
 }
 
 .lyt-header__nav {
-  @apply lyt:hidden lyt:items-center lyt:gap-1 lyt:md:flex;
+  @apply lyt:hidden lyt:items-center lyt:gap-0.5 lyt:md:flex;
 }
 
+/*
+ * Nav aktif ditandai garis bawah, bukan pil berwarna. Di menu korporat yang
+ * isinya bisa 8-10 item, pil membuat bar terasa ramai.
+ */
 .lyt-header__nav-link {
-  @apply lyt:rounded-md lyt:px-3 lyt:py-2 lyt:text-sm lyt:font-medium lyt:text-gray-600 lyt:transition-colors lyt:hover:bg-gray-100 lyt:hover:text-gray-900;
+  @apply lyt:border-b-2 lyt:border-transparent lyt:px-3 lyt:py-4 lyt:text-sm lyt:font-medium lyt:transition-colors;
+  @apply lyt:text-[var(--dtn-ink-muted)] lyt:hover:text-[var(--dtn-ink)];
 }
 
 .lyt-header__nav-link--disabled {
-  @apply lyt:cursor-not-allowed lyt:text-gray-400 lyt:hover:bg-transparent lyt:hover:text-gray-400;
+  @apply lyt:cursor-not-allowed lyt:text-[var(--dtn-ink-subtle)] lyt:hover:text-[var(--dtn-ink-subtle)];
 }
 
 .lyt-header__nav-link--active {
-  @apply lyt:bg-blue-50 lyt:text-blue-700 lyt:hover:bg-blue-50 lyt:hover:text-blue-700;
+  @apply lyt:border-[var(--dtn-primary)] lyt:text-[var(--dtn-primary)] lyt:hover:text-[var(--dtn-primary)];
 }
 
 .lyt-header__actions {

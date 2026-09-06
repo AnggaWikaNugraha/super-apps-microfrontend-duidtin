@@ -47,17 +47,19 @@ Module Federation menyatukan aplikasi **saat runtime lewat kontrak**, bukan saat
 - **Peran** — header + footer, membungkus konten tiap halaman
 - **Catatan** — peran ganda: remote buat host, sekaligus konsumen design-system. `assetPrefix` absolut wajib saat dev, kalau tidak chunk-nya diminta ke origin host dan 404
 
-### 4. `duidtin-ui-beranda` — *rencana, belum dibuat*
+### 4. `duidtin-feature-beranda` — beranda
 
 - **Port** — 3003
 - **Framework** — Next.js 16.2.9
 - **Bundler** — **Rspack** (`next-rspack` 16.2.9)
-- **Plugin MF** — `@module-federation/enhanced` 2.x
+- **Plugin MF** — `@module-federation/enhanced` 2.9.0
 - **React** — 18.3.1 (wajib sama dengan host)
-- **Tailwind** — v4, prefix `brd`
+- **Styling** — Tailwind v4, prefix `fber` (pola BEM + `@apply`, sama dengan repo lain)
 - **Path** — `basePath: "/beranda"`
-- **Peran** — dashboard korporat: ringkasan saldo, antrean persetujuan, pintasan
+- **Peran** — beranda: ringkasan saldo, antrean persetujuan, pintasan. Feature remote pertama, jadi repo ini yang bikin FASE 2 di host benar-benar jalan
 - **Catatan** — Turbopack (bawaan Next 16) tidak mendukung MF, jadi ditukar Rspack. `shared` harus ditulis manual — `enhanced` tidak otomatis menshare React seperti `nextjs-mf`
+
+> Penamaan: `ui-*` untuk infrastruktur (host, design-system, layout), `feature-*` untuk fitur bisnis.
 
 Tiga perbedaan paling mencolok di atas bukan kebetulan, tapi memang dibiarkan berbeda:
 
@@ -75,9 +77,13 @@ Tiga perbedaan paling mencolok di atas bukan kebetulan, tapi memang dibiarkan be
 
 ### Yang BOLEH beda
 
-Framework, bundler, plugin MF, versi TypeScript, prefix Tailwind, port, `basePath`, bahkan package manager. Prefix CSS sengaja dibuat berbeda (`app` / `ui` / `lyt` / `brd`) karena keempatnya dirender dalam satu halaman — tanpa prefix berbeda, utility class Tailwind-nya saling tabrakan.
+Framework, bundler, plugin MF, versi TypeScript, prefix Tailwind, port, `basePath`, bahkan package manager. Prefix CSS sengaja dibuat berbeda (`app` / `ui` / `lyt` / `fber`) karena keempatnya dirender dalam satu halaman — tanpa prefix berbeda, utility class Tailwind-nya saling tabrakan.
 
-> **Belum terbukti:** `duidtin-ui-beranda` akan memakai MF runtime **2.x**, sedangkan tiga repo lainnya di **0.24.1**. Apakah dua garis versi itu bisa saling bicara belum diuji — itu hal pertama yang akan dicek begitu repo-nya berdiri, dengan expose sesederhana mungkin supaya kalau gagal yang terbuang cuma scaffold.
+Warnanya sendiri **tidak** berbeda: palet, radius, dan bayangan didefinisikan sekali sebagai CSS custom property `--dtn-*` di design-system, lalu mengalir ke semua repo lewat `:root`. Tailwind di tiap repo cuma mengurus tata letak.
+
+Yang tetap berbeda antar repo adalah **cara CSS-nya sampai ke browser**: Next melarang import CSS global di luar `_app.tsx`, sedangkan modul yang di-expose MF bukan `_app.tsx`. Layout menyiasatinya lewat rule webpack custom, beranda lewat kompilasi jadi string yang disuntik manual.
+
+> **Sudah terbukti:** `duidtin-feature-beranda` jalan di MF runtime **2.9.0**, tiga repo lain di **0.24.1**, dan keduanya bisa saling bicara — dua arah. Host (0.24.1) memuat beranda (2.x), lalu beranda (2.x) memuat design-system (0.24.1), semuanya dalam satu pohon render tanpa error. Bahkan `dts` lintas-repo ikut jalan: tipe design-system ter-generate otomatis ke `@mf-types/` di sisi beranda.
 
 ### Cara menjalankan
 
@@ -86,6 +92,7 @@ Tiga terminal, remote duluan lalu host:
 ```bash
 cd duidtin-ui-design-system && bun install && bun run dev:producer   # :3001
 cd duidtin-ui-layout        && bun install && bun run dev            # :3002
+cd duidtin-feature-beranda  && bun install && bun run dev            # :3003
 cd duidtin-ui               && bun install && bun run dev            # :3000 ← buka ini
 ```
 

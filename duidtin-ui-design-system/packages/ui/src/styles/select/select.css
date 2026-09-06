@@ -13,7 +13,7 @@
 }
 
 .ui-select__trigger[data-focused] {
-  @apply ui:border-blue-500 ui:ring-2 ui:ring-blue-500/20;
+  @apply ui:border-[var(--dtn-primary)] ui:ring-2 ui:ring-[var(--dtn-primary-line)];
 }
 
 .ui-select__trigger[data-disabled] {
@@ -47,7 +47,7 @@
 }
 
 .ui-select__item[data-selected] {
-  @apply ui:font-medium ui:text-blue-600 ui:dark:text-blue-400;
+  @apply ui:font-medium ui:text-[var(--dtn-primary)];
 }
 
 .ui-select__item[data-disabled] {

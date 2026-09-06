@@ -1,7 +1,9 @@
 .lyt-layout {
-  @apply lyt:flex lyt:min-h-screen lyt:flex-col lyt:bg-gray-50;
+  @apply lyt:flex lyt:min-h-screen lyt:flex-col;
+  @apply lyt:bg-[var(--dtn-canvas)] lyt:text-[var(--dtn-ink)];
 }
 
+/* Lebih lebar dari max-w-6xl — layar korporat padat tabel dan kolom */
 .lyt-layout__main {
-  @apply lyt:mx-auto lyt:w-full lyt:max-w-6xl lyt:flex-1 lyt:px-6 lyt:py-8;
+  @apply lyt:mx-auto lyt:w-full lyt:max-w-7xl lyt:flex-1 lyt:px-6 lyt:py-6;
 }

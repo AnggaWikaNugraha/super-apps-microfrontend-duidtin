@@ -11,7 +11,7 @@
 }
 
 .ui-modal {
-  @apply ui:w-full ui:max-w-md ui:rounded-2xl ui:bg-white ui:p-6 ui:shadow-xl ui:outline-none ui:dark:bg-gray-900;
+  @apply ui:w-full ui:max-w-md ui:rounded-[var(--dtn-radius-lg)] ui:bg-white ui:p-6 ui:shadow-xl ui:outline-none ui:dark:bg-gray-900;
 }
 
 .ui-modal[data-entering] {

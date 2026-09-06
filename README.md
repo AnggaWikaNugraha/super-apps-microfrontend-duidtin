@@ -47,17 +47,19 @@ Module Federation composes applications **at runtime through a contract**, not a
 - **Role** — header + footer, wrapped around every page's content
 - **Note** — a dual role: a remote for the host, and a consumer of the design system. An absolute `assetPrefix` is mandatory in dev, otherwise its chunks are requested from the host's origin and 404
 
-### 4. `duidtin-ui-beranda` — *planned, not built yet*
+### 4. `duidtin-feature-beranda` — the home page
 
 - **Port** — 3003
 - **Framework** — Next.js 16.2.9
 - **Bundler** — **Rspack** (`next-rspack` 16.2.9)
-- **MF plugin** — `@module-federation/enhanced` 2.x
+- **MF plugin** — `@module-federation/enhanced` 2.9.0
 - **React** — 18.3.1 (must match the host)
-- **Tailwind** — v4, prefix `brd`
+- **Styling** — Tailwind v4, prefix `fber` (BEM + `@apply`, the same as the other repos)
 - **Path** — `basePath: "/beranda"`
-- **Role** — the corporate dashboard: balance summary, approval queue, shortcuts
+- **Role** — the home page: balance summary, approval queue, shortcuts. The first feature remote, so this repo is what makes PHASE 2 in the host actually run
 - **Note** — Turbopack (Next 16's default) does not support MF, hence Rspack. `shared` must be written by hand — `enhanced` does not auto-share React the way `nextjs-mf` does
+
+> Naming: `ui-*` for infrastructure (host, design system, layout), `feature-*` for business features.
 
 The three most striking differences above are deliberate, not accidental:
 
@@ -75,9 +77,13 @@ The three most striking differences above are deliberate, not accidental:
 
 ### What MAY differ
 
-Framework, bundler, MF plugin, TypeScript version, Tailwind prefix, port, `basePath`, even the package manager. The CSS prefixes are deliberately distinct (`app` / `ui` / `lyt` / `brd`) because all four render into a single page — without separate prefixes their Tailwind utility classes would collide.
+Framework, bundler, MF plugin, TypeScript version, Tailwind prefix, port, `basePath`, even the package manager. The CSS prefixes are deliberately distinct (`app` / `ui` / `lyt` / `fber`) because all four render into a single page — without separate prefixes their Tailwind utility classes would collide.
 
-> **Not yet proven:** `duidtin-ui-beranda` will run MF runtime **2.x** while the other three sit on **0.24.1**. Whether those two version lines can talk to each other is untested — it is the first thing to check once the repo exists, with the simplest possible expose, so that a failure costs only the scaffold.
+The colours themselves do **not** differ: the palette, radii and shadows are defined once as `--dtn-*` CSS custom properties in the design system, then cascade to every repo through `:root`. Tailwind in each repo only handles layout.
+
+What still differs between repos is **how the CSS reaches the browser**: Next forbids global CSS imports outside `_app.tsx`, while an MF-exposed module is not `_app.tsx`. The layout works around it with a custom webpack rule; beranda compiles the CSS into a string and injects it by hand.
+
+> **Now proven:** `duidtin-feature-beranda` runs MF runtime **2.9.0** while the other three sit on **0.24.1**, and they do talk to each other — in both directions. The host (0.24.1) loads beranda (2.x), then beranda (2.x) loads the design system (0.24.1), all inside one render tree with no errors. Even cross-repo `dts` works: the design system's types are generated into `@mf-types/` on beranda's side automatically.
 
 ### Running it
 
@@ -86,6 +92,7 @@ Three terminals, remotes before the host:
 ```bash
 cd duidtin-ui-design-system && bun install && bun run dev:producer   # :3001
 cd duidtin-ui-layout        && bun install && bun run dev            # :3002
+cd duidtin-feature-beranda  && bun install && bun run dev            # :3003
 cd duidtin-ui               && bun install && bun run dev            # :3000 ← open this
 ```
 

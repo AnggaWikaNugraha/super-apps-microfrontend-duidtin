@@ -4,13 +4,26 @@ import dynamic from "next/dynamic";
 import type { ComponentType, ReactNode } from "react";
 
 /**
- * Jembatan ke komponen remote.
+ * Jembatan ke remote INFRASTRUKTUR — sekarang cuma `duidtin_ui_layout`, karena
+ * layout dipakai lintas halaman lewat pola `getLayout`.
+ *
+ * REMOTE FITUR (`duidtin_feature_*`) SENGAJA NGGAK DI SINI. Tiap fitur cuma
+ * dipakai satu halaman, jadi `loadRemote`-nya ditulis langsung di file page-nya
+ * (lihat `pages/index.tsx`). Kalau dicampur, berkas ini bakal terus membengkak
+ * tiap nambah fitur dan susah dibaca.
+ *
+ * Catatan: host TIDAK lagi mengonsumsi `duidtin_ui_design_system` langsung.
+ * Sejak konten `/` pindah ke `duidtin_feature_beranda`, host nggak merender
+ * komponen UI sendiri sama sekali — memang itu tujuan shell yang tipis.
+ * Design-system sekarang dikonsumsi dari dua tempat lain: layout (buat Badge &
+ * Button di header) dan tiap feature remote.
  *
  * `ssr: false` wajib: modulnya di-fetch runtime dari origin lain, jadi nggak ada
  * wujudnya waktu Next prerender di server.
  *
- * `pick` dipakai buat modul yang komponennya bukan di `default` — misal `Card`
- * yang punya sub-komponen (Card.Header, Card.Body) sebagai properti.
+ * `pick` dipertahankan walau belum kepakai — dibutuhkan begitu host perlu
+ * compound component (mis. `Card.Header`), karena properti statis nggak ikut
+ * terbawa waktu next/dynamic membungkus modulnya jadi Loadable.
  */
 const remoteComponent = <TProps,>(
   path: string,
@@ -44,50 +57,3 @@ export interface DefaultLayoutProps {
 }
 
 export const DefaultLayout = remoteComponent<DefaultLayoutProps>("duidtin_ui_layout/default");
-
-/* ---------------------------------------------------------------------------
- * duidtin_ui_design_system — dikonsumsi LANGSUNG oleh host, bukan cuma lewat
- * layout. Ini yang membuktikan share scope react-nya tembus ke dua arah:
- * host → design-system, dan host → layout → design-system.
- * ------------------------------------------------------------------------- */
-
-const DESIGN_SYSTEM = "duidtin_ui_design_system";
-
-export interface ButtonProps {
-  children?: ReactNode;
-  className?: string;
-  color?: "primary" | "default";
-  isDisabled?: boolean;
-  onPress?: () => void;
-  size?: "sm" | "md";
-  variant?: "solid" | "outline";
-}
-
-export interface CardProps {
-  children?: ReactNode;
-  className?: string;
-  size?: "sm" | "md";
-  style?: React.CSSProperties;
-  variant?: "elevated" | "outlined" | "soft";
-}
-
-export interface CardSectionProps {
-  children?: ReactNode;
-  className?: string;
-}
-
-type CardModule = { Card: ComponentType<CardProps> & Record<string, ComponentType<never>> };
-
-export const Button = remoteComponent<ButtonProps>(`${DESIGN_SYSTEM}/components/button`);
-
-export const Card = remoteComponent<CardProps>(`${DESIGN_SYSTEM}/components/card`);
-
-export const CardHeader = remoteComponent<CardSectionProps>(
-  `${DESIGN_SYSTEM}/components/card`,
-  (mod) => (mod as unknown as CardModule).Card.Header as ComponentType<CardSectionProps>,
-);
-
-export const CardBody = remoteComponent<CardSectionProps>(
-  `${DESIGN_SYSTEM}/components/card`,
-  (mod) => (mod as unknown as CardModule).Card.Body as ComponentType<CardSectionProps>,
-);

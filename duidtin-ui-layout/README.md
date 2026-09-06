@@ -22,10 +22,12 @@ Done and verified working:
 - The header consumes `Button` & `Badge` from `duidtin_ui_design_system` through `loadRemote()` — the "a remote calling another remote" pattern is proven to actually render in a browser (not merely to build), styles included.
 - `styles/globals.css` exposed as `./globals`.
 - `pages/index.tsx` is a guard page, and `exposePages: false` keeps it from being exposed.
+- The header menu is now the corporate one (Beranda, Payroll, Transfer, Mutasi, Persetujuan). Entries whose route does not exist yet render as a `disabled` `<span>` rather than an `<a>`, so no link can 404.
 - **Mounted by the real host.** `duidtin-ui` renders this layout through `loadRemote("duidtin_ui_layout/default")`, verified in a browser. That first mount is what uncovered item 8 under "Snags".
 
 Not done:
 - Real auth/context bridging — `onLogout` & `userName` are still plain props, not wired to any provider.
+- A role-aware menu. `navItems` is already a prop, but the host does not send one yet, so `DEFAULT_NAV_ITEMS` in this repo is still used. Once auth exists, a maker and a checker should see different menus.
 - i18n, deploy/container config.
 
 ## Stack
@@ -35,7 +37,7 @@ Not done:
 - **`@module-federation/runtime` 0.24.1** — used directly in `pages/_app.tsx` (`init`) and `components/remote/design-system.tsx` (`loadRemote`), matched to the version above.
 - **`webpack` 5.105.0 + `NEXT_PRIVATE_LOCAL_WEBPACK=true`** — `nextjs-mf` refuses to run against the webpack bundled into Next; both of these are required, not either/or (see "Snags we hit").
 - **React 18.3.1** — matching `duidtin-ui-design-system`, so the shared singleton stays consistent.
-- **Tailwind CSS v4** (prefix `lyt`) — the same BEM + `@apply` pattern as the design system, just a different prefix so it can't collide with the design system's `ui:` or the host's own.
+- **Tailwind CSS v4** (prefix `lyt`) — the same BEM + `@apply` pattern as the design system, just a different prefix so it can't collide with the design system's `ui:` or the host's own. **The colours themselves are not hardcoded** — they come from the design system's `var(--dtn-*)` tokens, which cascade through `:root` once its CSS loads. This file used to hardcode `blue-600` and had to be guessed into matching.
 
 ## Folder structure
 

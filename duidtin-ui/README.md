@@ -20,18 +20,19 @@ If a remote isn't running the page **still renders** — the failed part is repl
 
 Verified working in a real browser (not just a successful build):
 
-- Boot registers both remotes; their CSS is fetched before the first render.
+- Boot registers every remote (2 global + 1 feature); the global CSS is fetched before the first render.
 - `loadRemote("duidtin_ui_layout/default")` wraps the page — header and footer render with their styles intact.
-- The host consumes `duidtin_ui_design_system` **directly** (Card, Button), not only through the layout.
-- **React stays a single instance** across all 3 repos. Concrete evidence: the button loaded through the layout and the button loaded directly by the host share the same React Aria ID prefix (`react-aria9439377283-:r2:` vs `:r6:`) — had React been duplicated, the two prefixes would differ.
+- **PHASE 2 now genuinely runs**, ever since `duidtin_feature_beranda` was registered on route `/`. Before that, `featureRegistry` was empty and the loop did zero iterations.
+- **React stays a single instance across 4 repos AND across MF versions.** Concrete evidence: the button loaded through the layout (MF 0.24.1) and the button loaded through beranda (MF **2.x**) share the same React Aria ID prefix (`react-aria4676304478-:r2:` vs `:r6:`) — had React been duplicated, the prefixes would differ.
 - `fallbackPlugin` is proven to fire: while the layout was still failing to load, the page did not go blank; only that part was swapped for an error box.
+- The host renders **no UI component of its own at all** — the shell is genuinely thin. Everything on `/` comes from a remote.
 
 Not there yet:
 
-- **Feature remotes** — `featureRegistry` is still empty, so PHASE 2's scaffolding is complete but nothing exercises it. See "Next steps".
+- **A second feature remote and beyond** — there is only one so far (`duidtin_feature_beranda` at route `/`). Payroll, Transfer, Statement and Approvals are still missing.
 - i18n (no equivalent of `qcash-ui`'s `loadLocalesForModule` yet).
-- Auth/context provider — `userName` and `onLogout` are still hardcoded in `pages/index.tsx`.
-- Per-module local port overrides (`getModuleEntry` layer B in `qcash-ui`) — not worth it while there are only two remotes.
+- Auth/context provider — `userName` and `onLogout` are still hardcoded in `pages/index.tsx`, and the layout's menu does not yet adapt to roles (maker vs checker).
+- Per-module local port overrides (`getModuleEntry` layer B in `qcash-ui`) — not worth it while there are still few remotes.
 
 ## Stack
 
@@ -62,7 +63,8 @@ duidtin-ui/
     federation/
       provider.tsx       # PHASE 2: waitForFederation + per-route warm-up
       hooks/useModuleLoading.ts
-    remote/index.tsx     # loadRemote → next/dynamic bridge
+    remote/index.tsx     # bridge for INFRASTRUCTURE remotes only (the layout).
+                         # FEATURE remotes are declared in their own pages/ file
     ui/RemoteErrorBoundary.tsx   # PHASE 4, layer 3
   utils/index.ts         # getBaseFederationUrl() — environment detection
   pages/
@@ -129,7 +131,7 @@ Takes no arguments. It merely merges two sources:
 [...globalFeatures, ...Object.values(featureRegistry)]
 ```
 
-What it returns today (2 items, since `featureRegistry` is still empty):
+What it returns today — 2 global + 1 feature:
 
 ```ts
 [
@@ -141,6 +143,10 @@ What it returns today (2 items, since `featureRegistry` is still empty):
     entryPath: "/layout/_next/static/chunks/remoteEntry.js",
     devOrigin: "http://localhost:3002",
     routes: [] },
+  { name: "duidtin_feature_beranda",
+    entryPath: "/beranda/_next/static/chunks/remoteEntry.js",
+    devOrigin: "http://localhost:3003",
+    routes: ["/"] },              // ← this one is per-feature, not global
 ]
 ```
 
@@ -599,8 +605,10 @@ Object.values(featureRegistry)          // ← WITHOUT globalFeatures
 // out: ["duidtin_ui_transaksi"]        ← names only, the objects are dropped
 
 // in:  "/"
+// out: ["duidtin_feature_beranda"]     ← beranda is registered on route "/"
+
+// in:  "/does-not-exist"
 // out: []
-// (with featureRegistry EMPTY as it is today, EVERY route → [])
 ```
 
 This is where the data **shrinks sharply**: full `FeatureMetadata` objects go in, a bare `string[]` comes out. The rest of the metadata isn't carried along, because `loadRemote()` only needs the name — the URL was registered back in PHASE 1.
@@ -824,7 +832,7 @@ That first row is the whole point: on `/` this phase **did not run at all**, yet
 | `loadModule` | `moduleName: string` | `Promise<void>` (fire-and-forget) |
 | `dynamicLoadStyles` | `moduleName: string` | `Promise<boolean>` |
 
-> While `featureRegistry` is empty, `getModulesForRoute()` always returns `[]` and this entire phase is a **no-op**. The scaffolding is deliberate, so that adding the first feature remote is one registry entry rather than rebuilding the loading path.
+> This phase **now genuinely runs**, ever since `duidtin_feature_beranda` was registered on route `/`. Open `localhost:3000` with the console open, filter for `[MFE]`, and the log `FASE 2 warm-up "duidtin_feature_beranda" → ok` appears. Before the first feature remote existed, `getModulesForRoute()` always returned `[]` and this whole phase was a no-op.
 
 ### PHASE 3 — The actual render (`pages/index.tsx`)
 
@@ -994,39 +1002,52 @@ Browser opens http://localhost:3000/
 │               <DefaultLayout …><HomePage /></DefaultLayout>
 │             </ModuleFederationProvider>
 │
-├─▶ <DefaultLayout> MOUNTS
+├─▶ <DefaultLayout> MOUNTS         ← INFRASTRUCTURE remote, from components/remote/
 │     └─▶ loadRemote("duidtin_ui_layout/default")
 │           out      : { default: ƒ }
 │           NETWORK  : GET :3002/layout/_next/.../__federation_expose_default.js
-│           → the placeholder is replaced by the real component
 │
-└─▶ <HomePage /> renders inside it
-      ├─▶ <Card> MOUNTS    → loadRemote(".../components/card")   → { Card, default }
-      ├─▶ <CardHeader>     → SAME module, from cache, pick .Card.Header
-      ├─▶ <CardBody>       → SAME module, from cache, pick .Card.Body
-      └─▶ <Button> MOUNTS  → loadRemote(".../components/button") → { Button, default }
-            NETWORK : GET :3001/design-system/static/__federation_expose_components__card.js
-                      GET :3001/design-system/static/__federation_expose_components__button.js
+└─▶ <HomePage /> → <BerandaContainer /> MOUNTS   ← FEATURE remote, declared
+      │                                             directly in pages/index.tsx
+      └─▶ loadRemote("duidtin_feature_beranda/base")
+            out      : { default: ƒ }
+            NETWORK  : GET :3003/beranda/_next/.../[base chunk]
+            │
+            └─ INSIDE beranda, a remote calls another remote again:
+                 loadRemote("duidtin_ui_design_system/components/card")   → { Card, default }
+                 loadRemote("duidtin_ui_design_system/components/button") → { Button, default }
+                 loadRemote("duidtin_ui_design_system/components/alert")  → { Alert, default }
+                 loadRemote("duidtin_ui_design_system/components/badge")  → { Badge, default }
+                 NETWORK : GET :3001/design-system/static/__federation_expose_components__*.js
 ```
 
-The resulting DOM — all three repos interleaved in one tree:
+Note the split on the `MOUNTS` lines: the layout comes through `components/remote/`
+(an infrastructure remote, used across pages), while beranda is declared directly
+in `pages/index.tsx` (a feature remote, used by one page only).
+
+The resulting DOM — **four repos** interleaved in one tree:
 
 ```html
-<div class="lyt-layout">                          <!-- duidtin_ui_layout -->
+<div class="lyt-layout">                            <!-- duidtin_ui_layout -->
   <header class="lyt-header">
-    <span class="ui-badge ui-badge--soft" …>      <!-- design system VIA the layout -->
-    <button class="ui-button …" id="react-aria9439377283-:r2:">Keluar</button>
+    <span class="ui-badge ui-badge--soft" …>        <!-- design system VIA the layout -->
+    <button class="ui-button …" id="react-aria4676304478-:r2:">Keluar</button>
   </header>
   <main class="lyt-layout__main">
-    <div class="app-page">                        <!-- the host's own markup -->
-      <div class="ui-card ui-card--elevated" …>   <!-- design system DIRECTLY from the host -->
-      <button class="ui-button …" id="react-aria9439377283-:r6:">Buat Transaksi</button>
+    <div class="fber-page">                         <!-- duidtin_feature_beranda, Tailwind prefix fber -->
+      <div class="ui-card ui-card--elevated" …>     <!-- design system VIA beranda -->
+      <button class="ui-button …" id="react-aria4676304478-:r6:">Payroll</button>
     </div>
   </main>
 </div>
 ```
 
-Look at those two React Aria `id`s: `:r2:` was loaded through the layout, `:r6:` directly by the host, yet **the prefix is identical** (`react-aria9439377283`). Had React been duplicated, the prefixes would differ. That is mechanical proof the shared scope is correct.
+The host itself contributes **not a single element** here — it only composes.
+
+And look at those two React Aria `id`s: `:r2:` was loaded through the layout (MF 0.24.1),
+`:r6:` through beranda (MF **2.x**), yet the prefix is identical (`react-aria4676304478`).
+Had React been duplicated, the prefixes would differ. That is mechanical proof the React
+shared scope carries **across Module Federation versions**, not merely across repos.
 
 #### What this phase fetches, and what it does NOT
 
@@ -1088,8 +1109,9 @@ The shapes differ because the build tools differ: the design system uses **Rslib
 
 ## Next steps
 
-1. **The first feature remote** (`duidtin-ui-<feature>`, port 3003) — this is what will activate the currently idle PHASE 2 and prove route matching works. Two things its config must get right from day one, both lessons from the layout (see its README):
-   - an absolute `assetPrefix` in dev, otherwise its chunks are requested from the host's origin and 404;
-   - `shared: {}`, letting `nextjs-mf` handle react.
-2. An auth/context provider, so `userName` and `onLogout` stop being hardcoded.
+1. **The next feature remotes** — Beneficiaries, Payroll, Statement, Approvals. Three things every new remote must get right from day one:
+   - **an absolute `assetPrefix` in dev**, otherwise its chunks are requested from the host's origin and 404 (lesson from `duidtin-ui-layout`);
+   - **`shared` react as a singleton** — `nextjs-mf` handles it automatically, `enhanced` does **not**;
+   - **register remotes on a code path that runs when the host loads it** — not in `pages/_app.tsx`, which is never executed in the host's context (lesson from `duidtin-feature-beranda`).
+2. An auth/context provider, so `userName` and `onLogout` stop being hardcoded and the menu can adapt to roles.
 3. Per-module i18n.

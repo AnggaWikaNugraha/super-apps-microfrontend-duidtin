@@ -17,7 +17,7 @@
 }
 
 .ui-date-range-picker__input:focus {
-  @apply ui:border-blue-500 ui:ring-2 ui:ring-blue-500/20;
+  @apply ui:border-[var(--dtn-primary)] ui:ring-2 ui:ring-[var(--dtn-primary-line)];
 }
 
 .ui-date-range-picker__separator {

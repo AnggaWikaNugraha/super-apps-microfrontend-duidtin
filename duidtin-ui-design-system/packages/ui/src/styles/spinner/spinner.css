@@ -7,7 +7,7 @@
 }
 
 .ui-spinner--primary {
-  @apply ui:text-blue-600 ui:dark:text-blue-400;
+  @apply ui:text-[var(--dtn-primary)];
 }
 
 .ui-spinner--success {

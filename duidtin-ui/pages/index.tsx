@@ -1,68 +1,34 @@
-import {
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  DefaultLayout,
-} from "@/components/remote";
+import { loadRemote } from "@module-federation/runtime";
+import dynamic from "next/dynamic";
 
-import type { ReactElement } from "react";
+import { DefaultLayout } from "@/components/remote";
+
+import type { ComponentType, ReactElement } from "react";
 
 /**
- * FASE 3 — halaman pertama yang beneran naruh remote ke layar.
+ * FASE 3 — route "/" dilayani feature remote, bukan konten host.
  *
- * Konten halaman ini masih milik host sendiri (belum ada feature remote), tapi
- * yang membungkusnya dan komponen di dalamnya sudah remote sungguhan:
- *   - <DefaultLayout>       → duidtin_ui_layout
- *   - <Card>, <Button>      → duidtin_ui_design_system, LANGSUNG dari host
- * ditambah Badge & Button di header yang ditarik layout dari design-system.
+ * `loadRemote` fitur ditulis LANGSUNG di sini, bukan lewat `components/remote/`.
+ * Berkas itu khusus remote infrastruktur (layout, design-system) yang dipakai
+ * lintas halaman; remote fitur cuma dipakai satu halaman, jadi lebih jelas kalau
+ * dideklarasikan di tempat dia dipakai.
  *
- * Kalau ketiganya kerender lengkap dengan style-nya, artinya react singleton
- * lintas host + 2 remote sudah benar.
+ * Dua stack berbeda ketemu di halaman ini:
+ *   <DefaultLayout>      → duidtin_ui_layout       (Next 14 + webpack + MF 0.24.1)
+ *   <BerandaContainer>   → duidtin_feature_beranda (Next 16 + Rspack  + MF 2.x)
  */
-const HomePage = () => (
-  <div className="app-page">
-    <div>
-      <h1 className="app-page__title">Beranda</h1>
-      <p className="app-page__lead">
-        Halaman ini dirender host <code>duidtin-ui</code>. Header &amp; footer di sekelilingnya
-        datang dari remote <code>duidtin_ui_layout</code>, sedangkan kartu dan tombol di bawah
-        ditarik host langsung dari <code>duidtin_ui_design_system</code>.
-      </p>
-    </div>
-
-    <div className="app-page__grid">
-      <Card variant="elevated">
-        <CardHeader>Total Saldo</CardHeader>
-        <CardBody>
-          <p className="app-page__stat-label">Per hari ini</p>
-          <p className="app-page__stat-value">Rp 42.500.000</p>
-        </CardBody>
-      </Card>
-
-      <Card variant="outlined">
-        <CardHeader>Transaksi Tertunda</CardHeader>
-        <CardBody>
-          <p className="app-page__stat-label">Menunggu persetujuan</p>
-          <p className="app-page__stat-value">3</p>
-        </CardBody>
-      </Card>
-    </div>
-
-    <div>
-      <Button color="primary" variant="solid">
-        Buat Transaksi
-      </Button>
-    </div>
-  </div>
+const BerandaContainer = dynamic(
+  () =>
+    loadRemote("duidtin_feature_beranda/base") as Promise<{
+      default: ComponentType<Record<string, never>>;
+    }>,
+  { ssr: false },
 );
 
+const HomePage = () => <BerandaContainer />;
+
 HomePage.getLayout = (page: ReactElement) => (
-  <DefaultLayout
-    activePath="/"
-    onLogout={() => window.alert("logout ditekan")}
-    userName="Angga"
-  >
+  <DefaultLayout activePath="/" onLogout={() => window.alert("logout ditekan")} userName="Angga">
     {page}
   </DefaultLayout>
 );

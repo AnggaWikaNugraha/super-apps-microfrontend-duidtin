@@ -22,10 +22,12 @@ Sudah ada dan sudah diverifikasi jalan:
 - Header konsumsi `Button` & `Badge` dari `duidtin_ui_design_system` lewat `loadRemote()` — pola "remote manggil remote lain" sudah kebukti kerender beneran di browser (bukan cuma build sukses), lengkap dengan style-nya.
 - `styles/globals.css` di-expose sebagai `./globals`.
 - `pages/index.tsx` halaman guard, `exposePages: false` — nggak ikut ke-expose.
+- Menu header sudah menu korporat (Beranda, Payroll, Transfer, Mutasi, Persetujuan). Yang route-nya belum ada dirender `<span>` bertanda `disabled`, bukan `<a>` — jadi nggak ada tautan yang 404.
 - **Sudah dipasang host beneran.** `duidtin-ui` render layout ini lewat `loadRemote("duidtin_ui_layout/default")`, diverifikasi di browser. Pemasangan pertama itu yang membongkar ganjalan poin 8 di bawah.
 
 Belum ada:
 - Bridging auth/context beneran — `onLogout` & `userName` masih props biasa, belum nyantol ke provider apapun.
+- Menu per peran. `navItems` sudah jadi prop, tapi host belum mengirimnya — jadi masih pakai `DEFAULT_NAV_ITEMS` di repo ini. Begitu auth ada, maker dan checker semestinya lihat menu berbeda.
 - i18n, config deploy/container.
 
 ## Stack
@@ -35,7 +37,7 @@ Belum ada:
 - **`@module-federation/runtime` 0.24.1** — dipakai langsung di `pages/_app.tsx` (`init`) dan `components/remote/design-system.tsx` (`loadRemote`), disamain dengan versi di atas.
 - **`webpack` 5.105.0 + `NEXT_PRIVATE_LOCAL_WEBPACK=true`** — `nextjs-mf` nolak jalan sama webpack bawaan Next yang ke-bundle; dua-duanya wajib (lihat "Ganjalan yang ketemu").
 - **React 18.3.1** — sama kayak `duidtin-ui-design-system`, biar shared singleton konsisten.
-- **Tailwind CSS v4** (prefix `lyt`) — pola BEM + `@apply` sama persis kayak design-system, cuma beda prefix biar nggak tabrakan sama `ui:` punya design-system atau punya host.
+- **Tailwind CSS v4** (prefix `lyt`) — pola BEM + `@apply` sama persis kayak design-system, cuma beda prefix biar nggak tabrakan sama `ui:` punya design-system atau punya host. **Warnanya sendiri nggak di-hardcode** — diambil dari token `var(--dtn-*)` milik design-system, yang mengalir lewat `:root` waktu CSS-nya dimuat. Sebelumnya di sini tertulis `blue-600` yang harus ditebak cocok.
 
 ## Struktur folder
 

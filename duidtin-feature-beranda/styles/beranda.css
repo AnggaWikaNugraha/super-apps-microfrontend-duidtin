@@ -1,0 +1,51 @@
+/*
+ * Warna diambil dari token design-system (`var(--dtn-*)`) supaya seragam dengan
+ * layout dan komponen. Tailwind di sini cuma mengurus tata letak dan ukuran.
+ */
+
+.fber-page {
+  @apply fber:flex fber:flex-col fber:gap-4;
+}
+
+.fber-page__title {
+  @apply fber:m-0 fber:mb-1 fber:text-xl fber:font-semibold fber:tracking-tight;
+  @apply fber:text-[var(--dtn-ink)];
+}
+
+.fber-page__lead {
+  @apply fber:m-0 fber:text-sm;
+  @apply fber:text-[var(--dtn-ink-muted)];
+}
+
+.fber-page__grid {
+  @apply fber:grid fber:grid-cols-1 fber:gap-4 fber:md:grid-cols-2;
+}
+
+.fber-saldo__label {
+  @apply fber:m-0 fber:text-xs fber:font-medium fber:uppercase fber:tracking-wide;
+  @apply fber:text-[var(--dtn-ink-subtle)];
+}
+
+/* Angka uang: tabular-nums biar digit sejajar antar baris */
+.fber-saldo__value {
+  @apply fber:mt-2 fber:mb-0 fber:text-[28px] fber:font-bold fber:leading-none fber:[font-variant-numeric:tabular-nums];
+  @apply fber:text-[var(--dtn-ink)];
+}
+
+.fber-saldo__meta {
+  @apply fber:mt-3 fber:flex fber:items-center fber:gap-2;
+}
+
+.fber-shortcuts {
+  @apply fber:flex fber:flex-wrap fber:gap-2;
+}
+
+.fber-stack-note {
+  @apply fber:mt-3 fber:border-t fber:pt-3 fber:text-xs fber:leading-relaxed;
+  @apply fber:border-[var(--dtn-line)] fber:text-[var(--dtn-ink-subtle)];
+}
+
+.fber-stack-note code {
+  @apply fber:rounded-[var(--dtn-radius-sm)] fber:px-1.5 fber:py-px;
+  @apply fber:bg-[var(--dtn-surface-muted)] fber:text-[var(--dtn-ink-muted)];
+}

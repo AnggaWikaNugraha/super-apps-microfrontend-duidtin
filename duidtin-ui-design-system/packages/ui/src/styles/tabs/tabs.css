@@ -16,7 +16,7 @@
 }
 
 .ui-tabs__tab[data-selected] {
-  @apply ui:border-blue-600 ui:text-blue-600 ui:dark:text-blue-400;
+  @apply ui:border-[var(--dtn-primary)] ui:text-[var(--dtn-primary)];
 }
 
 .ui-tabs__tab[data-disabled] {

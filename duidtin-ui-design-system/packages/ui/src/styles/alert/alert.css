@@ -1,5 +1,11 @@
+/*
+ * Aksen di sisi kiri, bukan border penuh berwarna. Pola ini lazim di aplikasi
+ * korporat: statusnya kebaca sekilas dari pita warna, tapi blok-nya tetap
+ * tenang dan menyatu dengan kartu di sekitarnya.
+ */
 .ui-alert {
-  @apply ui:flex ui:gap-3 ui:rounded-lg ui:border ui:p-4 ui:text-sm;
+  @apply ui:flex ui:gap-3 ui:border ui:border-l-[3px] ui:p-3 ui:text-sm;
+  @apply ui:rounded-[var(--dtn-radius)] ui:border-[var(--dtn-line)];
 }
 
 .ui-alert__icon {
@@ -11,47 +17,47 @@
 }
 
 .ui-alert__title {
-  @apply ui:font-medium ui:text-gray-900 ui:dark:text-gray-100;
+  @apply ui:font-semibold ui:text-[var(--dtn-ink)];
 }
 
 .ui-alert__description {
-  @apply ui:text-gray-600 ui:dark:text-gray-400;
+  @apply ui:text-[var(--dtn-ink-muted)];
 }
 
 .ui-alert--default {
-  @apply ui:border-gray-200 ui:bg-gray-50 ui:dark:border-gray-800 ui:dark:bg-gray-900;
+  @apply ui:border-l-[var(--dtn-line-strong)] ui:bg-[var(--dtn-surface-muted)];
 }
 .ui-alert--primary {
-  @apply ui:border-blue-200 ui:bg-blue-50 ui:dark:border-blue-900 ui:dark:bg-blue-950/40;
+  @apply ui:border-l-[var(--dtn-primary)] ui:bg-[var(--dtn-primary-soft)];
 }
 .ui-alert--success {
-  @apply ui:border-green-200 ui:bg-green-50 ui:dark:border-green-900 ui:dark:bg-green-950/40;
+  @apply ui:border-l-[var(--dtn-success)] ui:bg-[var(--dtn-success-soft)];
 }
 .ui-alert--warning {
-  @apply ui:border-amber-200 ui:bg-amber-50 ui:dark:border-amber-900 ui:dark:bg-amber-950/40;
+  @apply ui:border-l-[var(--dtn-warning)] ui:bg-[var(--dtn-warning-soft)];
 }
 .ui-alert--danger {
-  @apply ui:border-red-200 ui:bg-red-50 ui:dark:border-red-900 ui:dark:bg-red-950/40;
+  @apply ui:border-l-[var(--dtn-danger)] ui:bg-[var(--dtn-danger-soft)];
 }
 .ui-alert--info {
-  @apply ui:border-sky-200 ui:bg-sky-50 ui:dark:border-sky-900 ui:dark:bg-sky-950/40;
+  @apply ui:border-l-[var(--dtn-info)] ui:bg-[var(--dtn-info-soft)];
 }
 
 .ui-alert--default .ui-alert__icon {
-  @apply ui:text-gray-500;
+  @apply ui:text-[var(--dtn-ink-subtle)];
 }
 .ui-alert--primary .ui-alert__icon {
-  @apply ui:text-blue-600;
+  @apply ui:text-[var(--dtn-primary)];
 }
 .ui-alert--success .ui-alert__icon {
-  @apply ui:text-green-600;
+  @apply ui:text-[var(--dtn-success)];
 }
 .ui-alert--warning .ui-alert__icon {
-  @apply ui:text-amber-500;
+  @apply ui:text-[var(--dtn-warning)];
 }
 .ui-alert--danger .ui-alert__icon {
-  @apply ui:text-red-600;
+  @apply ui:text-[var(--dtn-danger)];
 }
 .ui-alert--info .ui-alert__icon {
-  @apply ui:text-sky-600;
+  @apply ui:text-[var(--dtn-info)];
 }

@@ -1,9 +1,11 @@
 .lyt-footer {
-  @apply lyt:border-t lyt:border-gray-200 lyt:bg-white;
+  @apply lyt:border-t;
+  @apply lyt:border-[var(--dtn-line)] lyt:bg-[var(--dtn-surface)];
 }
 
 .lyt-footer__inner {
-  @apply lyt:mx-auto lyt:flex lyt:w-full lyt:max-w-6xl lyt:flex-col lyt:gap-2 lyt:px-6 lyt:py-6 lyt:text-sm lyt:text-gray-500 lyt:md:flex-row lyt:md:items-center lyt:md:justify-between;
+  @apply lyt:mx-auto lyt:flex lyt:w-full lyt:max-w-7xl lyt:flex-col lyt:gap-2 lyt:px-6 lyt:py-4 lyt:text-xs lyt:md:flex-row lyt:md:items-center lyt:md:justify-between;
+  @apply lyt:text-[var(--dtn-ink-subtle)];
 }
 
 .lyt-footer__links {
@@ -11,5 +13,5 @@
 }
 
 .lyt-footer__link {
-  @apply lyt:transition-colors lyt:hover:text-gray-900;
+  @apply lyt:transition-colors lyt:hover:text-[var(--dtn-ink)];
 }

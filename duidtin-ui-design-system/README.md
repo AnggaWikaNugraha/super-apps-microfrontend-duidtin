@@ -30,11 +30,27 @@ Done:
 - `apps/producer` exposes all of the above plus `globals` over Module Federation, with automatic exposes codegen and cross-remote TypeScript types (`dts`) configured.
 - `loadRemote()` is proven to work from **two real consumers at once**, both verified in a browser:
   - `duidtin-ui-layout` renders this remote's `Button` & `Badge` in its header;
-  - the host `duidtin-ui` renders `Card` & `Button` **directly**, without going through the layout.
-- React stays a **single instance** across all three repos. The evidence: a button loaded through the layout and a button loaded directly by the host share the same React Aria ID prefix — had React been duplicated, the prefixes would differ.
+  - `duidtin-feature-beranda` renders `Card`, `Button`, `Badge` & `Alert` on the home page — and that repo runs **MF 2.x**, while this remote is on 0.24.1.
+- React stays a **single instance** across all four repos, and even across MF versions. The evidence: a button loaded through the layout (MF 0.24.1) and one loaded through beranda (MF 2.x) share the same React Aria ID prefix — had React been duplicated, the prefixes would differ.
 
 Not done:
 - Deploy/container config.
+
+## Design tokens (`packages/ui/src/styles/tokens.css`)
+
+The palette, radii and shadows are defined as **CSS custom properties** prefixed `--dtn-`, not as Tailwind tokens. The reason is cross-repo: every repo has its own Tailwind build with its own prefix (`ui`, `lyt`, `fber`), so Tailwind tokens cannot be shared. Custom properties cascade at runtime through `:root` — the moment this remote's CSS loads, the layout and the feature remotes inherit the same values.
+
+Consumed from other repos through arbitrary values:
+
+```css
+.lyt-header__brand-mark {
+  @apply lyt:bg-[var(--dtn-primary)];
+}
+```
+
+Before this layer existed, the layout hardcoded `blue-600` and had to be **guessed** into matching the design system — the moment either changed, the two drifted apart silently.
+
+The style is corporate banking: a deep blue (`#0b4f9e`, not the bright `blue-600`), small radii (5px, not 16px), structure built from hairlines rather than heavy shadows, and denser components.
 
 ## Stack
 
@@ -83,11 +99,11 @@ packages/ui  (Rslib "esm", an ordinary library)
 apps/producer  (Rslib "mf" + pluginModuleFederation → remoteEntry.js)
       │
       ▼  loadRemote("duidtin_ui_design_system/<name>")
-duidtin-ui-layout (:3002)  ─┐
-duidtin-ui       (:3000)  ─┴─▶  two consumers, two different paths
+duidtin-ui-layout       (:3002, MF 0.24.1)  ─┐
+duidtin-feature-beranda (:3003, MF 2.x)     ─┴─▶  two consumers, two different paths
 ```
 
-Note this remote is consumed through **two paths at once**: directly by the host, and indirectly through the layout. That is why `react`/`react-dom` must be singletons — otherwise one page could end up loading two React instances via two different routes.
+Note this remote is consumed through **two paths at once** on a single page: through the layout (the header) and through a feature remote (the content). The host itself does **not** consume it directly — it is a thin shell that renders no UI components. That is why `react`/`react-dom` must be singletons: otherwise one page could load two React instances via two different routes. And one of those consumers runs on a different MF version line (2.x), which turns out to still share the same scope.
 
 ## Adding a new component
 
@@ -126,7 +142,7 @@ From writing the component to having it `loadRemote`-able from outside:
 
 ── verify ──
 11. check apps/producer/dist/mf/mf-manifest.json — make sure the "./components/<name>" key shows up there
-12. start the host (duidtin-ui, :3000) and the layout (:3002), then use the component through
+12. start the host (:3000), the layout (:3002) and beranda (:3003), then use the component through
         loadRemote("duidtin_ui_design_system/components/<name>") — verify it really renders in
         the browser with its styles, not merely that the build succeeded
 ```

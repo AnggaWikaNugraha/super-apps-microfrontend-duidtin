@@ -20,18 +20,19 @@ Kalau remote-nya belum nyala, halaman **tetap tampil** — bagian yang gagal dig
 
 Sudah diverifikasi jalan di browser (bukan cuma build sukses):
 
-- Boot mendaftarkan kedua remote, CSS keduanya ke-fetch sebelum render pertama.
+- Boot mendaftarkan semua remote (2 global + 1 feature), CSS yang global ke-fetch sebelum render pertama.
 - `loadRemote("duidtin_ui_layout/default")` membungkus halaman — header & footer kerender lengkap dengan style-nya.
-- Host konsumsi `duidtin_ui_design_system` **langsung** (Card, Button), bukan cuma lewat layout.
-- **React tetap satu instance** lintas 3 repo. Buktinya konkret: tombol yang dimuat lewat layout dan tombol yang dimuat langsung host punya prefix ID React Aria yang sama (`react-aria9439377283-:r2:` vs `:r6:`) — kalau React-nya kedobelan, dua-duanya bakal punya prefix beda.
+- **FASE 2 sudah benar-benar jalan** sejak `duidtin_feature_beranda` terdaftar di route `/`. Sebelum itu `featureRegistry` kosong dan loop-nya nol iterasi.
+- **React tetap satu instance lintas 4 repo DAN lintas versi MF.** Buktinya konkret: tombol yang dimuat lewat layout (MF 0.24.1) dan tombol yang dimuat lewat beranda (MF **2.x**) punya prefix ID React Aria yang sama (`react-aria4676304478-:r2:` vs `:r6:`) — kalau React-nya kedobelan, prefiksnya bakal beda.
 - `fallbackPlugin` terbukti kepakai: waktu layout masih gagal dimuat, halaman nggak blank, cuma bagian itu yang diganti kotak error.
+- Host **tidak merender komponen UI sendiri sama sekali** — shell-nya benar-benar tipis. Seluruh isi `/` datang dari remote.
 
 Belum ada:
 
-- **Feature remote** — `featureRegistry` masih kosong, jadi FASE 2 rangkanya lengkap tapi belum ada yang mengeksekusi. Lihat "Langkah berikutnya".
+- **Feature remote kedua dan seterusnya** — sekarang baru ada satu (`duidtin_feature_beranda` di route `/`). Payroll, Transfer, Mutasi, Persetujuan masih kosong.
 - i18n (`loadLocalesForModule` di host `qcash-ui` belum ada padanannya di sini).
-- Auth/context provider — `userName` & `onLogout` masih hardcode di `pages/index.tsx`.
-- Override port lokal per-module (lapis B `getModuleEntry` di `qcash-ui`) — belum kepakai selama remote-nya baru dua.
+- Auth/context provider — `userName` & `onLogout` masih hardcode di `pages/index.tsx`, dan menu di layout belum menyesuaikan peran (maker vs checker).
+- Override port lokal per-module (lapis B `getModuleEntry` di `qcash-ui`) — belum kepakai selama remote-nya masih sedikit.
 
 ## Stack
 
@@ -62,7 +63,8 @@ duidtin-ui/
     federation/
       provider.tsx       # FASE 2: waitForFederation + warm-up per route
       hooks/useModuleLoading.ts
-    remote/index.tsx     # jembatan loadRemote → next/dynamic
+    remote/index.tsx     # jembatan remote INFRASTRUKTUR saja (layout).
+                         # remote FITUR dideklarasikan langsung di pages/-nya
     ui/RemoteErrorBoundary.tsx   # FASE 4 lapis 3
   utils/index.ts         # getBaseFederationUrl() — environment detection
   pages/
@@ -129,7 +131,7 @@ Tidak menerima argumen. Cuma menggabungkan dua sumber:
 [...globalFeatures, ...Object.values(featureRegistry)]
 ```
 
-Hasilnya sekarang (2 item, karena `featureRegistry` masih kosong):
+Hasilnya sekarang — 2 global + 1 feature:
 
 ```ts
 [
@@ -144,6 +146,12 @@ Hasilnya sekarang (2 item, karena `featureRegistry` masih kosong):
     entryPath: "/layout/_next/static/chunks/remoteEntry.js",
     devOrigin: "http://localhost:3002",
     routes: []
+  },
+  {
+    name: "duidtin_feature_beranda",
+    entryPath: "/beranda/_next/static/chunks/remoteEntry.js",
+    devOrigin: "http://localhost:3003",
+    routes: ["/"]                    // ← yang ini per-fitur, bukan global
   },
 ]
 ```
@@ -607,8 +615,10 @@ Object.values(featureRegistry)          // ← TANPA globalFeatures
 // keluaran: ["duidtin_ui_transaksi"]        ← nama saja, objeknya dibuang
 
 // masukan:  "/"
+// keluaran: ["duidtin_feature_beranda"]     ← beranda terdaftar di route "/"
+
+// masukan:  "/tidak-ada"
 // keluaran: []
-// (dengan featureRegistry KOSONG seperti sekarang, SEMUA route → [])
 ```
 
 Di sinilah datanya **menyusut drastis**: `FeatureMetadata` utuh masuk, yang keluar cuma `string[]`. Sisa metadata tidak dibawa karena `loadRemote()` memang hanya butuh nama — URL-nya sudah didaftarkan sejak FASE 1.
@@ -832,7 +842,7 @@ Baris pertama itu intinya: di `/` fase ini **sama sekali tidak jalan**, tapi lay
 | `loadModule` | `moduleName: string` | `Promise<void>` (fire-and-forget) |
 | `dynamicLoadStyles` | `moduleName: string` | `Promise<boolean>` |
 
-> Selama `featureRegistry` masih kosong, `getModulesForRoute()` selalu memulangkan `[]` dan seluruh fase ini **no-op**. Rangkanya sengaja dipasang duluan supaya menambah feature remote pertama cukup satu entry di registry, bukan membangun ulang jalur loading-nya.
+> Fase ini **sudah benar-benar jalan** sejak `duidtin_feature_beranda` terdaftar di route `/`. Buka `localhost:3000` dengan console terbuka, filter `[MFE]`, dan log `FASE 2 warm-up "duidtin_feature_beranda" → ok` akan muncul. Sebelum ada feature remote, `getModulesForRoute()` selalu memulangkan `[]` dan seluruh fase ini no-op.
 
 ### FASE 3 — Render sebenarnya (`pages/index.tsx`)
 
@@ -1000,39 +1010,52 @@ Browser buka http://localhost:3000/
 │              <DefaultLayout …><HomePage /></DefaultLayout>
 │            </ModuleFederationProvider>
 │
-├─▶ <DefaultLayout> MOUNT
+├─▶ <DefaultLayout> MOUNT          ← remote INFRASTRUKTUR, dari components/remote/
 │     └─▶ loadRemote("duidtin_ui_layout/default")
 │           keluaran : { default: ƒ }
 │           JARINGAN : GET :3002/layout/_next/.../__federation_expose_default.js
-│           → placeholder diganti komponen asli
 │
-└─▶ <HomePage /> dirender di dalamnya
-      ├─▶ <Card> MOUNT     → loadRemote(".../components/card")   → { Card, default }
-      ├─▶ <CardHeader>     → modul SAMA, dari cache, pick .Card.Header
-      ├─▶ <CardBody>       → modul SAMA, dari cache, pick .Card.Body
-      └─▶ <Button> MOUNT   → loadRemote(".../components/button") → { Button, default }
-            JARINGAN : GET :3001/design-system/static/__federation_expose_components__card.js
-                       GET :3001/design-system/static/__federation_expose_components__button.js
+└─▶ <HomePage /> → <BerandaContainer /> MOUNT   ← remote FITUR, dideklarasikan
+      │                                            langsung di pages/index.tsx
+      └─▶ loadRemote("duidtin_feature_beranda/base")
+            keluaran : { default: ƒ }
+            JARINGAN : GET :3003/beranda/_next/.../[chunk base]
+            │
+            └─ di DALAM beranda, remote memanggil remote lagi:
+                 loadRemote("duidtin_ui_design_system/components/card")   → { Card, default }
+                 loadRemote("duidtin_ui_design_system/components/button") → { Button, default }
+                 loadRemote("duidtin_ui_design_system/components/alert")  → { Alert, default }
+                 loadRemote("duidtin_ui_design_system/components/badge")  → { Badge, default }
+                 JARINGAN : GET :3001/design-system/static/__federation_expose_components__*.js
 ```
 
-DOM yang dihasilkan — ketiga repo bercampur dalam satu pohon:
+Perhatikan pembagiannya di baris `MOUNT`: layout diambil lewat `components/remote/`
+(remote infrastruktur, dipakai lintas halaman), sedangkan beranda dideklarasikan
+langsung di `pages/index.tsx` (remote fitur, cuma dipakai satu halaman).
+
+DOM yang dihasilkan — **empat repo** bercampur dalam satu pohon:
 
 ```html
-<div class="lyt-layout">                          <!-- duidtin_ui_layout -->
+<div class="lyt-layout">                            <!-- duidtin_ui_layout -->
   <header class="lyt-header">
-    <span class="ui-badge ui-badge--soft" …>      <!-- design-system LEWAT layout -->
-    <button class="ui-button …" id="react-aria9439377283-:r2:">Keluar</button>
+    <span class="ui-badge ui-badge--soft" …>        <!-- design-system LEWAT layout -->
+    <button class="ui-button …" id="react-aria4676304478-:r2:">Keluar</button>
   </header>
   <main class="lyt-layout__main">
-    <div class="app-page">                        <!-- host sendiri -->
-      <div class="ui-card ui-card--elevated" …>   <!-- design-system LANGSUNG ke host -->
-      <button class="ui-button …" id="react-aria9439377283-:r6:">Buat Transaksi</button>
+    <div class="fber-page">                         <!-- duidtin_feature_beranda, Tailwind prefix fber -->
+      <div class="ui-card ui-card--elevated" …>     <!-- design-system LEWAT beranda -->
+      <button class="ui-button …" id="react-aria4676304478-:r6:">Payroll</button>
     </div>
   </main>
 </div>
 ```
 
-Perhatikan dua `id` React Aria itu: `:r2:` dimuat lewat layout, `:r6:` dimuat langsung host, tapi **prefiksnya sama** (`react-aria9439377283`). Kalau React kedobelan, prefiksnya akan berbeda. Ini bukti mekanis bahwa share scope-nya benar.
+Host sendiri **tidak menyumbang satu elemen pun** di sini — dia cuma merangkai.
+
+Dan perhatikan dua `id` React Aria itu: `:r2:` dimuat lewat layout (MF 0.24.1),
+`:r6:` lewat beranda (MF **2.x**), tapi prefiksnya sama (`react-aria4676304478`).
+Kalau React kedobelan, prefiksnya bakal berbeda. Ini bukti mekanis bahwa share
+scope React tembus **lintas versi Module Federation**, bukan cuma lintas repo.
 
 #### Yang di-fetch di fase ini, dan yang TIDAK
 
@@ -1094,8 +1117,9 @@ Bentuknya beda karena build tool-nya beda: design-system pakai **Rslib** (`/stat
 
 ## Langkah berikutnya
 
-1. **Feature remote pertama** (`duidtin-ui-<fitur>`, port 3003) — ini yang bakal mengaktifkan FASE 2 yang sekarang masih idle, sekaligus membuktikan route matching-nya jalan. Dua hal yang wajib disiapkan di remote-nya sejak awal, dua-duanya pelajaran dari layout (lihat README layout):
-   - `assetPrefix` absolut saat dev, kalau nggak chunk-nya bakal diminta ke origin host dan kena 404;
-   - `shared: {}`, biarkan `nextjs-mf` yang urus react.
-2. Auth/context provider, biar `userName` & `onLogout` nggak hardcode lagi.
+1. **Feature remote berikutnya** — Daftar Penerima, Payroll, Mutasi, Persetujuan. Tiga hal yang wajib disiapkan di tiap remote baru sejak awal:
+   - **`assetPrefix` absolut saat dev**, kalau tidak chunk-nya diminta ke origin host dan 404 (pelajaran dari `duidtin-ui-layout`);
+   - **`shared` react singleton** — `nextjs-mf` mengurusnya otomatis, `enhanced` **tidak**;
+   - **daftarkan remote di jalur kode yang jalan saat dimuat host** — bukan di `pages/_app.tsx`, yang tidak pernah dieksekusi dalam konteks host (pelajaran dari `duidtin-feature-beranda`).
+2. Auth/context provider, biar `userName` & `onLogout` nggak hardcode lagi, dan menu bisa menyesuaikan peran.
 3. i18n per-module.
