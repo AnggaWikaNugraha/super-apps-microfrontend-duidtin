@@ -2,6 +2,8 @@
 
 [English](README.md) · **Bahasa Indonesia**
 
+![Login](docs/overview.png)
+
 Global component & style library, di-expose sebagai remote Module Federation untuk dikonsumsi host (`duidtin-ui`) dan bagian lain yang membutuhkan.
 
 Dibangun pakai **Rslib**, dipakai untuk dua tujuan berbeda di dua folder berbeda:
