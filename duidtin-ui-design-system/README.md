@@ -112,6 +112,122 @@ duidtin-feature-beranda (:3003, MF 2.x)     ─┴─▶  two consumers, two dif
 
 Note this remote is consumed through **two paths at once** on a single page: through the layout (the header) and through a feature remote (the content). The host itself does **not** consume it directly — it is a thin shell that renders no UI components. That is why `react`/`react-dom` must be singletons: otherwise one page could load two React instances via two different routes. And one of those consumers runs on a different MF version line (2.x), which turns out to still share the same scope.
 
+## Architecture flow
+
+Unlike `duidtin-ui-layout`, which plays a dual role, this repo is a **pure remote**: it only exposes and consumes no remote at all. There is no `remotes` in its config, no `init()`, and no `_app.tsx`. Who uses it, and from which URL, is decided entirely **on the consumer's side**.
+
+So the flow is not build → boot → render, but: build the component factory → generate the expose list → build the remote → serve it → get consumed.
+
+### 1. Build `packages/ui` — the component factory
+
+```
+packages/ui/rslib.config.ts — two libs in one config
+  ├─▶ lib 1: format "esm", bundle: false
+  │     entry: ./src/**  (excluding *.stories.tsx and *.css)
+  │     → dist/**/*.js + *.d.ts — ONE output file per source file
+  └─▶ lib 2: entry src/styles/index.tailwind.css
+        → dist/index.tailwind.css
+          (@import "tailwindcss" prefix(ui) + tokens.css + every component's CSS)
+```
+
+Both outputs are opened up through `exports` in `package.json`: `"."` for the components, `"./css"` for their CSS.
+
+`bundle: false` has a consequence that is easy to forget: **a component file must never import another component's folder** (`../button`). Every file is compiled on its own, so such an import becomes an unresolvable external and Rspack panics. The only exception is `*.stories.tsx`, since stories are not part of the build.
+
+### 2. Exposes codegen — `predev` and `prebuild`
+
+```
+apps/producer/scripts/generate-components.ts
+  └─▶ read the folders in packages/ui/src/components/*
+        ├─▶ write a shim apps/producer/src/components/<name>.ts
+        │     export { Button } from "@duidtin/ui";
+        │     export { Button as default } from "@duidtin/ui";
+        └─▶ write component-exposes.ts
+              { "./components/button": "./src/components/button.ts", … }   ← 17 entries
+```
+
+The shims deliberately export **both named and `default`**, so a consumer's `loadRemote` result already matches the shape `next/dynamic` demands (`{ default }`).
+
+Adding a component never touches the MF config — create its folder and the codegen registers it. The step-by-step lives in [Adding a new component](#adding-a-new-component).
+
+### 3. Build `apps/producer` — becoming a Module Federation remote
+
+```
+apps/producer/rslib.config.ts — lib format "mf"
+  └─▶ pluginModuleFederation({
+        name:     "duidtin_ui_design_system",
+        filename: "remoteEntry.js",
+        exposes:  { ...componentExposes, "./globals": "./src/styles/index.css" },
+        shared:   { react, react-dom, react/jsx-runtime } → singleton
+        dts:      generateTypes → @mf-types
+      }, { target: "dual" })
+  └─▶ dist/mf/remoteEntry.js + mf-manifest.json + one chunk per expose
+```
+
+Four things worth noticing:
+
+- **`./globals` → `src/styles/index.css`**, whose only content is `@import "@duidtin/ui/css"`. So CSS flows `packages/ui` → `exports["./css"]` → `apps/producer` → exposed. The `--dtn-*` tokens the layout and beranda rely on travel along with it.
+- **`react/jsx-runtime` is shared too**, not just `react` and `react-dom`. `nextjs-mf` in the other repos handles that silently; `rsbuild-plugin` does not.
+- **`target: "dual"`** produces two builds: `mf` for the browser and `mf-ssr`. It shows up in the dev log as two lines, `built in … (mf)` and `(mf-ssr)`.
+- **There is no `remotes`.** This repo consumes nothing — `consumeTypes` is configured, but only as preparation.
+
+### 4. Dev — `bun run dev:producer`
+
+```
+turbo run dev --filter=@duidtin/producer --filter=@duidtin/ui
+  ├─▶ @duidtin/ui        rslib build --watch --no-clean  → dist/ always fresh
+  └─▶ @duidtin/producer
+        predev: generate-components.ts
+        dev:    MF_PUBLIC_PATH=http://localhost:3001/design-system/static/ rslib mf-dev
+                → :3001/design-system/static/remoteEntry.js
+                  dev.hmr = false, liveReload = false
+```
+
+- **An absolute `MF_PUBLIC_PATH` in dev.** Consumers run on other ports; with a relative path, the chunks are looked up on the consumer's origin and 404. In production it is empty, because every remote shares one domain.
+- **`hmr` and `liveReload` are off.** The rsbuild dev client injected into `remoteEntry.js` would call `location.reload()` on the **consumer's** page — the host page reloads endlessly.
+
+### 5. Consumed — in the consumer's browser
+
+```
+consumer (duidtin-ui-layout / duidtin-feature-beranda)
+  └─▶ init({ remotes: [{ name: "duidtin_ui_design_system",
+                         entry: <origin>/design-system/static/remoteEntry.js }] })
+  └─▶ loadRemote("duidtin_ui_design_system/globals")
+        → CSS (--dtn-* tokens + ui-* classes) lands in a <style>, preventing FOUC
+  └─▶ loadRemote("duidtin_ui_design_system/components/card")
+        → { Card, default }
+        └─▶ compound sub-components (Card.Header) are taken through `pick` —
+              static properties are lost when next/dynamic wraps the module
+```
+
+This repo has no idea who its consumers are. Remote registration, picking the URL per environment, and `pick` for compound components all happen on the consumer's side. Who the consumers are is shown in [The flow in short](#the-flow-in-short).
+
+### The whole flow in one view
+
+```
+build ui       packages/ui — rslib
+   │             ├─▶ dist/**/*.js        components, one file per source
+   │             └─▶ dist/index.tailwind.css
+   │
+codegen        predev / prebuild — generate-components.ts
+   │             └─▶ 17 shims + component-exposes.ts
+   │
+build remote   apps/producer — rslib format "mf", target dual
+   │             └─▶ dist/mf/remoteEntry.js
+   │                   exposes 17 components + ./globals
+   │                   shared react singleton · types into @mf-types
+   │
+serve          :3001/design-system/static/
+   │             dev: rslib mf-dev (absolute URL) · prod: relative path, one domain
+   │
+consumed       layout & beranda
+                 └─▶ init() → loadRemote(".../globals") → loadRemote(".../components/<name>")
+```
+
+Three different moments: the `exposes` list is frozen at **build**, CSS and tokens load when a consumer **boots**, component chunks are fetched at **render**.
+
+> **The easy mix-up:** the `exposes` list is read when the config loads, not watched. `rslib build --watch` in `packages/ui` does refresh components that already exist, but **a new component will not be served until `bun run dev:producer` is restarted** — only then does `predev` regenerate the expose list.
+
 ## Adding a new component
 
 From writing the component to having it `loadRemote`-able from outside:

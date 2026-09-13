@@ -112,6 +112,122 @@ duidtin-feature-beranda (:3003, MF 2.x)     ─┴─▶  dua konsumen, dua jalu
 
 Perhatikan remote ini dikonsumsi lewat **dua jalur sekaligus** dalam satu halaman: lewat layout (header) dan lewat feature remote (konten). Host sendiri **tidak** mengonsumsinya langsung — dia shell tipis yang tidak merender komponen UI. Itu sebabnya `react`/`react-dom` wajib singleton: kalau tidak, satu halaman bisa memuat dua instance React dari dua jalur berbeda. Dan salah satu konsumen itu jalan di garis versi MF yang berbeda (2.x), yang ternyata tetap berbagi share scope yang sama.
 
+## Alur Arsitektur
+
+Beda dari `duidtin-ui-layout` yang punya peran ganda, repo ini **remote murni**: dia cuma meng-expose, tidak mengonsumsi remote apa pun. Tidak ada `remotes` di config, tidak ada `init()`, tidak ada `_app.tsx`. Siapa yang memakainya dan dari URL mana, semuanya diputuskan di **sisi konsumen**.
+
+Karena itu alurnya bukan build → boot → render, melainkan: bangun pabrik komponen → generate daftar expose → bangun remote → sajikan → dikonsumsi.
+
+### 1. Build `packages/ui` — pabrik komponen
+
+```
+packages/ui/rslib.config.ts — dua lib dalam satu config
+  ├─▶ lib 1: format "esm", bundle: false
+  │     entry: ./src/**  (tanpa *.stories.tsx, tanpa *.css)
+  │     → dist/**/*.js + *.d.ts — SATU berkas keluaran per berkas sumber
+  └─▶ lib 2: entry src/styles/index.tailwind.css
+        → dist/index.tailwind.css
+          (@import "tailwindcss" prefix(ui) + tokens.css + CSS tiap komponen)
+```
+
+Dua keluaran itu dibuka lewat `exports` di `package.json`: `"."` untuk komponen, `"./css"` untuk CSS-nya.
+
+`bundle: false` punya konsekuensi yang gampang terlupa: **berkas komponen tidak boleh mengimpor folder komponen lain** (`../button`). Tiap berkas dikompilasi sendiri-sendiri, jadi impor itu jadi eksternal yang tidak bisa di-resolve dan Rspack panic. Satu-satunya pengecualian `*.stories.tsx`, karena stories tidak ikut di-build.
+
+### 2. Codegen exposes — `predev` dan `prebuild`
+
+```
+apps/producer/scripts/generate-components.ts
+  └─▶ baca folder packages/ui/src/components/*
+        ├─▶ tulis shim apps/producer/src/components/<nama>.ts
+        │     export { Button } from "@duidtin/ui";
+        │     export { Button as default } from "@duidtin/ui";
+        └─▶ tulis component-exposes.ts
+              { "./components/button": "./src/components/button.ts", … }   ← 17 entri
+```
+
+Shim-nya sengaja mengekspor **named dan `default`** sekaligus, supaya hasil `loadRemote` di konsumen langsung cocok dengan bentuk yang diminta `next/dynamic` (`{ default }`).
+
+Menambah komponen tidak perlu menyentuh config MF sama sekali — cukup buat foldernya, codegen yang mendaftarkannya. Detail langkahnya ada di [Alur nambah komponen baru](#alur-nambah-komponen-baru).
+
+### 3. Build `apps/producer` — jadi remote Module Federation
+
+```
+apps/producer/rslib.config.ts — lib format "mf"
+  └─▶ pluginModuleFederation({
+        name:     "duidtin_ui_design_system",
+        filename: "remoteEntry.js",
+        exposes:  { ...componentExposes, "./globals": "./src/styles/index.css" },
+        shared:   { react, react-dom, react/jsx-runtime } → singleton
+        dts:      generateTypes → @mf-types
+      }, { target: "dual" })
+  └─▶ dist/mf/remoteEntry.js + mf-manifest.json + satu chunk per expose
+```
+
+Empat hal yang layak diperhatikan:
+
+- **`./globals` → `src/styles/index.css`**, yang isinya cuma `@import "@duidtin/ui/css"`. Jadi CSS mengalir `packages/ui` → `exports["./css"]` → `apps/producer` → di-expose. Di dalamnya ikut token `--dtn-*` yang dipakai layout dan beranda.
+- **`react/jsx-runtime` ikut di-share**, bukan cuma `react` dan `react-dom`. `nextjs-mf` di repo lain mengurus itu diam-diam; `rsbuild-plugin` tidak.
+- **`target: "dual"`** membangun dua keluaran: `mf` untuk browser dan `mf-ssr`. Kelihatan di log dev sebagai dua baris `built in … (mf)` dan `(mf-ssr)`.
+- **Tidak ada `remotes`.** Repo ini tidak mengonsumsi apa pun — `consumeTypes` memang dikonfigurasi, tapi baru persiapan.
+
+### 4. Dev — `bun run dev:producer`
+
+```
+turbo run dev --filter=@duidtin/producer --filter=@duidtin/ui
+  ├─▶ @duidtin/ui        rslib build --watch --no-clean  → dist/ selalu segar
+  └─▶ @duidtin/producer
+        predev: generate-components.ts
+        dev:    MF_PUBLIC_PATH=http://localhost:3001/design-system/static/ rslib mf-dev
+                → :3001/design-system/static/remoteEntry.js
+                  dev.hmr = false, liveReload = false
+```
+
+- **`MF_PUBLIC_PATH` absolut saat dev.** Konsumen jalan di port lain; dengan path relatif, chunk-nya dicari di origin konsumen dan 404. Di production dikosongkan karena semua remote satu domain.
+- **`hmr` dan `liveReload` dimatikan.** Dev client rsbuild yang ikut ter-inject ke `remoteEntry.js` akan memanggil `location.reload()` di halaman **konsumen** — halaman host reload terus-menerus.
+
+### 5. Dikonsumsi — di browser konsumen
+
+```
+konsumen (duidtin-ui-layout / duidtin-feature-beranda)
+  └─▶ init({ remotes: [{ name: "duidtin_ui_design_system",
+                         entry: <origin>/design-system/static/remoteEntry.js }] })
+  └─▶ loadRemote("duidtin_ui_design_system/globals")
+        → CSS (token --dtn-* + kelas ui-*) masuk ke <style>, cegah FOUC
+  └─▶ loadRemote("duidtin_ui_design_system/components/card")
+        → { Card, default }
+        └─▶ sub-komponen compound (Card.Header) diambil lewat `pick` —
+              properti statis hilang waktu next/dynamic membungkus modulnya
+```
+
+Repo ini tidak tahu siapa konsumennya. Pendaftaran remote, pemilihan URL per environment, dan `pick` untuk compound component semuanya terjadi di sisi konsumen. Siapa saja konsumennya ada di [Alur singkatnya](#alur-singkatnya).
+
+### Rangkuman satu alur
+
+```
+build ui       packages/ui — rslib
+   │             ├─▶ dist/**/*.js        komponen, satu berkas per sumber
+   │             └─▶ dist/index.tailwind.css
+   │
+codegen        predev / prebuild — generate-components.ts
+   │             └─▶ 17 shim + component-exposes.ts
+   │
+build remote   apps/producer — rslib format "mf", target dual
+   │             └─▶ dist/mf/remoteEntry.js
+   │                   exposes 17 komponen + ./globals
+   │                   shared react singleton · tipe ke @mf-types
+   │
+sajikan        :3001/design-system/static/
+   │             dev: rslib mf-dev (URL absolut) · prod: path relatif, satu domain
+   │
+dikonsumsi     layout & beranda
+                 └─▶ init() → loadRemote(".../globals") → loadRemote(".../components/<nama>")
+```
+
+Tiga waktu yang berbeda: daftar `exposes` beku saat **build**, CSS dan token dimuat saat konsumen **boot**, chunk komponen di-fetch saat **render**.
+
+> **Yang gampang ketuker:** daftar `exposes` dibaca saat config dimuat, bukan di-*watch*. `rslib build --watch` di `packages/ui` memang memperbarui isi komponen yang sudah ada, tapi **komponen baru tidak akan tersaji sampai `bun run dev:producer` dijalankan ulang** — baru di situ `predev` men-generate ulang daftar expose-nya.
+
 ## Alur nambah komponen baru
 
 Dari nulis komponen sampai bisa di-`loadRemote` dari luar:
