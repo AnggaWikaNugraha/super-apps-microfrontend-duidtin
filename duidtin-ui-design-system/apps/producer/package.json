@@ -13,8 +13,9 @@
     "dist"
   ],
   "scripts": {
-    "prebuild": "bun run scripts/generate-components.ts",
+    "predev": "bun run scripts/generate-components.ts",
     "dev": "MF_PUBLIC_PATH=http://localhost:3001/design-system/static/ rslib mf-dev",
+    "prebuild": "bun run scripts/generate-components.ts",
     "build": "rslib build",
     "check-types": "tsc --noEmit"
   },

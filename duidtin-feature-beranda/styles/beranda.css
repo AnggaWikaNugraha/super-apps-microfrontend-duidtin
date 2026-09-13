@@ -49,3 +49,58 @@
   @apply fber:rounded-[var(--dtn-radius-sm)] fber:px-1.5 fber:py-px;
   @apply fber:bg-[var(--dtn-surface-muted)] fber:text-[var(--dtn-ink-muted)];
 }
+
+/* ── Daftar dipakai tiga blok: rekening, persetujuan, aktivitas ───────────── */
+
+.fber-list {
+  @apply fber:m-0 fber:flex fber:list-none fber:flex-col fber:p-0;
+}
+
+.fber-list__item {
+  @apply fber:flex fber:items-center fber:justify-between fber:gap-3 fber:border-b fber:py-2.5;
+  @apply fber:border-[var(--dtn-line)];
+}
+
+.fber-list__item:last-child {
+  @apply fber:border-b-0 fber:pb-0;
+}
+
+.fber-list__main {
+  @apply fber:flex fber:min-w-0 fber:flex-col;
+}
+
+.fber-list__title {
+  @apply fber:truncate fber:text-sm fber:font-medium;
+  @apply fber:text-[var(--dtn-ink)];
+}
+
+.fber-list__meta {
+  @apply fber:text-xs;
+  @apply fber:text-[var(--dtn-ink-subtle)];
+}
+
+.fber-list__side {
+  @apply fber:flex fber:shrink-0 fber:items-center fber:gap-2;
+}
+
+/* tabular-nums biar digit nominal sejajar antar baris */
+.fber-list__amount {
+  @apply fber:text-sm fber:font-semibold fber:[font-variant-numeric:tabular-nums];
+  @apply fber:text-[var(--dtn-ink)];
+}
+
+.fber-list__amount--masuk {
+  @apply fber:text-[var(--dtn-success)];
+}
+
+/* ── Banner error global ──────────────────────────────────────────────────── */
+
+.fber-banner__inner {
+  @apply fber:flex fber:w-full fber:items-center fber:justify-between fber:gap-3;
+}
+
+/* ── Skeleton ringkasan saldo ─────────────────────────────────────────────── */
+
+.fber-saldo__loading {
+  @apply fber:flex fber:flex-col fber:gap-2.5;
+}

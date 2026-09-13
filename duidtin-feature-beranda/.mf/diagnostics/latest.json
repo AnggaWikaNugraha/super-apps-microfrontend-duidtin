@@ -1,0 +1,10 @@
+{
+  "latestErrorEvent": {
+    "code": "TYPE-001",
+    "message": "Failed to generate type declaration. Execute the below cmd to reproduce and fix the error. #TYPE-001\nargs: {\"cmd\":\"/Users/anggawika/.nvm/versions/node/v24.13.0/bin/node /Users/anggawika/qlola/x-duidtin/duidtin-feature-beranda/node_modules/typescript/bin/tsc --project /Users/anggawika/qlola/x-duidtin/duidtin-feature-beranda/node_modules/.federation/tsconfig.ad5c4654c1d8a0dc67a425845e55ff63.json\"}\nView the docs to see how to solve: https://module-federation.io/guide/troubleshooting/type#type-001",
+    "args": {
+      "cmd": "/Users/anggawika/.nvm/versions/node/v24.13.0/bin/node /Users/anggawika/qlola/x-duidtin/duidtin-feature-beranda/node_modules/typescript/bin/tsc --project /Users/anggawika/qlola/x-duidtin/duidtin-feature-beranda/node_modules/.federation/tsconfig.ad5c4654c1d8a0dc67a425845e55ff63.json"
+    },
+    "timestamp": 1788673629429
+  }
+}

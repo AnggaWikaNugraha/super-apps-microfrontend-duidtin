@@ -1,97 +1,72 @@
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-} from "@/components/remote/design-system";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
+
+import { ErrorBoundary } from "@/components/remote/design-system";
+import { buatQueryClient } from "@/services/query-client";
+
+import AktivitasTerakhir from "./blocks/aktivitas-terakhir";
+import AntreanPersetujuan from "./blocks/antrean-persetujuan";
+import Pintasan from "./blocks/pintasan";
+import RekeningPerusahaan from "./blocks/rekening-perusahaan";
+import RingkasanSaldo from "./blocks/ringkasan-saldo";
+import GlobalErrorBanner from "./components/global-error-banner";
 
 /**
- * Isi beranda — yang di-expose sebagai "./base" dan dirender host di route "/".
+ * Isi beranda — di-expose sebagai "./base" dan dirender host di route "/".
  *
- * Semua komponen di sini (Card, Button, Badge, Alert) ditarik runtime dari
- * `duidtin_ui_design_system` lewat loadRemote. Jadi halaman ini melintasi DUA
- * batas repo sekaligus:
- *   host (MF 0.24.1) → beranda (MF 2.x) → design-system (MF 0.24.1)
+ * PROVIDER ADA DI SINI, BUKAN DI `pages/_app.tsx`.
+ * Waktu beranda dimuat sebagai remote, host cuma mengambil modul `./base` —
+ * `_app.tsx` nggak pernah dieksekusi. Provider apapun yang ditaruh di sana
+ * cuma jalan kalau :3003 dibuka langsung. Ini pelajaran mahal: pernah bikin
+ * semua komponen design-system hilang tanpa satu pun pesan error.
  *
- * Styling pakai Tailwind v4 prefix `fber` lewat kelas BEM (`fber-page`), sama
- * pola dengan layout (`lyt`) dan host (`app`). CSS-nya nggak bisa di-import
- * biasa karena Next melarang CSS global di luar `_app.tsx` — jadi dikompilasi
- * jadi string oleh `scripts/build-styles.ts` lalu disuntik `./globals`.
- *
- * Angkanya masih contoh dan blok lain sengaja dibiarkan kosong dengan jujur —
- * tiap fitur baru nanti mengisi satu blok, bukan membongkar ulang halaman ini.
+ * DUA LAPIS PENANGANAN ERROR:
+ *   1. ErrorBoundary  — crash saat RENDER. Dipasang per blok, jadi satu blok
+ *                       yang crash nggak menjatuhkan blok lain.
+ *   2. BlockState     — query GAGAL. Tiap blok punya query sendiri, jadi
+ *                       keadaan gagalnya independen.
+ * Ditambah GlobalErrorBanner yang menangkap semua kegagalan query di satu
+ * tempat lewat QueryCache.onError.
  */
-const BerandaContainer = () => (
-  <div className="fber-page">
-    <div>
-      <h1 className="fber-page__title">Beranda</h1>
-      <p className="fber-page__lead">Ringkasan kas dan aktivitas perusahaan Anda.</p>
-    </div>
+const BerandaContainer = () => {
+  // useState, bukan modul-level: tiap mount dapat client sendiri, jadi kalau
+  // host melepas dan memasang ulang remote ini, cache lamanya nggak nyangkut.
+  const [queryClient] = useState(buatQueryClient);
 
-    <Card variant="elevated">
-      <CardBody>
-        <p className="fber-saldo__label">Total saldo seluruh rekening</p>
-        <p className="fber-saldo__value">Rp 1.284.500.000</p>
-        <div className="fber-saldo__meta">
-          <Badge color="info" variant="soft">
-            data contoh
-          </Badge>
-          <Badge color="success" variant="soft">
-            3 rekening
-          </Badge>
+  return (
+    <QueryClientProvider client={queryClient}>
+      <div className="fber-page">
+        <div>
+          <h1 className="fber-page__title">Beranda</h1>
+          <p className="fber-page__lead">Ringkasan kas dan aktivitas perusahaan Anda.</p>
         </div>
-      </CardBody>
-    </Card>
 
-    <div className="fber-page__grid">
-      <Card variant="outlined">
-        <CardHeader>Menunggu persetujuan</CardHeader>
-        <CardBody>
-          <Alert variant="info">
-            Belum ada transaksi yang menunggu otorisasi. Blok ini terisi begitu fitur Payroll
-            aktif.
-          </Alert>
-        </CardBody>
-      </Card>
+        <GlobalErrorBanner />
 
-      <Card variant="outlined">
-        <CardHeader>Aktivitas terakhir</CardHeader>
-        <CardBody>
-          <Alert variant="info">
-            Belum ada aktivitas. Blok ini terisi begitu fitur Mutasi Rekening aktif.
-          </Alert>
-        </CardBody>
-      </Card>
-    </div>
+        <ErrorBoundary title="Ringkasan saldo">
+          <RingkasanSaldo />
+        </ErrorBoundary>
 
-    <Card variant="soft">
-      <CardHeader>Pintasan</CardHeader>
-      <CardBody>
-        <div className="fber-shortcuts">
-          <Button color="primary" isDisabled variant="solid">
-            Payroll
-          </Button>
-          <Button color="default" isDisabled variant="outline">
-            Transfer
-          </Button>
-          <Button color="default" isDisabled variant="outline">
-            Mutasi
-          </Button>
-          <Button color="default" isDisabled variant="outline">
-            Persetujuan
-          </Button>
+        <div className="fber-page__grid">
+          <ErrorBoundary title="Rekening perusahaan">
+            <RekeningPerusahaan />
+          </ErrorBoundary>
+
+          <ErrorBoundary title="Antrean persetujuan">
+            <AntreanPersetujuan />
+          </ErrorBoundary>
         </div>
-        <p className="fber-stack-note">
-          Halaman ini remote <code>duidtin_feature_beranda</code> — Next 16 + Rspack + MF 2.x —
-          dirender host <code>duidtin-ui</code> yang masih Next 14 + webpack + MF 0.24.1, dan
-          komponennya ditarik dari <code>duidtin_ui_design_system</code> yang dibangun Rslib.
-          Empat toolchain berbeda dalam satu halaman.
-        </p>
-      </CardBody>
-    </Card>
-  </div>
-);
+
+        <ErrorBoundary title="Aktivitas terakhir">
+          <AktivitasTerakhir />
+        </ErrorBoundary>
+
+        <ErrorBoundary title="Pintasan">
+          <Pintasan />
+        </ErrorBoundary>
+      </div>
+    </QueryClientProvider>
+  );
+};
 
 export default BerandaContainer;

@@ -14,3 +14,5 @@
 @import "./modal/modal.css";
 @import "./tabs/tabs.css";
 @import "./chart-common/chart-common.css";
+@import "./skeleton/skeleton.css";
+@import "./empty-state/empty-state.css";

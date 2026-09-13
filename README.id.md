@@ -31,7 +31,7 @@ Module Federation menyatukan aplikasi **saat runtime lewat kontrak**, bukan saat
 - **React** — 18.3.1
 - **Tailwind** — v4.1.18, prefix `ui`
 - **Path** — `/design-system/static/`
-- **Peran** — 13 komponen UI + style, di-expose satu per satu
+- **Peran** — 17 komponen UI + style, di-expose satu per satu
 - **Catatan** — `dev: { hmr: false, liveReload: false }` wajib; tanpa itu dev client-nya memanggil `location.reload()` di halaman **konsumen**
 
 ### 3. `duidtin-ui-layout` — layout bersama

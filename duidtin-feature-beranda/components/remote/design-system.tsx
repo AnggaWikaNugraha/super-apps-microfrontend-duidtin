@@ -77,3 +77,68 @@ export const CardBody = remoteComponent<WithChildren>(
 export const Button = remoteComponent<ButtonProps>("components/button");
 export const Badge = remoteComponent<BadgeProps>("components/badge");
 export const Alert = remoteComponent<AlertProps>("components/alert");
+
+export interface SkeletonProps {
+  className?: string;
+  style?: CSSProperties;
+  variant?: "text" | "heading" | "block" | "circle";
+}
+
+export interface SkeletonLinesProps {
+  className?: string;
+  lines?: number;
+}
+
+export const Skeleton = remoteComponent<SkeletonProps>("components/skeleton");
+export const SkeletonLines = remoteComponent<SkeletonLinesProps>(
+  "components/skeleton",
+  (mod) => (mod.Skeleton as unknown as Compound).Lines as ComponentType<SkeletonLinesProps>,
+);
+
+export interface EmptyStateProps extends WithChildren {
+  size?: "md" | "compact";
+  variant?: "default" | "danger";
+}
+
+export const EmptyState = remoteComponent<EmptyStateProps>("components/empty-state");
+export const EmptyStateIcon = remoteComponent<WithChildren>(
+  "components/empty-state",
+  (mod) => (mod.EmptyState as unknown as Compound).Icon as ComponentType<WithChildren>,
+);
+export const EmptyStateTitle = remoteComponent<WithChildren>(
+  "components/empty-state",
+  (mod) => (mod.EmptyState as unknown as Compound).Title as ComponentType<WithChildren>,
+);
+export const EmptyStateDescription = remoteComponent<WithChildren>(
+  "components/empty-state",
+  (mod) => (mod.EmptyState as unknown as Compound).Description as ComponentType<WithChildren>,
+);
+export const EmptyStateAction = remoteComponent<WithChildren>(
+  "components/empty-state",
+  (mod) => (mod.EmptyState as unknown as Compound).Action as ComponentType<WithChildren>,
+);
+
+export interface ErrorBoundaryProps {
+  children?: ReactNode;
+  fallback?: (props: { error: Error; reset: () => void }) => ReactNode;
+  onError?: (error: Error) => void;
+  resetKeys?: unknown[];
+  title?: string;
+}
+
+export const ErrorBoundary = remoteComponent<ErrorBoundaryProps>("components/error-boundary");
+
+export interface DataStateProps {
+  children: ReactNode;
+  emptyMessage?: string;
+  errorDescription?: string;
+  errorTitle?: string;
+  isEmpty?: boolean;
+  isError?: boolean;
+  isLoading?: boolean;
+  loadingFallback?: ReactNode;
+  onRetry?: () => void;
+  retryLabel?: string;
+}
+
+export const DataState = remoteComponent<DataStateProps>("components/data-state");

@@ -1,0 +1,46 @@
+/*
+ * Satu komponen untuk dua keadaan yang bentuknya sama: data kosong dan gagal
+ * memuat. Bedanya cuma warna aksen dan teksnya — memisahkannya jadi dua
+ * komponen cuma menggandakan markup yang identik.
+ */
+.ui-empty-state {
+  @apply ui:flex ui:flex-col ui:items-center ui:justify-center ui:gap-2 ui:px-4 ui:py-8 ui:text-center;
+  @apply ui:rounded-[var(--dtn-radius)] ui:border ui:border-dashed;
+}
+
+.ui-empty-state--default {
+  @apply ui:border-[var(--dtn-line)] ui:bg-[var(--dtn-surface-muted)];
+}
+
+.ui-empty-state--danger {
+  @apply ui:border-[var(--dtn-danger)]/30 ui:bg-[var(--dtn-danger-soft)];
+}
+
+/* Padat — dipakai di dalam kartu yang sudah punya padding sendiri */
+.ui-empty-state--compact {
+  @apply ui:px-3 ui:py-5;
+}
+
+.ui-empty-state__icon {
+  @apply ui:flex ui:h-9 ui:w-9 ui:items-center ui:justify-center ui:rounded-full;
+}
+
+.ui-empty-state--default .ui-empty-state__icon {
+  @apply ui:bg-[var(--dtn-line)] ui:text-[var(--dtn-ink-subtle)];
+}
+
+.ui-empty-state--danger .ui-empty-state__icon {
+  @apply ui:bg-white ui:text-[var(--dtn-danger)];
+}
+
+.ui-empty-state__title {
+  @apply ui:text-sm ui:font-semibold ui:text-[var(--dtn-ink)];
+}
+
+.ui-empty-state__description {
+  @apply ui:max-w-md ui:text-xs ui:leading-relaxed ui:text-[var(--dtn-ink-muted)];
+}
+
+.ui-empty-state__action {
+  @apply ui:mt-1 ui:flex ui:items-center ui:gap-2;
+}

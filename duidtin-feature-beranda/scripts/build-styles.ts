@@ -21,7 +21,18 @@ const INPUT = "./styles/globals.css";
 const OUTPUT = "./styles/global.exposes.ts";
 const STYLE_ID = "duidtin-feature-beranda-globals";
 
-const css = await $`bun x @tailwindcss/cli -i ${INPUT} --minify`.text();
+/*
+ * Panggil binary LOKAL, bukan `bun x @tailwindcss/cli`.
+ *
+ * Nama paketnya `@tailwindcss/cli` tapi nama binary-nya `tailwindcss` — beda.
+ * `bun x` nggak mengenali itu sebagai paket yang sudah terpasang, lalu diam-diam
+ * menjalankan `bun add @tailwindcss/cli@latest --no-cache --force`. Di jaringan
+ * lambat/terblokir, `predev` macet tanpa pesan apapun dan dev server nggak
+ * pernah nyala. Binary lokal nggak butuh jaringan sama sekali.
+ */
+const TAILWIND_BIN = "./node_modules/.bin/tailwindcss";
+
+const css = await $`${TAILWIND_BIN} -i ${INPUT} --minify`.text();
 
 const banner = `// BERKAS HASIL GENERATE — jangan diedit tangan.
 // Dihasilkan \`scripts/build-styles.ts\` dari \`styles/globals.css\`.

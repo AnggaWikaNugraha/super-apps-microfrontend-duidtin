@@ -26,7 +26,8 @@ From the root of this repo (`x-duidtin/duidtin-ui-design-system/`):
 ## Current status
 
 Done:
-- 13 components in `packages/ui`: `Button`, `Card`, `Badge`, `Table`, `Select`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart` — complete with styles, build, and Storybook. The charts pull in one new dependency, `recharts`.
+- **17 components** in `packages/ui`. The first thirteen are visual primitives: `Button`, `Card`, `Badge`, `Table`, `Select`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart`. The charts pull in `recharts`.
+- The other four are **cross-feature patterns**, added while building beranda: `Skeleton` (loading placeholder), `EmptyState` (empty and error), `ErrorBoundary` (render crashes, per block), and `DataState` (a wrapper for a data block's three states). They live here rather than in a feature repo — built locally, each feature would end up with its own copy and they would drift apart.
 - `apps/producer` exposes all of the above plus `globals` over Module Federation, with automatic exposes codegen and cross-remote TypeScript types (`dts`) configured.
 - `loadRemote()` is proven to work from **two real consumers at once**, both verified in a browser:
   - `duidtin-ui-layout` renders this remote's `Button` & `Badge` in its header;

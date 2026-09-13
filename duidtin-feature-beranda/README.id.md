@@ -27,11 +27,74 @@ Sudah diverifikasi jalan di browser:
 - Repo ini feature remote pertama, jadi **FASE 2 di host akhirnya benar-benar jalan** — sebelumnya `featureRegistry` kosong dan loop-nya nol iterasi.
 - Tipe design-system ter-generate otomatis ke `@mf-types/` — `dts` lintas-repo ikut jalan lintas versi MF.
 
+- Lima blok dengan **empat query terpisah** — tiap blok punya keadaan memuat/gagal sendiri, jadi satu blok gagal tidak menjatuhkan yang lain.
+- **Tiga lapis penanganan error** terbukti jalan (lihat bagian di bawah).
+
 Belum ada:
 
-- Data sungguhan. Saldo masih angka contoh; blok "Menunggu persetujuan" dan "Aktivitas terakhir" sengaja dibiarkan kosong dengan jujur, menunggu fitur Payroll dan Mutasi.
+- Backend sungguhan. Datanya dummy, tapi bentuknya sudah menyerupai respons API — yang perlu diganti nanti cuma `services/api/client.ts`.
 - Auth/peran. Pintasan masih `isDisabled` semua.
 - i18n, config deploy/container.
+
+## Aturan ngoding di repo feature
+
+Tiga aturan yang berlaku di semua repo `duidtin-feature-*`. Tujuannya menjaga repo feature tetap tipis dan seragam.
+
+### 1. Semua aksi dan logika per-section lewat custom hook
+
+Komponen **hanya merender**. Tidak ada `useQuery`, tidak ada handler, tidak ada perhitungan di dalamnya. Satu section = satu hook.
+
+```tsx
+// ❌ jangan
+const RingkasanSaldo = () => {
+  const { data, isPending } = useQuery({ queryKey: …, queryFn: … });
+  const total = (data ?? []).reduce((a, b) => a + b.saldo, 0);
+  …
+};
+
+// ✅ begini
+const RingkasanSaldo = () => {
+  const { total, jumlahRekening, isLoading, isError, retry } = useRingkasanSaldo();
+  …
+};
+```
+
+**Kenapa:** komponen jadi bisa dibaca sekilas; logikanya bisa diuji tanpa merender; dan waktu sumber datanya diganti (dummy → API sungguhan), JSX-nya tidak perlu disentuh sama sekali.
+
+### 2. State ke Zustand, bukan `useState` di komponen
+
+**Kenapa:** state yang dipakai lintas blok (filter periode, rekening terpilih) tidak perlu diangkat lewat props. Dan khusus di MFE, state yang hidup di store bisa bertahan waktu host me-*unmount* lalu me-*mount* ulang remote-nya — dengan `useState`, semuanya hilang.
+
+### 3. UI dari design-system, jangan bikin komponen reusable lokal
+
+Kalau komponen yang dibutuhkan belum ada, **buat dulu di `duidtin-ui-design-system`** — jangan di repo feature.
+
+| Boleh ada di repo feature | Tempatnya di design-system |
+|---|---|
+| Komposisi khas fitur ini (blok beranda) | Primitif UI (tombol, kartu, skeleton) |
+| Hook & store fitur | Pola yang dipakai lintas fitur (empty state, error boundary) |
+
+**Kenapa:** komponen reusable yang dibuat lokal akan terduplikasi di tiap feature, dan design-system kehilangan gunanya.
+
+### Kondisi saat ini: ketiganya sudah dipatuhi
+
+| Aturan | Bentuknya di repo ini |
+|---|---|
+| 1 | `hooks/use-*.ts` — satu hook per blok. Komponen di `blocks/` cuma merender |
+| 2 | `stores/error-global.ts` — Zustand, tidak ada `useState` di komponen |
+| 3 | `Skeleton`, `EmptyState`, `ErrorBoundary`, `DataState` semuanya dari design-system |
+
+Yang dulu bernama `BlockState` di repo ini sudah pindah jadi `DataState` di design-system — dia persis jenis komponen yang aturan 3 larang dibuat lokal.
+
+**Satu pengecualian yang disepakati:**
+
+```tsx
+const [queryClient] = useState(buatQueryClient);
+```
+
+Ini bukan state aplikasi melainkan **wadah instance**, dan merupakan pola yang didokumentasikan React Query sendiri. Memindahkannya ke store justru salah: satu QueryClient global akan dibagi antar mount, sehingga cache lama menempel waktu host me-*mount* ulang remote ini. Dikecualikan dari aturan 2.
+
+**Efek samping yang menyenangkan dari aturan 2:** `QueryCache.onError` hidup di luar React, jadi dia tidak bisa memakai hook. Dengan store, dia cukup memanggil `useErrorGlobal.getState().setPesan(...)`. Sebelumnya perlu mekanisme pendaftaran pendengar yang ribet — sekarang hilang sendiri.
 
 ## Stack — dan kenapa berbeda
 
@@ -42,12 +105,20 @@ Belum ada:
 | Plugin MF | `@module-federation/enhanced` 2.9.0 | `nextjs-mf` berhenti di Next 14, tidak mendukung Next 15+ |
 | React | 18.3.1 | **wajib** sama dengan host — di-share singleton |
 | Styling | Tailwind v4, prefix `fber` | pola BEM + `@apply`, sama dengan layout (`lyt`) dan host (`app`) |
+| Data | TanStack Query 5 | `QueryClient` milik repo ini sendiri, bukan dibagi dari host |
 | Port / basePath | 3003 / `/beranda` | |
 
 ## Struktur folder
 
 ```
 duidtin-feature-beranda/
+  hooks/                 # ATURAN 1 — satu hook per blok
+    use-ringkasan-saldo.ts
+    use-rekening-perusahaan.ts
+    use-antrean-persetujuan.ts
+    use-aktivitas-terakhir.ts
+  stores/
+    error-global.ts      # ATURAN 2 — Zustand, bukan useState
   containers/beranda/
     index.tsx            # YANG DI-EXPOSE sebagai "./base"
   scripts/
@@ -166,6 +237,59 @@ styles/globals.css                        @import tailwindcss prefix(fber)
 
 `styles/global.exposes.ts` **berkas hasil generate** — jangan diedit tangan, dan tidak masuk git. Kalau CSS-nya terlihat basi, jalankan `bun run style`.
 
+## Data: TanStack Query + API palsu
+
+### Kenapa `QueryClient` milik repo ini sendiri
+
+Bukan dibagi dari host. Konsekuensinya cache tidak dibagi antar feature remote — kalau nanti dua fitur mengambil data yang sama, dua-duanya fetch sendiri. Ditukar dengan kemandirian: host tidak perlu tahu apa pun soal React Query, dan repo ini bisa ganti versi tanpa mengganggu siapa pun.
+
+Kalau nanti cache perlu dibagi, caranya menjadikan `@tanstack/react-query` shared singleton di config MF — persis pola React sekarang.
+
+### Providernya ADA DI CONTAINER, bukan `_app.tsx`
+
+```tsx
+// containers/beranda/index.tsx
+const [queryClient] = useState(buatQueryClient);
+return <QueryClientProvider client={queryClient}>…</QueryClientProvider>;
+```
+
+Alasannya sama dengan pendaftaran remote: `_app.tsx` **tidak pernah dieksekusi** saat beranda dimuat host. Provider yang ditaruh di sana cuma jalan kalau `:3003` dibuka langsung.
+
+### API palsu
+
+```
+mocks/beranda.ts        data dummy, bentuknya seperti respons API sungguhan
+services/api/client.ts  transport: delay + simulasi gagal
+services/api/beranda.ts fungsi query + queryKeys
+```
+
+Semua akses data lewat `apiGet()`, jadi begitu backend siap yang diganti cuma isi fungsi itu — komponennya tidak perlu disentuh.
+
+**Dua parameter URL untuk menguji keadaan yang susah ditangkap:**
+
+| Parameter | Efek |
+|---|---|
+| `?gagal=aktivitas` | paksa endpoint itu gagal. Bisa beberapa: `?gagal=aktivitas,persetujuan` |
+| `?lambat=30` | perlambat semua endpoint 30× supaya skeleton sempat terlihat |
+
+Sengaja deterministik lewat URL, **bukan gagal acak** — gagal acak bikin frustrasi saat development dan susah didemokan.
+
+## Tiga lapis penanganan error
+
+| Lapis | Menangani | Di mana |
+|---|---|---|
+| 1. `BlockState` | query **gagal** — per blok | `containers/beranda/components/block-state.tsx` |
+| 2. `ErrorBoundary` | **crash saat render** — per blok | dari design-system, membungkus tiap blok |
+| 3. `GlobalErrorBanner` | semua query gagal, terpusat | lewat `QueryCache.onError` |
+
+Lapis 1 dan 2 menangani kegagalan yang berbeda: query gagal ≠ komponen crash. Keduanya dipasang **per blok**, bukan per halaman, supaya satu blok yang bermasalah tidak menjatuhkan blok lain.
+
+Lapis 3 jaring pengaman: pengguna tetap sadar ada yang tidak beres walaupun blok yang gagal kebetulan sedang tidak terlihat di layar.
+
+> Keterbatasan yang diketahui: banner global menampilkan **pesan terakhir** saja. Kalau dua endpoint gagal bersamaan, yang disebut cuma satu. Cukup untuk memberi tahu "ada yang tidak beres", tidak untuk mendaftar semuanya.
+
+Host juga punya `RemoteErrorBoundary`, tapi itu membungkus SELURUH isi aplikasi — satu crash mengganti seluruh halaman. Yang di sini lebih halus.
+
 ## Ganjalan yang ketemu (dan kenapa fix-nya begitu)
 
 1. **`reactCompiler: { target: "18" }` bikin dev server mati.** Disalin dari dhe, ternyata butuh `babel-plugin-react-compiler` terpasang: `Failed to load the babel-plugin-react-compiler`. Dihapus — itu optimasi opsional, React 18 jalan di Next 16 tanpanya.
@@ -181,6 +305,10 @@ styles/globals.css                        @import tailwindcss prefix(fber)
    Fix: pendaftaran dipindah ke [`services/federation.ts`](services/federation.ts), dipanggil di **module scope** dari berkas jembatan yang di-import container. Jalur itu pasti dieksekusi baik lewat host maupun standalone.
 
 5. **Runtime MF repo ini instance TERPISAH dari punya host.** Konsekuensi dari poin 4: host sudah mendaftarkan `duidtin_ui_design_system` di registry-nya, tapi beranda tetap harus mendaftarkannya sendiri. Yang dibagi antar instance cuma **share scope** (React), bukan registry remote.
+
+6. **`bun run dev` macet tanpa pesan apa pun — di langkah `predev`.** Log berhenti di `$ bun run scripts/build-styles.ts` dan dev server tidak pernah menyala.
+   Sebabnya: script awalnya memanggil `bun x @tailwindcss/cli`. Nama paketnya `@tailwindcss/cli`, tapi nama binary-nya `tailwindcss` — berbeda. `bun x` tidak mengenalinya sebagai paket yang sudah terpasang, lalu diam-diam menjalankan `bun add @tailwindcss/cli@latest --no-cache --force` yang mengunduh dari internet. Di jaringan lambat atau terblokir, itu menggantung selamanya.
+   Fix: panggil binary lokal langsung, `./node_modules/.bin/tailwindcss`. Waktu build style turun dari *tak terhingga* ke ±1,7 detik, tanpa jaringan.
 
 ## Langkah berikutnya
 
