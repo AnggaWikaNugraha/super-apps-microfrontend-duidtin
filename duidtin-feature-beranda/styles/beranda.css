@@ -1,106 +1,438 @@
-/*
- * Warna diambil dari token design-system (`var(--dtn-*)`) supaya seragam dengan
- * layout dan komponen. Tailwind di sini cuma mengurus tata letak dan ukuran.
- */
-
 .fber-page {
-  @apply fber:flex fber:flex-col fber:gap-4;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  font-family: var(--dtn-font);
+  color: var(--dtn-ink);
 }
-
+.fber-page__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 8px;
+}
+.fber-page__eyebrow {
+  color: var(--dtn-primary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  margin-bottom: 10px;
+}
 .fber-page__title {
-  @apply fber:m-0 fber:mb-1 fber:text-xl fber:font-semibold fber:tracking-tight;
-  @apply fber:text-[var(--dtn-ink)];
+  font-size: clamp(25px, 2.5vw, 34px);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.04em;
 }
-
 .fber-page__lead {
-  @apply fber:m-0 fber:text-sm;
-  @apply fber:text-[var(--dtn-ink-muted)];
+  color: var(--dtn-ink-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: 10px;
 }
-
+.fber-page__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.fber-page__overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  gap: 24px;
+}
 .fber-page__grid {
-  @apply fber:grid fber:grid-cols-1 fber:gap-4 fber:md:grid-cols-2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
 }
-
+.fber-page h2 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.fber-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.fber-section-heading p {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: var(--dtn-ink-muted);
+}
+.fber-saldo {
+  border-top: 3px solid var(--dtn-primary);
+  background: linear-gradient(
+    115deg,
+    var(--dtn-surface) 60%,
+    var(--dtn-primary-soft)
+  );
+  padding: 28px;
+}
+.fber-saldo__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .fber-saldo__label {
-  @apply fber:m-0 fber:text-xs fber:font-medium fber:uppercase fber:tracking-wide;
-  @apply fber:text-[var(--dtn-ink-subtle)];
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dtn-ink-muted);
 }
-
-/* Angka uang: tabular-nums biar digit sejajar antar baris */
+.fber-saldo__label svg {
+  color: var(--dtn-primary);
+}
+.fber-saldo__visibility {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 1px solid var(--dtn-line);
+  border-radius: var(--dtn-radius);
+  background: var(--dtn-surface);
+  color: var(--dtn-ink-muted);
+  cursor: pointer;
+}
 .fber-saldo__value {
-  @apply fber:mt-2 fber:mb-0 fber:text-[28px] fber:font-bold fber:leading-none fber:[font-variant-numeric:tabular-nums];
-  @apply fber:text-[var(--dtn-ink)];
+  margin-top: 12px;
+  font-size: clamp(27px, 3vw, 42px);
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--dtn-ink);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
-
-.fber-saldo__meta {
-  @apply fber:mt-3 fber:flex fber:items-center fber:gap-2;
+.fber-saldo__caption {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--dtn-ink-muted);
 }
-
-.fber-shortcuts {
-  @apply fber:flex fber:flex-wrap fber:gap-2;
+.fber-saldo__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 36px;
+  border-top: 1px solid var(--dtn-line);
+  margin-top: 24px;
+  padding-top: 18px;
 }
-
-.fber-stack-note {
-  @apply fber:mt-3 fber:border-t fber:pt-3 fber:text-xs fber:leading-relaxed;
-  @apply fber:border-[var(--dtn-line)] fber:text-[var(--dtn-ink-subtle)];
+.fber-saldo__bottom > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
-
-.fber-stack-note code {
-  @apply fber:rounded-[var(--dtn-radius-sm)] fber:px-1.5 fber:py-px;
-  @apply fber:bg-[var(--dtn-surface-muted)] fber:text-[var(--dtn-ink-muted)];
+.fber-saldo__bottom span {
+  font-size: 11px;
+  color: var(--dtn-ink-muted);
 }
-
-/* ── Daftar dipakai tiga blok: rekening, persetujuan, aktivitas ───────────── */
-
-.fber-list {
-  @apply fber:m-0 fber:flex fber:list-none fber:flex-col fber:p-0;
+.fber-saldo__bottom strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dtn-ink);
+  font-variant-numeric: tabular-nums;
 }
-
-.fber-list__item {
-  @apply fber:flex fber:items-center fber:justify-between fber:gap-3 fber:border-b fber:py-2.5;
-  @apply fber:border-[var(--dtn-line)];
-}
-
-.fber-list__item:last-child {
-  @apply fber:border-b-0 fber:pb-0;
-}
-
-.fber-list__main {
-  @apply fber:flex fber:min-w-0 fber:flex-col;
-}
-
-.fber-list__title {
-  @apply fber:truncate fber:text-sm fber:font-medium;
-  @apply fber:text-[var(--dtn-ink)];
-}
-
-.fber-list__meta {
-  @apply fber:text-xs;
-  @apply fber:text-[var(--dtn-ink-subtle)];
-}
-
-.fber-list__side {
-  @apply fber:flex fber:shrink-0 fber:items-center fber:gap-2;
-}
-
-/* tabular-nums biar digit nominal sejajar antar baris */
-.fber-list__amount {
-  @apply fber:text-sm fber:font-semibold fber:[font-variant-numeric:tabular-nums];
-  @apply fber:text-[var(--dtn-ink)];
-}
-
-.fber-list__amount--masuk {
-  @apply fber:text-[var(--dtn-success)];
-}
-
-/* ── Banner error global ──────────────────────────────────────────────────── */
-
-.fber-banner__inner {
-  @apply fber:flex fber:w-full fber:items-center fber:justify-between fber:gap-3;
-}
-
-/* ── Skeleton ringkasan saldo ─────────────────────────────────────────────── */
-
 .fber-saldo__loading {
-  @apply fber:flex fber:flex-col fber:gap-2.5;
+  display: grid;
+  gap: 24px;
+  min-height: 218px;
+  align-content: center;
+}
+.fber-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 12px;
+}
+.fber-shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: var(--dtn-ink-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: not-allowed;
+}
+.fber-shortcut__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--dtn-line);
+  border-radius: 14px;
+  background: var(--dtn-surface-muted);
+  color: var(--dtn-ink-subtle);
+}
+.fber-shortcuts__note {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--dtn-line);
+  font-size: 11px;
+  color: var(--dtn-ink-subtle);
+}
+.fber-list__title {
+  display: block;
+  color: var(--dtn-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.fber-list__meta {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--dtn-ink-subtle);
+  margin-top: 4px;
+}
+.fber-list__amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dtn-ink);
+  font-variant-numeric: tabular-nums;
+}
+.fber-accounts,
+.fber-approvals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fber-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--dtn-line);
+}
+.fber-account:last-child {
+  border-bottom: 0;
+  padding-bottom: 4px;
+}
+.fber-account__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--dtn-line);
+  background: var(--dtn-surface-muted);
+  border-radius: 10px;
+  color: var(--dtn-primary);
+}
+.fber-account__detail {
+  flex: 1;
+  min-width: 0;
+}
+.fber-account__balance {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: right;
+}
+.fber-account__balance strong {
+  color: var(--dtn-ink);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.fber-account__balance span {
+  font-size: 10px;
+  color: var(--dtn-ink-subtle);
+}
+.fber-approvals {
+  display: grid;
+  gap: 12px;
+  padding-top: 8px;
+}
+.fber-approval {
+  padding: 14px 16px;
+  border: 1px solid var(--dtn-line);
+  border-radius: var(--dtn-radius);
+  background: var(--dtn-surface-muted);
+}
+.fber-approval__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.fber-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--dtn-line);
+  border-radius: var(--dtn-radius);
+  background: var(--dtn-surface-muted);
+}
+.fber-filters button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: var(--dtn-radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dtn-ink-muted);
+  cursor: pointer;
+}
+.fber-filters button[aria-pressed="true"] {
+  background: var(--dtn-surface);
+  color: var(--dtn-primary);
+  box-shadow: var(--dtn-shadow);
+}
+.fber-table-scroll {
+  overflow-x: auto;
+}
+.fber-transactions {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.fber-transactions thead {
+  background: var(--dtn-surface-muted);
+}
+.fber-transactions thead th {
+  padding: 12px 16px;
+  text-align: left;
+  color: var(--dtn-ink-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.fber-transactions tbody th,
+.fber-transactions td {
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--dtn-line);
+  text-align: left;
+}
+.fber-transactions tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.fber-transactions tbody tr:hover {
+  background: var(--dtn-surface-muted);
+}
+.fber-transaction {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+}
+.fber-transaction__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--dtn-surface-muted);
+  color: var(--dtn-ink-muted);
+}
+.fber-transaction__icon--masuk {
+  background: var(--dtn-success-soft);
+  color: var(--dtn-success);
+}
+.fber-transactions time {
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--dtn-ink-muted);
+}
+.fber-transactions .fber-transactions__amount {
+  text-align: right;
+  white-space: nowrap;
+}
+.fber-transactions td.fber-transactions__amount {
+  font-weight: 600;
+  color: var(--dtn-ink);
+}
+.fber-transactions td.fber-transactions__amount--masuk {
+  color: var(--dtn-success);
+}
+.fber-transactions__count {
+  border-top: 1px solid var(--dtn-line);
+  padding-top: 16px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--dtn-ink-subtle);
+}
+.fber-transactions .fber-transactions__empty {
+  text-align: center;
+  padding: 32px;
+}
+.fber-banner__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.fber-page :is(button, .fber-table-scroll):focus-visible {
+  outline: 2px solid var(--dtn-focus);
+  outline-offset: 3px;
+}
+.fber-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 1200px) {
+  .fber-page__overview {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
+  .fber-account {
+    flex-wrap: wrap;
+  }
+  .fber-account__balance {
+    width: 100%;
+    padding-left: 52px;
+    text-align: left;
+  }
+  .fber-shortcuts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+@media (max-width: 767px) {
+  .fber-page__overview,
+  .fber-page__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fber-saldo {
+    padding: 24px;
+  }
+  .fber-shortcuts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+@media (max-width: 380px) {
+  .fber-shortcuts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .fber-filters button {
+    padding: 6px 8px;
+  }
 }

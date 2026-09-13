@@ -21,8 +21,16 @@ const GlobalErrorBanner = () => {
     <div className="fber-banner">
       <Alert variant="danger">
         <div className="fber-banner__inner">
-          <span>{pesan}</span>
-          <Button color="default" onPress={bersihkan} size="sm" variant="outline">
+          <span>
+            Sebagian data belum dapat dimuat. Coba perbarui atau ulangi pada
+            bagian yang bermasalah.
+          </span>
+          <Button
+            color="default"
+            onPress={bersihkan}
+            size="sm"
+            variant="outline"
+          >
             Tutup
           </Button>
         </div>

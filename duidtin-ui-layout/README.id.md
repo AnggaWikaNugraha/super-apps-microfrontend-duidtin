@@ -2,7 +2,7 @@
 
 [English](README.md) · **Bahasa Indonesia**
 
-Layout bersama (header + footer) yang di-expose sebagai remote Module Federation, dipasang di sekitar konten tiap halaman oleh host (`duidtin-ui`). Beda dari `duidtin-ui-design-system` (murni komponen, tanpa routing), repo ini butuh bridging ke context aplikasi (auth, dst) — makanya dibangun pakai Next.js, bukan Rslib.
+Layout bersama (sidebar + header + footer) yang di-expose sebagai remote Module Federation, dipasang di sekitar konten tiap halaman oleh host (`duidtin-ui`). Beda dari `duidtin-ui-design-system` (murni komponen, tanpa routing), repo ini butuh bridging ke context aplikasi (auth, dst) — makanya dibangun pakai Next.js, bukan Rslib.
 
 ## Cara mulai
 
@@ -18,11 +18,11 @@ Buka `http://localhost:3002/layout` cuma nampilin halaman guard (lihat bagian "p
 ## Status saat ini
 
 Sudah ada dan sudah diverifikasi jalan:
-- `layouts/default/` — Header + `{children}` + Footer, di-expose sebagai `./default`.
-- Header konsumsi `Button` & `Badge` dari `duidtin_ui_design_system` lewat `loadRemote()` — pola "remote manggil remote lain" sudah kebukti kerender beneran di browser (bukan cuma build sukses), lengkap dengan style-nya.
+- `layouts/default/` — Sidebar + Header + `{children}` + Footer, di-expose sebagai `./default`.
+- Header konsumsi `Button` dari `duidtin_ui_design_system` lewat `loadRemote()` — pola "remote manggil remote lain" sudah kebukti kerender beneran di browser (bukan cuma build sukses), lengkap dengan style-nya.
 - `styles/globals.css` di-expose sebagai `./globals`.
 - `pages/index.tsx` halaman guard, `exposePages: false` — nggak ikut ke-expose.
-- Menu header sudah menu korporat (Beranda, Payroll, Transfer, Mutasi, Persetujuan). Yang route-nya belum ada dirender `<span>` bertanda `disabled`, bukan `<a>` — jadi nggak ada tautan yang 404.
+- Menu sidebar berisi navigasi bisnis (Beranda, Payroll, Transfer, Mutasi, Persetujuan). Yang route-nya belum ada dirender `<span>` bertanda `disabled`, bukan `<a>` — jadi nggak ada tautan yang 404.
 - **Sudah dipasang host beneran.** `duidtin-ui` render layout ini lewat `loadRemote("duidtin_ui_layout/default")`, diverifikasi di browser. Pemasangan pertama itu yang membongkar ganjalan poin 8 di bawah.
 
 Belum ada:
@@ -45,7 +45,7 @@ Belum ada:
 duidtin-ui-layout/
   layouts/
     default/
-      index.tsx        # layout utama: Header + {children} + Footer  ← yang di-expose
+      index.tsx        # layout utama: Sidebar + Header + {children} + Footer  ← yang di-expose
       header.tsx
       footer.tsx
       types.ts
@@ -178,7 +178,7 @@ boot browser  pages/_app.tsx (top-level, dibungkus if (globalThis.window) — cl
    │            └─▶ loadRemote(".../globals")
    │                  FETCH beneran: remoteEntry.js design-system + CSS-nya, cegah FOUC
    │
-render        layouts/default/header.tsx pakai <Button> / <Badge>
+render        layouts/default/header.tsx pakai <Button>
    │            └─▶ components/remote/design-system.tsx
    │                  └─▶ dynamic(() => loadRemote(".../components/<nama>"), { ssr: false })
    │                        FETCH chunk komponennya → baru nongol di layar
@@ -224,3 +224,9 @@ Host `duidtin-ui` sudah ada dan sudah render layout ini beneran, jadi lingkarann
 - **Poin 7 di atas masih terbuka** — dan sekarang taruhannya lebih besar. Host juga mendaftarkan `duidtin_ui_design_system` di remotes-nya sendiri, jadi URL build-time yang salah di repo ini punya jalur kedua buat menggigit di production.
 - Bridging auth/context beneran — `onLogout` & `userName` masih props kosong, belum nyantol ke apapun.
 - i18n dan config deploy/container.
+
+## Layout Business Banking
+
+Sidebar 248px ditampilkan mulai lebar 1024px. Pada layar lebih kecil, tombol menu di header membuka navigasi di atas konten. Escape menutup menu dan mengembalikan fokus ke tombolnya. Tautan “Langsung ke konten” membantu navigasi keyboard.
+
+Layout memakai token `--dtn-*` dari design system. Prop `activePath`, `navItems`, `userName`, `onLogout`, dan `children` tetap didukung; rute turunan menandai menu induknya aktif. Tombol Keluar ditampilkan jika callback `onLogout` diberikan.

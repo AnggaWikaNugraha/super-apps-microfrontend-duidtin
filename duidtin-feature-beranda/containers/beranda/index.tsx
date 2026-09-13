@@ -10,6 +10,7 @@ import Pintasan from "./blocks/pintasan";
 import RekeningPerusahaan from "./blocks/rekening-perusahaan";
 import RingkasanSaldo from "./blocks/ringkasan-saldo";
 import GlobalErrorBanner from "./components/global-error-banner";
+import PageHeading from "./components/page-heading";
 
 /**
  * Isi beranda — di-expose sebagai "./base" dan dirender host di route "/".
@@ -36,16 +37,18 @@ const BerandaContainer = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="fber-page">
-        <div>
-          <h1 className="fber-page__title">Beranda</h1>
-          <p className="fber-page__lead">Ringkasan kas dan aktivitas perusahaan Anda.</p>
-        </div>
+        <PageHeading />
 
         <GlobalErrorBanner />
 
-        <ErrorBoundary title="Ringkasan saldo">
-          <RingkasanSaldo />
-        </ErrorBoundary>
+        <div className="fber-page__overview">
+          <ErrorBoundary title="Ringkasan saldo">
+            <RingkasanSaldo />
+          </ErrorBoundary>
+          <ErrorBoundary title="Pintasan">
+            <Pintasan />
+          </ErrorBoundary>
+        </div>
 
         <div className="fber-page__grid">
           <ErrorBoundary title="Rekening perusahaan">
@@ -59,10 +62,6 @@ const BerandaContainer = () => {
 
         <ErrorBoundary title="Aktivitas terakhir">
           <AktivitasTerakhir />
-        </ErrorBoundary>
-
-        <ErrorBoundary title="Pintasan">
-          <Pintasan />
         </ErrorBoundary>
       </div>
     </QueryClientProvider>

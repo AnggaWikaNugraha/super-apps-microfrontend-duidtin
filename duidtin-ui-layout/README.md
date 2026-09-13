@@ -2,7 +2,7 @@
 
 **English** · [Bahasa Indonesia](README.id.md)
 
-The shared layout (header + footer), exposed as a Module Federation remote and wrapped around every page's content by the host (`duidtin-ui`). Unlike `duidtin-ui-design-system` (pure components, no routing), this repo needs to bridge into application context (auth and so on) — which is why it is built on Next.js rather than Rslib.
+The shared layout (sidebar + header + footer), exposed as a Module Federation remote and wrapped around every page's content by the host (`duidtin-ui`). Unlike `duidtin-ui-design-system` (pure components, no routing), this repo needs to bridge into application context (auth and so on) — which is why it is built on Next.js rather than Rslib.
 
 ## Getting started
 
@@ -18,11 +18,11 @@ Opening `http://localhost:3002/layout` only shows a guard page (see the "pages/i
 ## Current status
 
 Done and verified working:
-- `layouts/default/` — Header + `{children}` + Footer, exposed as `./default`.
-- The header consumes `Button` & `Badge` from `duidtin_ui_design_system` through `loadRemote()` — the "a remote calling another remote" pattern is proven to actually render in a browser (not merely to build), styles included.
+- `layouts/default/` — Sidebar + Header + `{children}` + Footer, exposed as `./default`.
+- The header consumes `Button` from `duidtin_ui_design_system` through `loadRemote()` — the "a remote calling another remote" pattern is proven to actually render in a browser (not merely to build), styles included.
 - `styles/globals.css` exposed as `./globals`.
 - `pages/index.tsx` is a guard page, and `exposePages: false` keeps it from being exposed.
-- The header menu is now the corporate one (Beranda, Payroll, Transfer, Mutasi, Persetujuan). Entries whose route does not exist yet render as a `disabled` `<span>` rather than an `<a>`, so no link can 404.
+- The sidebar provides business navigation (Beranda, Payroll, Transfer, Mutasi, Persetujuan). Entries whose route does not exist yet render as a `disabled` `<span>` rather than an `<a>`, so no link can 404.
 - **Mounted by the real host.** `duidtin-ui` renders this layout through `loadRemote("duidtin_ui_layout/default")`, verified in a browser. That first mount is what uncovered item 8 under "Snags".
 
 Not done:
@@ -45,7 +45,7 @@ Not done:
 duidtin-ui-layout/
   layouts/
     default/
-      index.tsx        # the main layout: Header + {children} + Footer  ← the exposed one
+      index.tsx        # the main layout: Sidebar + Header + {children} + Footer  ← the exposed one
       header.tsx
       footer.tsx
       types.ts
@@ -178,7 +178,7 @@ browser boot  pages/_app.tsx (top level, wrapped in if (globalThis.window) — c
    │            └─▶ loadRemote(".../globals")
    │                  a real fetch: the design system's remoteEntry.js + its CSS, preventing FOUC
    │
-render        layouts/default/header.tsx uses <Button> / <Badge>
+render        layouts/default/header.tsx uses <Button>
    │            └─▶ components/remote/design-system.tsx
    │                  └─▶ dynamic(() => loadRemote(".../components/<name>"), { ssr: false })
    │                        FETCHES the component chunk → only now does it appear on screen
@@ -240,3 +240,9 @@ The `duidtin-ui` host now exists and renders this layout for real, so the loop i
 - **Item 7 above is still open** — and it now matters more than before. The host registers `duidtin_ui_design_system` in its own remotes too, so a wrong build-time URL in this repo has a second path to bite in production.
 - Real auth/context bridging — `onLogout` and `userName` are still plain props, wired to nothing.
 - i18n and deploy/container config.
+
+## Business Banking layout
+
+A 248px sidebar appears at viewport widths of 1024px and above. Smaller screens use a header menu button to reveal navigation above the content. Escape closes the menu and returns focus to its trigger. A skip link provides direct keyboard access to main content.
+
+The layout uses shared `--dtn-*` design tokens. Existing `activePath`, `navItems`, `userName`, `onLogout`, and `children` props remain supported; nested routes mark their parent menu active. Logout is shown when `onLogout` is provided.

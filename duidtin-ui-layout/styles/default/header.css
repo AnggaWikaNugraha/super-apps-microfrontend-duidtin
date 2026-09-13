@@ -1,50 +1,341 @@
-/*
- * Warna diambil dari token design-system (`var(--dtn-*)`), bukan di-hardcode.
- * Sebelumnya di sini tertulis `blue-600` yang harus DITEBAK cocok dengan
- * design-system — begitu salah satu berubah, keduanya melenceng diam-diam.
- * Token-nya mengalir lewat `:root` waktu CSS design-system dimuat.
- */
 .lyt-header {
-  @apply lyt:sticky lyt:top-0 lyt:z-40 lyt:border-b;
-  @apply lyt:border-[var(--dtn-line)] lyt:bg-[var(--dtn-surface)];
+  grid-column: 2;
+  grid-row: 1;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-width: 0;
+  min-height: 88px;
+  padding: 16px clamp(24px, 3vw, 48px);
+  border-bottom: 1px solid var(--dtn-line);
+  background: var(--dtn-surface);
 }
-
-/* Lebih pendek dari 16 — bar korporat memberi ruang lebih ke tabel di bawahnya */
-.lyt-header__inner {
-  @apply lyt:mx-auto lyt:flex lyt:h-14 lyt:w-full lyt:max-w-7xl lyt:items-center lyt:gap-6 lyt:px-6;
+.lyt-brand {
+  display: inline-flex;
+  flex-direction: column;
+  width: fit-content;
+  color: var(--dtn-ink);
+  text-decoration: none;
 }
-
-.lyt-header__brand {
-  @apply lyt:flex lyt:items-center lyt:gap-2 lyt:text-base lyt:font-semibold lyt:tracking-tight;
-  @apply lyt:text-[var(--dtn-ink)];
+.lyt-brand__name {
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.06em;
+  line-height: 1.2;
 }
-
-.lyt-header__brand-mark {
-  @apply lyt:flex lyt:h-7 lyt:w-7 lyt:items-center lyt:justify-center lyt:text-xs lyt:font-bold lyt:text-white;
-  @apply lyt:rounded-[var(--dtn-radius-sm)] lyt:bg-[var(--dtn-primary)];
+.lyt-brand__name > span {
+  color: var(--dtn-primary);
 }
-
-.lyt-header__nav {
-  @apply lyt:hidden lyt:items-center lyt:gap-0.5 lyt:md:flex;
+.lyt-brand__caption {
+  margin-top: 5px;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  color: var(--dtn-ink-muted);
 }
-
-/*
- * Nav aktif ditandai garis bawah, bukan pil berwarna. Di menu korporat yang
- * isinya bisa 8-10 item, pil membuat bar terasa ramai.
- */
-.lyt-header__nav-link {
-  @apply lyt:border-b-2 lyt:border-transparent lyt:px-3 lyt:py-4 lyt:text-sm lyt:font-medium lyt:transition-colors;
-  @apply lyt:text-[var(--dtn-ink-muted)] lyt:hover:text-[var(--dtn-ink)];
+.lyt-header__context {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--dtn-ink-muted);
 }
-
-.lyt-header__nav-link--disabled {
-  @apply lyt:cursor-not-allowed lyt:text-[var(--dtn-ink-subtle)] lyt:hover:text-[var(--dtn-ink-subtle)];
+.lyt-header__context strong {
+  font-weight: 600;
+  color: var(--dtn-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
-.lyt-header__nav-link--active {
-  @apply lyt:border-[var(--dtn-primary)] lyt:text-[var(--dtn-primary)] lyt:hover:text-[var(--dtn-primary)];
+.lyt-header__context > span {
+  flex-shrink: 0;
 }
-
 .lyt-header__actions {
-  @apply lyt:ml-auto lyt:flex lyt:items-center lyt:gap-3;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+  min-width: 0;
+  margin-left: auto;
+}
+.lyt-header__profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.lyt-header__avatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--dtn-primary-line);
+  border-radius: 50%;
+  background: var(--dtn-primary-soft);
+  color: var(--dtn-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.lyt-header__identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lyt-header__greeting {
+  color: var(--dtn-ink-muted);
+  font-size: 11px;
+}
+.lyt-header__username {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.lyt-header__mobile-brand,
+.lyt-header__menu {
+  display: none;
+}
+.lyt-sidebar {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  height: 100dvh;
+  min-height: 0;
+  border-right: 1px solid var(--dtn-line);
+  background: var(--dtn-surface);
+}
+.lyt-sidebar__brand {
+  display: flex;
+  align-items: center;
+  min-height: 112px;
+  padding: 24px 28px;
+}
+.lyt-sidebar__workspace {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 20px 28px;
+  padding: 14px 12px;
+  border: 1px solid var(--dtn-line);
+  border-radius: var(--dtn-radius);
+  background: var(--dtn-surface-muted);
+}
+.lyt-sidebar__workspace-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--dtn-line);
+  border-radius: 8px;
+  background: var(--dtn-surface);
+  color: var(--dtn-primary);
+}
+.lyt-sidebar__workspace > div,
+.lyt-sidebar__footer > div {
+  display: flex;
+  flex-direction: column;
+}
+.lyt-sidebar__workspace strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.lyt-sidebar__workspace > div > span {
+  font-size: 11px;
+  margin-top: 2px;
+  color: var(--dtn-ink-muted);
+}
+.lyt-sidebar__nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 24px;
+}
+.lyt-sidebar__label {
+  padding: 0 12px;
+  margin-bottom: 12px;
+  color: var(--dtn-ink-subtle);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+.lyt-sidebar__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.lyt-sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: var(--dtn-radius);
+  color: var(--dtn-ink-muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background var(--dtn-duration),
+    color var(--dtn-duration);
+}
+.lyt-sidebar__link-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lyt-sidebar__icon {
+  flex-shrink: 0;
+}
+.lyt-sidebar__link:hover {
+  background: var(--dtn-surface-muted);
+  color: var(--dtn-ink);
+}
+.lyt-sidebar__link[aria-current="page"] {
+  background: var(--dtn-primary-soft);
+  color: var(--dtn-primary);
+  font-weight: 600;
+  border-color: var(--dtn-primary-line);
+}
+.lyt-sidebar__link--disabled,
+.lyt-sidebar__link--disabled:hover {
+  background: transparent;
+  color: var(--dtn-ink-subtle);
+  cursor: not-allowed;
+}
+.lyt-sidebar__soon {
+  flex-shrink: 0;
+  margin-left: auto;
+  border: 1px solid var(--dtn-line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--dtn-ink-muted);
+}
+.lyt-sidebar__footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: auto 24px 0;
+  padding: 22px 0;
+  border-top: 1px solid var(--dtn-line);
+}
+.lyt-sidebar__footer-mark {
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.08em;
+  color: var(--dtn-primary);
+}
+.lyt-sidebar__footer strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+.lyt-sidebar__footer > div > span {
+  font-size: 10px;
+  color: var(--dtn-ink-muted);
+  margin-top: 2px;
+}
+@media (max-width: 1023px) {
+  .lyt-header {
+    min-height: 80px;
+    padding: 16px 24px;
+    gap: 16px;
+  }
+  .lyt-header__context {
+    display: none;
+  }
+  .lyt-header__mobile-brand {
+    display: block;
+    flex-shrink: 0;
+  }
+  .lyt-header__menu {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--dtn-line-strong);
+    border-radius: var(--dtn-radius);
+    color: var(--dtn-ink);
+    background: var(--dtn-surface);
+    cursor: pointer;
+  }
+  .lyt-header__menu[aria-expanded="true"] {
+    background: var(--dtn-primary-soft);
+    border-color: var(--dtn-primary-line);
+    color: var(--dtn-primary);
+  }
+  .lyt-sidebar {
+    display: none;
+    position: static;
+    width: 100%;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--dtn-line);
+  }
+  .lyt-sidebar--open {
+    display: flex;
+  }
+  .lyt-sidebar__brand,
+  .lyt-sidebar__workspace,
+  .lyt-sidebar__footer {
+    display: none;
+  }
+  .lyt-sidebar__nav {
+    padding: 20px 24px;
+    overflow: visible;
+  }
+}
+@media (max-width: 600px) {
+  .lyt-header {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+  .lyt-header__actions {
+    gap: 10px;
+  }
+  .lyt-header__identity {
+    display: none;
+  }
+  .lyt-header__avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 11px;
+  }
+  .lyt-header__profile {
+    gap: 0;
+  }
+  .lyt-brand__name {
+    font-size: 26px;
+  }
+  .lyt-brand__caption {
+    font-size: 8px;
+    letter-spacing: 0.06em;
+  }
+  .lyt-sidebar__nav {
+    padding: 20px 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lyt-sidebar__link {
+    transition: none;
+  }
 }

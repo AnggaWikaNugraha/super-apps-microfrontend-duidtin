@@ -316,3 +316,7 @@ The host also has a `RemoteErrorBoundary`, but that wraps the ENTIRE application
 - Wire the shortcuts to real routes (all of them are `isDisabled` today).
 - Auth and roles: a maker should see different shortcuts from a checker.
 - Real data replacing the sample figures.
+
+## Business Banking refresh
+
+The dashboard now emphasizes IDR balances, separate USD balances, account details, pending approvals, and a filterable transaction table. `saldo` is displayed in the account's native currency; currencies are never summed without a conversion rate. The header refreshes all dashboard queries. Balance visibility and transaction filters live in `stores/tampilan-beranda.ts`, with actions exposed through each section's hook. Shortcut actions remain disabled until their feature routes are available.

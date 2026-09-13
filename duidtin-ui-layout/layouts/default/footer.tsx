@@ -7,15 +7,17 @@ const FOOTER_LINKS = [
 const Footer = () => (
   <footer className="lyt-footer">
     <div className="lyt-footer__inner">
-      <span>&copy; {new Date().getFullYear()} duidtin. Semua hak dilindungi.</span>
+      <span>
+        &copy; {new Date().getFullYear()} Duitin Business. Semua hak dilindungi.
+      </span>
 
-      <div className="lyt-footer__links">
+      <nav className="lyt-footer__links" aria-label="Informasi dan bantuan">
         {FOOTER_LINKS.map((link: { href: string; label: string }) => (
           <a className="lyt-footer__link" href={link.href} key={link.href}>
             {link.label}
           </a>
         ))}
-      </div>
+      </nav>
     </div>
   </footer>
 );

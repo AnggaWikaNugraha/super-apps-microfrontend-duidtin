@@ -1,3 +1,4 @@
+import { useTampilanBeranda } from "@/stores/tampilan-beranda";
 import { useQuery } from "@tanstack/react-query";
 
 import { ambilAktivitas, berandaKeys } from "@/services/api/beranda";
@@ -5,7 +6,10 @@ import { ambilAktivitas, berandaKeys } from "@/services/api/beranda";
 import type { Aktivitas } from "@/mocks/beranda";
 
 /** Pemetaan status → warna badge ditaruh di hook, bukan di komponen. */
-const WARNA_STATUS: Record<Aktivitas["status"], "success" | "warning" | "danger"> = {
+const WARNA_STATUS: Record<
+  Aktivitas["status"],
+  "success" | "warning" | "danger"
+> = {
   berhasil: "success",
   diproses: "warning",
   gagal: "danger",
@@ -19,8 +23,16 @@ export const useAktivitasTerakhir = () => {
   });
 
   const aktivitas = data ?? [];
+  const filter = useTampilanBeranda((state) => state.filterAktivitas);
+  const setFilter = useTampilanBeranda((state) => state.pilihFilterAktivitas);
+  const ditampilkan = aktivitas.filter(
+    (item) => filter === "semua" || item.arah === filter,
+  );
 
   return {
+    filter,
+    setFilter,
+    ditampilkan,
     aktivitas,
     isEmpty: aktivitas.length === 0,
     isError,

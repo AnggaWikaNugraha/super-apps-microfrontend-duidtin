@@ -13,4 +13,12 @@ const formatterWaktu = new Intl.DateTimeFormat("id-ID", {
 
 export const rupiah = (nilai: number): string => formatterRupiah.format(nilai);
 
-export const waktuSingkat = (iso: string): string => formatterWaktu.format(new Date(iso));
+export const waktuSingkat = (iso: string): string =>
+  formatterWaktu.format(new Date(iso));
+
+export const mataUang = (nilai: number, currency: "IDR" | "USD"): string =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: currency === "IDR" ? 0 : 2,
+  }).format(nilai);

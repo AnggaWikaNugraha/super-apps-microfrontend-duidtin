@@ -1,36 +1,34 @@
-import { Button, Card, CardBody, CardHeader } from "@/components/remote/design-system";
-
+import { Card, CardBody, CardHeader } from "@/components/remote/design-system";
+import { Icon } from "../components/icon";
 const PINTASAN = [
-  { label: "Payroll", utama: true },
-  { label: "Transfer", utama: false },
-  { label: "Mutasi", utama: false },
-  { label: "Persetujuan", utama: false },
-];
-
-/** Satu-satunya blok tanpa query — isinya statis, jadi nggak perlu BlockState. */
+  { label: "Transfer", icon: "transfer" },
+  { label: "Payroll", icon: "payroll" },
+  { label: "Mutasi", icon: "document" },
+  { label: "Persetujuan", icon: "check" },
+] as const;
 const Pintasan = () => (
-  <Card variant="soft">
-    <CardHeader>Pintasan</CardHeader>
+  <Card variant="outlined" className="fber-shortcuts-card">
+    <CardHeader>
+      <h2>Akses cepat</h2>
+    </CardHeader>
     <CardBody>
       <div className="fber-shortcuts">
         {PINTASAN.map((item) => (
-          <Button
-            color={item.utama ? "primary" : "default"}
-            isDisabled
+          <button
             key={item.label}
-            size="sm"
-            variant={item.utama ? "solid" : "outline"}
+            type="button"
+            className="fber-shortcut"
+            disabled
           >
-            {item.label}
-          </Button>
+            <span className="fber-shortcut__icon">
+              <Icon name={item.icon} />
+            </span>
+            <span>{item.label}</span>
+          </button>
         ))}
       </div>
-      <p className="fber-stack-note">
-        Semua pintasan masih nonaktif karena remote fiturnya belum ada. Aktif satu per satu seiring
-        Payroll, Transfer, Mutasi, dan Persetujuan dibangun.
-      </p>
+      <p className="fber-shortcuts__note">Fitur transaksi segera tersedia.</p>
     </CardBody>
   </Card>
 );
-
 export default Pintasan;

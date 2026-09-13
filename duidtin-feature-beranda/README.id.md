@@ -316,3 +316,7 @@ Host juga punya `RemoteErrorBoundary`, tapi itu membungkus SELURUH isi aplikasi 
 - Sambungkan pintasan ke route sungguhan (sekarang semuanya `isDisabled`).
 - Auth & peran: maker melihat pintasan berbeda dari checker.
 - Data sungguhan menggantikan angka contoh.
+
+## Revamp Business Banking
+
+Beranda menonjolkan saldo IDR, saldo USD terpisah, rincian rekening, antrean persetujuan, dan tabel transaksi dengan filter masuk/keluar. `saldo` ditampilkan dalam mata uang asli rekening; saldo beda mata uang tidak dijumlahkan tanpa kurs. Tombol Perbarui memuat ulang seluruh query beranda. Visibilitas saldo ringkasan dan filter transaksi disimpan di `stores/tampilan-beranda.ts`, dengan aksi melalui hook setiap bagian. Pintasan tetap nonaktif sampai rute fiturnya tersedia.
