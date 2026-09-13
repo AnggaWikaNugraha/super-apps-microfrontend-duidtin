@@ -33,8 +33,8 @@ const Root = ({
 
   if (isError) {
     return (
-      <div className="ui-empty-state ui-empty-state--danger ui-empty-state--compact" data-slot="data-state-error">
-        <div className="ui-empty-state__icon" data-slot="empty-state-icon">
+      <div className="ui-empty-state ui-empty-state--danger ui-empty-state--compact" data-slot="data-state-error" role="alert">
+        <div className="ui-empty-state__icon" data-slot="empty-state-icon" aria-hidden="true">
           !
         </div>
         <div className="ui-empty-state__title" data-slot="empty-state-title">
@@ -60,7 +60,7 @@ const Root = ({
 
   if (isEmpty) {
     return (
-      <div className="ui-empty-state ui-empty-state--default ui-empty-state--compact" data-slot="data-state-empty">
+      <div className="ui-empty-state ui-empty-state--default ui-empty-state--compact" data-slot="data-state-empty" role="status">
         <div className="ui-empty-state__title" data-slot="empty-state-title">
           {emptyMessage}
         </div>

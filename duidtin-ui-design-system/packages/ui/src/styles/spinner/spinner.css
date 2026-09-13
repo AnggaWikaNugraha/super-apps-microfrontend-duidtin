@@ -1,43 +1,48 @@
 .ui-spinner {
-  @apply ui:pointer-events-none ui:relative ui:inline-block ui:origin-center ui:animate-spin;
+  display: inline-block;
+  position: relative;
+  flex-shrink: 0;
+  vertical-align: middle;
+  pointer-events: none;
+  transform-origin: center;
+  animation: ui-spinner-rotate 0.8s linear infinite;
 }
-
 .ui-spinner--default {
-  @apply ui:text-gray-500 ui:dark:text-gray-400;
+  color: var(--dtn-ink-subtle);
 }
-
 .ui-spinner--primary {
-  @apply ui:text-[var(--dtn-primary)];
+  color: var(--dtn-primary);
 }
-
 .ui-spinner--success {
-  @apply ui:text-green-600 ui:dark:text-green-400;
+  color: var(--dtn-success);
 }
-
 .ui-spinner--danger {
-  @apply ui:text-red-600 ui:dark:text-red-400;
+  color: var(--dtn-danger);
 }
-
 .ui-spinner--warning {
-  @apply ui:text-amber-500 ui:dark:text-amber-400;
+  color: var(--dtn-warning);
 }
-
 .ui-spinner--current {
-  @apply ui:text-inherit;
+  color: inherit;
 }
-
 .ui-spinner--sm {
-  @apply ui:size-4;
+  width: 16px;
+  height: 16px;
 }
-
 .ui-spinner--md {
-  @apply ui:size-6;
+  width: 24px;
+  height: 24px;
 }
-
 .ui-spinner--lg {
-  @apply ui:size-8;
+  width: 32px;
+  height: 32px;
 }
-
 .ui-spinner--xl {
-  @apply ui:size-12;
+  width: 48px;
+  height: 48px;
+}
+@keyframes ui-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
 }

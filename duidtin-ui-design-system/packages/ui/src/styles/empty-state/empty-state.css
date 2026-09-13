@@ -1,46 +1,62 @@
-/*
- * Satu komponen untuk dua keadaan yang bentuknya sama: data kosong dan gagal
- * memuat. Bedanya cuma warna aksen dan teksnya — memisahkannya jadi dua
- * komponen cuma menggandakan markup yang identik.
- */
 .ui-empty-state {
-  @apply ui:flex ui:flex-col ui:items-center ui:justify-center ui:gap-2 ui:px-4 ui:py-8 ui:text-center;
-  @apply ui:rounded-[var(--dtn-radius)] ui:border ui:border-dashed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 24px;
+  border: 1px solid var(--dtn-line);
+  border-radius: var(--dtn-radius-lg);
+  text-align: center;
 }
-
 .ui-empty-state--default {
-  @apply ui:border-[var(--dtn-line)] ui:bg-[var(--dtn-surface-muted)];
+  background: var(--dtn-surface-muted);
 }
-
 .ui-empty-state--danger {
-  @apply ui:border-[var(--dtn-danger)]/30 ui:bg-[var(--dtn-danger-soft)];
+  background: var(--dtn-danger-soft);
+  border-color: color-mix(in srgb, var(--dtn-danger) 22%, var(--dtn-surface));
 }
-
-/* Padat — dipakai di dalam kartu yang sudah punya padding sendiri */
 .ui-empty-state--compact {
-  @apply ui:px-3 ui:py-5;
+  padding: 24px 16px;
+  gap: 10px;
 }
-
 .ui-empty-state__icon {
-  @apply ui:flex ui:h-9 ui:w-9 ui:items-center ui:justify-center ui:rounded-full;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 4px;
+  border: 1px solid var(--dtn-line);
+  border-radius: 14px;
+  font-size: 22px;
+  font-weight: 600;
 }
-
 .ui-empty-state--default .ui-empty-state__icon {
-  @apply ui:bg-[var(--dtn-line)] ui:text-[var(--dtn-ink-subtle)];
+  background: var(--dtn-surface);
+  color: var(--dtn-primary);
+  box-shadow: var(--dtn-shadow);
 }
-
 .ui-empty-state--danger .ui-empty-state__icon {
-  @apply ui:bg-white ui:text-[var(--dtn-danger)];
+  background: var(--dtn-surface);
+  color: var(--dtn-danger);
+  border-color: transparent;
 }
-
 .ui-empty-state__title {
-  @apply ui:text-sm ui:font-semibold ui:text-[var(--dtn-ink)];
+  color: var(--dtn-ink);
+  font-size: 15px;
+  font-weight: 600;
 }
-
 .ui-empty-state__description {
-  @apply ui:max-w-md ui:text-xs ui:leading-relaxed ui:text-[var(--dtn-ink-muted)];
+  max-width: 360px;
+  color: var(--dtn-ink-muted);
+  font-size: 13px;
+  line-height: 1.65;
 }
-
 .ui-empty-state__action {
-  @apply ui:mt-1 ui:flex ui:items-center ui:gap-2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
 }

@@ -1,39 +1,65 @@
 .ui-modal__overlay {
-  @apply ui:fixed ui:inset-0 ui:z-50 ui:flex ui:items-center ui:justify-center ui:bg-black/50 ui:p-4;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(10 24 43 / 48%);
+  backdrop-filter: blur(4px);
 }
-
-.ui-modal__overlay[data-entering] {
-  animation: ui-modal-fade 200ms ease-out;
-}
-
-.ui-modal__overlay[data-exiting] {
-  animation: ui-modal-fade 150ms ease-in reverse;
-}
-
 .ui-modal {
-  @apply ui:w-full ui:max-w-md ui:rounded-[var(--dtn-radius-lg)] ui:bg-white ui:p-6 ui:shadow-xl ui:outline-none ui:dark:bg-gray-900;
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  padding: 32px;
+  border: 1px solid var(--dtn-line);
+  border-radius: var(--dtn-radius-lg);
+  background: var(--dtn-surface);
+  box-shadow: var(--dtn-shadow-overlay);
+  outline: none;
 }
-
-.ui-modal[data-entering] {
-  animation: ui-modal-zoom 200ms ease-out;
+.ui-modal .react-aria-Dialog {
+  outline: none;
 }
-
-.ui-modal[data-exiting] {
-  animation: ui-modal-zoom 150ms ease-in reverse;
-}
-
 .ui-modal__heading {
-  @apply ui:mb-3 ui:text-lg ui:font-semibold ui:text-gray-900 ui:dark:text-gray-100;
+  margin: 0 0 12px;
+  color: var(--dtn-ink);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
 }
-
 .ui-modal__body {
-  @apply ui:text-sm ui:text-gray-600 ui:dark:text-gray-300;
+  color: var(--dtn-ink-muted);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
 }
-
 .ui-modal__footer {
-  @apply ui:mt-6 ui:flex ui:items-center ui:justify-end ui:gap-2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--dtn-line);
 }
-
+.ui-modal__overlay[data-entering] {
+  animation: ui-modal-fade 180ms ease-out;
+}
+.ui-modal__overlay[data-exiting] {
+  animation: ui-modal-fade 120ms ease-in reverse;
+}
+.ui-modal[data-entering] {
+  animation: ui-modal-zoom 180ms ease-out;
+}
+.ui-modal[data-exiting] {
+  animation: ui-modal-zoom 120ms ease-in reverse;
+}
 @keyframes ui-modal-fade {
   from {
     opacity: 0;
@@ -42,14 +68,22 @@
     opacity: 1;
   }
 }
-
 @keyframes ui-modal-zoom {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: translateY(8px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
+  }
+}
+@media (max-width: 480px) {
+  .ui-modal__overlay {
+    padding: 16px;
+  }
+  .ui-modal {
+    padding: 24px;
+    max-height: calc(100dvh - 32px);
   }
 }

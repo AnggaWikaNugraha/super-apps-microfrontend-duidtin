@@ -8,7 +8,7 @@ export function composeTwRenderProps<T>(className: string | ((renderProps: T) =>
   };
 }
 
-export const CHART_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#0284c7", "#7c3aed", "#db2777", "#65a30d"];
+export const CHART_COLORS = ["var(--dtn-chart-1)", "var(--dtn-chart-2)", "var(--dtn-chart-3)", "var(--dtn-chart-4)", "var(--dtn-chart-5)", "var(--dtn-chart-6)", "var(--dtn-chart-7)", "var(--dtn-chart-8)"];
 
 export function getChartColor(index: number): string {
   return CHART_COLORS[index % CHART_COLORS.length];

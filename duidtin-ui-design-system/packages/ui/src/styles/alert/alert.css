@@ -1,63 +1,77 @@
-/*
- * Aksen di sisi kiri, bukan border penuh berwarna. Pola ini lazim di aplikasi
- * korporat: statusnya kebaca sekilas dari pita warna, tapi blok-nya tetap
- * tenang dan menyatu dengan kartu di sekitarnya.
- */
 .ui-alert {
-  @apply ui:flex ui:gap-3 ui:border ui:border-l-[3px] ui:p-3 ui:text-sm;
-  @apply ui:rounded-[var(--dtn-radius)] ui:border-[var(--dtn-line)];
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--dtn-line);
+  border-radius: var(--dtn-radius);
+  font-size: 14px;
 }
-
 .ui-alert__icon {
-  @apply ui:shrink-0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  min-height: 22px;
 }
-
 .ui-alert__content {
-  @apply ui:flex-1 ui:space-y-1;
+  flex: 1;
+  min-width: 0;
 }
-
 .ui-alert__title {
-  @apply ui:font-semibold ui:text-[var(--dtn-ink)];
+  color: var(--dtn-ink);
+  font-weight: 600;
 }
-
 .ui-alert__description {
-  @apply ui:text-[var(--dtn-ink-muted)];
+  margin-top: 4px;
+  color: var(--dtn-ink-muted);
+  font-size: 13px;
+  line-height: 1.65;
 }
-
 .ui-alert--default {
-  @apply ui:border-l-[var(--dtn-line-strong)] ui:bg-[var(--dtn-surface-muted)];
+  background: var(--dtn-surface-muted);
+  border-color: color-mix(
+    in srgb,
+    var(--dtn-ink-muted) 20%,
+    var(--dtn-surface)
+  );
+}
+.ui-alert--default .ui-alert__icon {
+  color: var(--dtn-ink-muted);
 }
 .ui-alert--primary {
-  @apply ui:border-l-[var(--dtn-primary)] ui:bg-[var(--dtn-primary-soft)];
-}
-.ui-alert--success {
-  @apply ui:border-l-[var(--dtn-success)] ui:bg-[var(--dtn-success-soft)];
-}
-.ui-alert--warning {
-  @apply ui:border-l-[var(--dtn-warning)] ui:bg-[var(--dtn-warning-soft)];
-}
-.ui-alert--danger {
-  @apply ui:border-l-[var(--dtn-danger)] ui:bg-[var(--dtn-danger-soft)];
-}
-.ui-alert--info {
-  @apply ui:border-l-[var(--dtn-info)] ui:bg-[var(--dtn-info-soft)];
-}
-
-.ui-alert--default .ui-alert__icon {
-  @apply ui:text-[var(--dtn-ink-subtle)];
+  background: var(--dtn-primary-soft);
+  border-color: color-mix(in srgb, var(--dtn-primary) 20%, var(--dtn-surface));
 }
 .ui-alert--primary .ui-alert__icon {
-  @apply ui:text-[var(--dtn-primary)];
+  color: var(--dtn-primary);
+}
+.ui-alert--success {
+  background: var(--dtn-success-soft);
+  border-color: color-mix(in srgb, var(--dtn-success) 20%, var(--dtn-surface));
 }
 .ui-alert--success .ui-alert__icon {
-  @apply ui:text-[var(--dtn-success)];
+  color: var(--dtn-success);
+}
+.ui-alert--warning {
+  background: var(--dtn-warning-soft);
+  border-color: color-mix(in srgb, var(--dtn-warning) 20%, var(--dtn-surface));
 }
 .ui-alert--warning .ui-alert__icon {
-  @apply ui:text-[var(--dtn-warning)];
+  color: var(--dtn-warning);
+}
+.ui-alert--danger {
+  background: var(--dtn-danger-soft);
+  border-color: color-mix(in srgb, var(--dtn-danger) 20%, var(--dtn-surface));
 }
 .ui-alert--danger .ui-alert__icon {
-  @apply ui:text-[var(--dtn-danger)];
+  color: var(--dtn-danger);
+}
+.ui-alert--info {
+  background: var(--dtn-info-soft);
+  border-color: color-mix(in srgb, var(--dtn-info) 20%, var(--dtn-surface));
 }
 .ui-alert--info .ui-alert__icon {
-  @apply ui:text-[var(--dtn-info)];
+  color: var(--dtn-info);
 }

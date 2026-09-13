@@ -67,8 +67,8 @@ class Root extends Component<ErrorBoundaryRootProps, ErrorBoundaryState> {
      * tanpa perlu ketergantungan antar komponen.
      */
     return (
-      <div className="ui-empty-state ui-empty-state--danger" data-slot="empty-state">
-        <div className="ui-empty-state__icon" data-slot="empty-state-icon">
+      <div className="ui-empty-state ui-empty-state--danger" data-slot="empty-state" role="alert">
+        <div className="ui-empty-state__icon" data-slot="empty-state-icon" aria-hidden="true">
           !
         </div>
         <div className="ui-empty-state__title" data-slot="empty-state-title">

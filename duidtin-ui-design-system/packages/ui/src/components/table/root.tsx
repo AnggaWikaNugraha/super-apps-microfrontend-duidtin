@@ -9,7 +9,7 @@ import type { TableBodyProps, TableCellRootProps, TableColumnRootProps, TableHea
 
 const Root = ({ className, size, ...rest }: TableRootProps) => {
   const slots = tableVariants({ size });
-  return <TablePrimitive className={composeTwRenderProps(className, slots.base())} data-slot="table" {...rest} />;
+  return <TablePrimitive className={composeTwRenderProps(className, slots.base())} data-slot="table" data-size={size ?? "md"} {...rest} />;
 };
 
 const Header = <T extends object>({ className, ...rest }: TableHeaderProps<T>) => {
@@ -19,7 +19,7 @@ const Header = <T extends object>({ className, ...rest }: TableHeaderProps<T>) =
 
 const Column = ({ className, size, ...rest }: TableColumnRootProps) => {
   const slots = tableVariants({ size });
-  return <ColumnPrimitive className={composeTwRenderProps(className, slots.column())} data-slot="table-column" {...rest} />;
+  return <ColumnPrimitive className={composeTwRenderProps(className, slots.column())} data-slot="table-column" data-size={size} {...rest} />;
 };
 
 const Body = <T extends object>({ className, ...rest }: TableBodyProps<T>) => {
@@ -34,7 +34,7 @@ const Row = <T extends object>({ className, ...rest }: TableRowProps<T>) => {
 
 const Cell = ({ className, size, ...rest }: TableCellRootProps) => {
   const slots = tableVariants({ size });
-  return <CellPrimitive className={composeTwRenderProps(className, slots.cell())} data-slot="table-cell" {...rest} />;
+  return <CellPrimitive className={composeTwRenderProps(className, slots.cell())} data-slot="table-cell" data-size={size} {...rest} />;
 };
 
 export { Root, Header, Column, Body, Row, Cell };

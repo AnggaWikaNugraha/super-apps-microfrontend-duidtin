@@ -51,7 +51,13 @@ Consumed from other repos through arbitrary values:
 
 Before this layer existed, the layout hardcoded `blue-600` and had to be **guessed** into matching the design system — the moment either changed, the two drifted apart silently.
 
-The style is corporate banking: a deep blue (`#0b4f9e`, not the bright `blue-600`), small radii (5px, not 16px), structure built from hairlines rather than heavy shadows, and denser components.
+**Duitin Business** uses navy text (`#142b49`), action blue (`#175cd3`), neutral surfaces, 10px control radii and 16px card radii. Standard controls have a 44px minimum height (36px compact); tables support `md` and `sm` density. Status, chart, focus, typography and motion styles share the same runtime tokens.
+
+Preview all 17 components in Storybook → **Foundations / Business Banking / Overview**. The showcase includes transactions, transfer confirmation, account selection, charts and error recovery using simulated data.
+
+Light is the default theme. Set `.dark` or `data-theme="dark"` on `<html>` to theme portalled popovers and modals as well. Animations respect `prefers-reduced-motion`. Typography uses Inter when available, then system fonts; the library does not download external fonts.
+
+Component APIs and export names are unchanged. `Table size="sm"` now cascades to cells and columns; explicit cell/column sizes take precedence. Use `data-align="right"` on `Table.Column` and `Table.Cell` for monetary amounts. Wrap tables with `overflow-x: auto` on narrow screens.
 
 ## Stack
 

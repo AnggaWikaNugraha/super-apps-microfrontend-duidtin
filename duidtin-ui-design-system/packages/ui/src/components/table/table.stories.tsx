@@ -1,7 +1,7 @@
 import { Badge } from "../badge";
 import { Table } from ".";
 
-import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { Meta, StoryObj } from "@storybook/react";
 
 const meta: Meta<typeof Table> = {
   title: "Components/Table",

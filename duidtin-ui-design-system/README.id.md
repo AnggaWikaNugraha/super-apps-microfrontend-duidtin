@@ -51,7 +51,13 @@ Dipakai dari repo lain lewat arbitrary value:
 
 Sebelum ada lapisan ini, layout meng-hardcode `blue-600` dan harus **ditebak** cocok dengan design-system — begitu salah satu berubah, keduanya melenceng diam-diam.
 
-Gayanya perbankan korporat: biru pekat (`#0b4f9e`, bukan `blue-600` cerah), sudut kecil (5px, bukan 16px), struktur dibangun dari garis tipis alih-alih bayangan tebal, dan komponen lebih padat.
+Gaya **Duitin Business** menggunakan teks navy (`#142b49`), biru aksi (`#175cd3`), permukaan netral, radius kontrol 10px dan card 16px. Kontrol standar memiliki tinggi minimum 44px (compact 36px); tabel mendukung kepadatan `md` dan `sm`. Warna status, grafik, fokus, tipografi, dan gerakan memakai token yang sama.
+
+Preview seluruh 17 komponen tersedia di Storybook → **Foundations / Business Banking / Overview**. Contohnya mencakup transaksi, konfirmasi transfer, filter rekening, grafik, dan pemulihan error. Semua data pada showcase adalah simulasi.
+
+Tema terang menjadi default. Pasang `.dark` atau `data-theme="dark"` pada `<html>` untuk tema gelap, termasuk popover dan modal yang dirender melalui portal. Animasi mengikuti preferensi `prefers-reduced-motion`. Font menggunakan Inter jika tersedia, lalu font sistem; library tidak mengunduh font eksternal.
+
+API dan nama export komponen tetap sama. `Table size="sm"` kini diteruskan ke tampilan sel dan kolom; `size` eksplisit pada sel/kolom dapat menimpanya. Untuk nominal rata kanan, gunakan `data-align="right"` pada `Table.Column` dan `Table.Cell`. Container tabel pada layar sempit sebaiknya memakai `overflow-x: auto`.
 
 ## Stack
 

@@ -12,8 +12,8 @@ const Root = ({ data, height = 256, showLegend = true, valueFormatter, className
       <ResponsiveContainer width="100%" height="100%">
         <RechartsPieChart>
           <Tooltip formatter={(value: unknown) => (valueFormatter ? valueFormatter(Number(value)) : String(value))} />
-          {showLegend && <Legend />}
-          <Pie data={data} dataKey="value" nameKey="name" innerRadius={innerRadius} outerRadius="80%">
+          {showLegend && <Legend iconType="circle" iconSize={8} />}
+          <Pie data={data} dataKey="value" nameKey="name" innerRadius={innerRadius} outerRadius="80%" stroke="var(--dtn-surface)" strokeWidth={3} isAnimationActive={false}>
             {data.map((entry, i) => (
               <Cell key={entry.name} fill={entry.color ?? getChartColor(i)} />
             ))}

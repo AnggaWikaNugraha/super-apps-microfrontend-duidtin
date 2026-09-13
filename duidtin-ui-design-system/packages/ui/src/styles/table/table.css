@@ -1,39 +1,83 @@
 .ui-table {
-  @apply ui:w-full ui:border-collapse ui:text-left ui:text-sm;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+  font-size: 14px;
+  color: var(--dtn-ink);
+  font-variant-numeric: tabular-nums;
 }
-
 .ui-table__header {
-  @apply ui:border-b ui:border-gray-200 ui:dark:border-gray-800;
+  background: var(--dtn-surface-muted);
 }
-
 .ui-table__column {
-  @apply ui:font-medium ui:uppercase ui:tracking-wide ui:text-gray-500 ui:dark:text-gray-400;
-  @apply ui:text-xs ui:outline-none;
+  border-bottom: 1px solid var(--dtn-line);
+  color: var(--dtn-ink-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
-
+.ui-table__column:first-child {
+  border-top-left-radius: var(--dtn-radius-sm);
+}
+.ui-table__column:last-child {
+  border-top-right-radius: var(--dtn-radius-sm);
+}
+.ui-table__column[data-allows-sorting] {
+  cursor: pointer;
+}
+.ui-table__column[data-sort-direction] {
+  color: var(--dtn-primary);
+}
+.ui-table__column[data-sort-direction="ascending"]::after {
+  content: " ↑";
+}
+.ui-table__column[data-sort-direction="descending"]::after {
+  content: " ↓";
+}
 .ui-table__column--sm {
-  @apply ui:px-3 ui:py-2;
+  padding: 10px 12px;
 }
-
 .ui-table__column--md {
-  @apply ui:px-4 ui:py-3;
+  padding: 14px 20px;
 }
-
 .ui-table__row {
-  @apply ui:border-b ui:border-gray-100 ui:transition-colors ui:dark:border-gray-800;
-  @apply ui:hover:bg-gray-50 ui:dark:hover:bg-gray-800/50;
-  @apply ui:outline-none;
+  transition: background var(--dtn-duration);
 }
-
+.ui-table__row:is(:hover, [data-hovered]) {
+  background: var(--dtn-surface-muted);
+}
+.ui-table__row[data-selected] {
+  background: var(--dtn-primary-soft);
+}
+.ui-table__row[data-disabled] {
+  opacity: 0.45;
+}
 .ui-table__cell {
-  @apply ui:text-gray-900 ui:dark:text-gray-100;
-  @apply ui:outline-none;
+  border-bottom: 1px solid var(--dtn-line);
+  color: var(--dtn-ink);
 }
-
+.ui-table__row:last-child .ui-table__cell {
+  border-bottom: none;
+}
 .ui-table__cell--sm {
-  @apply ui:px-3 ui:py-2;
+  padding: 12px;
 }
-
 .ui-table__cell--md {
-  @apply ui:px-4 ui:py-3;
+  padding: 18px 20px;
+}
+/* Root density cascades; an explicit cell/column size still takes precedence. */
+.ui-table[data-size="sm"] .ui-table__cell:not([data-size]) {
+  padding: 12px;
+}
+.ui-table[data-size="sm"] .ui-table__column:not([data-size]) {
+  padding: 10px 12px;
+}
+.ui-table
+  :is(.ui-table__cell, .ui-table__column, .ui-table__row)[data-focus-visible] {
+  outline-offset: -2px;
+}
+.ui-table__cell[data-align="right"],
+.ui-table__column[data-align="right"] {
+  text-align: right;
 }

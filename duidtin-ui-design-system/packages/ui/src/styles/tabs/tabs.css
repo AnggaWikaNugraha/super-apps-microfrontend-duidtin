@@ -1,28 +1,68 @@
 .ui-tabs {
-  @apply ui:flex ui:flex-col ui:gap-3;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
-
 .ui-tabs__list {
-  @apply ui:flex ui:gap-1 ui:border-b ui:border-gray-200 ui:dark:border-gray-800;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--dtn-line);
 }
-
 .ui-tabs__tab {
-  @apply ui:cursor-pointer ui:border-b-2 ui:border-transparent ui:px-3 ui:py-2 ui:text-sm ui:font-medium ui:text-gray-500 ui:outline-none ui:transition-colors;
-  @apply ui:dark:text-gray-400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-bottom: 2px solid transparent;
+  color: var(--dtn-ink-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color var(--dtn-duration),
+    background var(--dtn-duration);
 }
-
 .ui-tabs__tab[data-hovered] {
-  @apply ui:text-gray-700 ui:dark:text-gray-200;
+  background: var(--dtn-surface-muted);
+  color: var(--dtn-ink);
 }
-
 .ui-tabs__tab[data-selected] {
-  @apply ui:border-[var(--dtn-primary)] ui:text-[var(--dtn-primary)];
+  border-color: var(--dtn-primary);
+  color: var(--dtn-primary);
+  font-weight: 600;
 }
-
+.ui-tabs__tab[data-focus-visible] {
+  outline-offset: -4px;
+  border-radius: var(--dtn-radius-sm);
+}
 .ui-tabs__tab[data-disabled] {
-  @apply ui:cursor-not-allowed ui:opacity-50;
+  cursor: not-allowed;
+  opacity: 0.45;
 }
-
 .ui-tabs__panel {
-  @apply ui:text-sm ui:text-gray-700 ui:outline-none ui:dark:text-gray-300;
+  min-width: 0;
+  color: var(--dtn-ink);
+  font-size: 14px;
+}
+.ui-tabs[data-orientation="vertical"] {
+  flex-direction: row;
+}
+.ui-tabs[data-orientation="vertical"] .ui-tabs__list {
+  flex-direction: column;
+  border-bottom: 0;
+  border-right: 1px solid var(--dtn-line);
+}
+.ui-tabs[data-orientation="vertical"] .ui-tabs__tab {
+  justify-content: flex-start;
+  border-bottom: 0;
+  border-right: 2px solid transparent;
+}
+.ui-tabs[data-orientation="vertical"] .ui-tabs__tab[data-selected] {
+  border-right-color: var(--dtn-primary);
+}
+.ui-tabs[data-orientation="vertical"] .ui-tabs__panel {
+  flex: 1;
 }

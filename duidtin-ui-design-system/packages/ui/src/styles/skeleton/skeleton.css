@@ -1,33 +1,38 @@
-/*
- * Placeholder saat data belum datang. Dipakai menggantikan Spinner di layar
- * padat data: bentuk halaman nggak lompat-lompat waktu data akhirnya masuk,
- * karena skeleton sudah menempati ruang yang kira-kira sama.
- */
 .ui-skeleton {
-  @apply ui:block ui:animate-pulse ui:bg-[var(--dtn-line)];
+  display: block;
+  background: var(--dtn-line);
+  animation: ui-skeleton-pulse 1.8s ease-in-out infinite;
 }
-
 .ui-skeleton--text {
-  @apply ui:h-3.5 ui:w-full ui:rounded-[var(--dtn-radius-sm)];
+  height: 14px;
+  width: 100%;
+  border-radius: var(--dtn-radius-sm);
 }
-
 .ui-skeleton--heading {
-  @apply ui:h-6 ui:w-2/5 ui:rounded-[var(--dtn-radius-sm)];
+  height: 28px;
+  width: 40%;
+  border-radius: var(--dtn-radius-sm);
 }
-
 .ui-skeleton--block {
-  @apply ui:h-20 ui:w-full ui:rounded-[var(--dtn-radius)];
+  height: 96px;
+  width: 100%;
+  border-radius: var(--dtn-radius);
 }
-
 .ui-skeleton--circle {
-  @apply ui:h-9 ui:w-9 ui:rounded-full;
+  height: 44px;
+  width: 44px;
+  border-radius: 50%;
 }
-
-/* Baris terakhir dibikin lebih pendek — meniru paragraf sungguhan */
-.ui-skeleton__lines > .ui-skeleton:last-child:not(:only-child) {
-  @apply ui:w-3/5;
-}
-
 .ui-skeleton__lines {
-  @apply ui:flex ui:flex-col ui:gap-2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ui-skeleton__lines > .ui-skeleton:last-child:not(:only-child) {
+  width: 60%;
+}
+@keyframes ui-skeleton-pulse {
+  50% {
+    opacity: 0.45;
+  }
 }

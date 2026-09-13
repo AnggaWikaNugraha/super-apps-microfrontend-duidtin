@@ -21,7 +21,9 @@ const Label = ({ className, ...rest }: SelectLabelProps) => {
 const Trigger = () => (
   <ButtonPrimitive className={slots.trigger()} data-slot="select-trigger">
     <SelectValuePrimitive className={slots.value()} />
-    <span aria-hidden="true">▾</span>
+    <svg className="ui-select__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   </ButtonPrimitive>
 );
 

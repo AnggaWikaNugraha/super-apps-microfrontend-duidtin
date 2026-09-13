@@ -11,13 +11,13 @@ const Root = ({ data, categoryKey, series, height = 256, showLegend = true, show
     <div className={["ui-chart", className].filter(Boolean).join(" ")} data-slot="bar-chart" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <RechartsBarChart data={data}>
-          {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-          <XAxis dataKey={categoryKey} />
-          <YAxis tickFormatter={valueFormatter} />
-          <Tooltip formatter={(value: unknown) => (valueFormatter ? valueFormatter(Number(value)) : String(value))} />
-          {showLegend && <Legend />}
+          {showGrid && <CartesianGrid vertical={false} stroke="var(--dtn-line)" strokeDasharray="4 4" />}
+          <XAxis dataKey={categoryKey} axisLine={false} tickLine={false} tickMargin={12} minTickGap={24} />
+          <YAxis tickFormatter={valueFormatter} axisLine={false} tickLine={false} tickMargin={8} width={72} />
+          <Tooltip cursor={{ fill: "var(--dtn-surface-muted)" }} formatter={(value: unknown) => (valueFormatter ? valueFormatter(Number(value)) : String(value))} />
+          {showLegend && <Legend iconType="circle" iconSize={8} />}
           {series.map((s, i) => (
-            <Bar key={s.dataKey} dataKey={s.dataKey} name={s.name ?? s.dataKey} fill={s.color ?? getChartColor(i)} radius={[4, 4, 0, 0]} />
+            <Bar key={s.dataKey} dataKey={s.dataKey} name={s.name ?? s.dataKey} fill={s.color ?? getChartColor(i)} radius={[5, 5, 0, 0]} maxBarSize={40} isAnimationActive={false} />
           ))}
         </RechartsBarChart>
       </ResponsiveContainer>

@@ -1,47 +1,54 @@
 .ui-card {
-  @apply ui:relative ui:border ui:transition-shadow ui:duration-200;
-  @apply ui:rounded-[var(--dtn-radius)] ui:border-[var(--dtn-line)] ui:bg-[var(--dtn-surface)] ui:text-[var(--dtn-ink)];
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--dtn-line);
+  border-radius: var(--dtn-radius-lg);
+  background: var(--dtn-surface);
+  color: var(--dtn-ink);
 }
-
-/* Struktur dibangun dari garis, bukan bayangan tebal */
 .ui-card--elevated {
-  @apply ui:shadow-[var(--dtn-shadow-raised)];
+  box-shadow: var(--dtn-shadow-raised);
 }
-
 .ui-card--outlined {
-  @apply ui:shadow-none;
+  box-shadow: none;
 }
-
 .ui-card--soft {
-  @apply ui:bg-[var(--dtn-surface-muted)] ui:shadow-none;
+  background: var(--dtn-surface-muted);
+  border-color: transparent;
 }
-
 .ui-card--sm {
-  @apply ui:p-3.5;
+  padding: 16px;
 }
-
 .ui-card--md {
-  @apply ui:p-4;
+  padding: 24px;
 }
-
 .ui-card--lg {
-  @apply ui:p-6;
+  padding: 32px;
 }
-
-/*
- * Header punya garis pemisah — pola khas layar korporat yang padat data,
- * biar batas antar blok tetap terbaca tanpa menambah jarak.
- */
 .ui-card__header {
-  @apply ui:mb-3 ui:border-b ui:pb-2.5 ui:text-sm ui:font-semibold;
-  @apply ui:border-[var(--dtn-line)] ui:text-[var(--dtn-ink)];
+  margin-bottom: 16px;
+  color: var(--dtn-ink);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
-
 .ui-card__body {
-  @apply ui:text-sm ui:text-[var(--dtn-ink-muted)];
+  color: var(--dtn-ink-muted);
+  font-size: 14px;
+  line-height: 1.65;
 }
-
 .ui-card__footer {
-  @apply ui:mt-3 ui:flex ui:items-center ui:justify-end ui:gap-2 ui:border-t ui:pt-3;
-  @apply ui:border-[var(--dtn-line)];
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--dtn-line);
+}
+@media (max-width: 480px) {
+  .ui-card--lg {
+    padding: 20px;
+  }
 }

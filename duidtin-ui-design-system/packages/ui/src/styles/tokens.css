@@ -1,58 +1,129 @@
-/*
- * Token desain duidtin — palet korporat.
- *
- * Sengaja CSS custom properties, BUKAN token Tailwind. Alasannya lintas repo:
- * tiap repo punya build Tailwind sendiri dengan prefix sendiri (`ui`, `lyt`,
- * `fber`), jadi token Tailwind nggak bisa dibagi. Custom properties mengalir di
- * runtime lewat `:root`, jadi begitu remote ini memuat CSS-nya, layout dan
- * feature remote ikut kebagian nilai yang sama.
- *
- * Dipakai dari repo lain lewat arbitrary value:
- *   @apply lyt:bg-[var(--dtn-primary)]
- *
- * Sebelum ada ini, layout meng-hardcode `blue-600` dan harus ditebak cocok
- * dengan design-system — begitu salah satu berubah, keduanya melenceng diam-diam.
- */
+/* Duitin Business: shared runtime tokens for UI, layout, and feature remotes.
+   Use .dark or data-theme="dark" on an ancestor for the explicit dark theme. */
 :root {
-  /* Biru korporat — lebih pekat dan tenang dari blue-600 bawaan Tailwind */
-  --dtn-primary: #0b4f9e;
-  --dtn-primary-hover: #08407f;
-  --dtn-primary-soft: #eaf1fa;
-  --dtn-primary-line: #b9d0ea;
-
-  /* Teks */
-  --dtn-ink: #0f1c2e;
-  --dtn-ink-muted: #5b6779;
-  --dtn-ink-subtle: #8a94a3;
-
-  /* Permukaan */
-  --dtn-canvas: #f4f6f9;
+  --dtn-font:
+    "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  --dtn-primary: #175cd3;
+  --dtn-primary-hover: #124aab;
+  --dtn-primary-soft: #edf4ff;
+  --dtn-primary-line: #bfd5fa;
+  --dtn-ink: #142b49;
+  --dtn-ink-muted: #52647b;
+  --dtn-ink-subtle: #697b90;
+  --dtn-canvas: #f3f6fa;
   --dtn-surface: #ffffff;
-  --dtn-surface-muted: #f8fafc;
-
-  /* Garis — hairline, bukan bayangan tebal */
-  --dtn-line: #dde3eb;
-  --dtn-line-strong: #c5cedb;
-
-  /* Status */
-  --dtn-success: #0f7a4a;
-  --dtn-success-soft: #e7f4ed;
-  --dtn-warning: #a86a08;
-  --dtn-warning-soft: #fdf3e3;
-  --dtn-danger: #b3261e;
-  --dtn-danger-soft: #fdeceb;
-  --dtn-info: #0b4f9e;
-  --dtn-info-soft: #eaf1fa;
-
-  /*
-   * Sudut sengaja kecil. Perbankan korporat cenderung bersudut tegas —
-   * rounded-2xl (16px) terasa seperti aplikasi konsumen.
-   */
-  --dtn-radius-sm: 3px;
-  --dtn-radius: 5px;
-  --dtn-radius-lg: 8px;
-
-  /* Bayangan tipis; struktur dibangun dari garis, bukan bayangan */
-  --dtn-shadow: 0 1px 2px rgba(15, 28, 46, 0.06);
-  --dtn-shadow-raised: 0 1px 3px rgba(15, 28, 46, 0.1);
+  --dtn-surface-muted: #f7f9fc;
+  --dtn-line: #e1e8f0;
+  --dtn-line-strong: #b9c7d8;
+  --dtn-success: #087951;
+  --dtn-success-soft: #eaf7f0;
+  --dtn-warning: #946200;
+  --dtn-warning-soft: #fff6df;
+  --dtn-danger: #b42336;
+  --dtn-danger-soft: #fff0f1;
+  --dtn-info: #096d94;
+  --dtn-info-soft: #eaf6fc;
+  --dtn-radius-sm: 6px;
+  --dtn-radius: 10px;
+  --dtn-radius-lg: 16px;
+  --dtn-shadow: 0 2px 5px rgb(20 43 73 / 4%);
+  --dtn-shadow-raised:
+    0 8px 24px -12px rgb(20 43 73 / 18%), 0 2px 5px rgb(20 43 73 / 4%);
+  --dtn-shadow-overlay: 0 24px 64px -16px rgb(20 43 73 / 28%);
+  --dtn-focus: #175cd3;
+  --dtn-control-sm: 36px;
+  --dtn-control-md: 44px;
+  --dtn-duration: 160ms;
+  --dtn-chart-1: #175cd3;
+  --dtn-chart-2: #0c8b80;
+  --dtn-chart-3: #a77817;
+  --dtn-chart-4: #7d5ac0;
+  --dtn-chart-5: #c34b66;
+  --dtn-chart-6: #397c9e;
+  --dtn-chart-7: #69765b;
+  --dtn-chart-8: #9a6650;
+}
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --dtn-primary: #8ab6ff;
+  --dtn-primary-hover: #b0ceff;
+  --dtn-primary-soft: #1a3050;
+  --dtn-primary-line: #395c8c;
+  --dtn-ink: #e8eff9;
+  --dtn-ink-muted: #b3c1d4;
+  --dtn-ink-subtle: #91a3bb;
+  --dtn-canvas: #0c1726;
+  --dtn-surface: #132237;
+  --dtn-surface-muted: #192b42;
+  --dtn-line: #2b3d55;
+  --dtn-line-strong: #536982;
+  --dtn-success: #7ed7af;
+  --dtn-success-soft: #123d32;
+  --dtn-warning: #edc575;
+  --dtn-warning-soft: #40341c;
+  --dtn-danger: #ff9ca8;
+  --dtn-danger-soft: #442631;
+  --dtn-info: #81cee9;
+  --dtn-info-soft: #173949;
+  --dtn-focus: #8ab6ff;
+  --dtn-chart-1: #8ab6ff;
+  --dtn-chart-2: #68c9bd;
+  --dtn-chart-3: #edc575;
+  --dtn-chart-4: #bba0f0;
+  --dtn-chart-5: #f291aa;
+  --dtn-chart-6: #83c8e8;
+  --dtn-chart-7: #b2c89d;
+  --dtn-chart-8: #d9aa91;
+}
+/* Scope typography to components so importing the library doesn't restyle the host. */
+:where(
+  .ui-button,
+  .ui-card,
+  .ui-badge,
+  .ui-table,
+  .ui-select,
+  .ui-select__popover,
+  .ui-date-range-picker,
+  .ui-alert,
+  .ui-modal,
+  .ui-tabs,
+  .ui-chart,
+  .ui-empty-state
+) {
+  font-family: var(--dtn-font);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+:where(
+  .ui-button,
+  .ui-select__trigger,
+  .ui-select__item,
+  .ui-tabs__tab,
+  .ui-tabs__panel,
+  .ui-table,
+  .ui-table__row,
+  .ui-table__cell,
+  .ui-table__column
+)[data-focus-visible],
+:where(.ui-button, .ui-date-range-picker__input):focus-visible {
+  outline: 2px solid var(--dtn-focus);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    .ui-button,
+    .ui-card,
+    .ui-select__trigger,
+    .ui-select__popover,
+    .ui-tabs__tab,
+    .ui-table__row,
+    .ui-modal,
+    .ui-modal__overlay,
+    .ui-skeleton,
+    .ui-spinner
+  ) {
+    animation: none !important;
+    transition: none !important;
+  }
 }
