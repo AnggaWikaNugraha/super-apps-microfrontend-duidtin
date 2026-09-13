@@ -2,6 +2,8 @@
 
 [English](README.md) · **Bahasa Indonesia**
 
+![Login](docs/beranda.png)
+
 Beranda (dashboard korporat) yang di-expose sebagai remote Module Federation dan dirender host `duidtin-ui` di route `/`.
 
 Repo ini **sengaja dibangun dengan stack yang berbeda dari semua repo duidtin lain** — Next 16 + Rspack + Module Federation 2.x, sementara host, layout, dan design-system masih Next 14 / Rslib dengan MF 0.24.1. Tujuannya membuktikan klaim inti Module Federation: tiap remote boleh punya toolchain sendiri asal kontraknya cocok.
