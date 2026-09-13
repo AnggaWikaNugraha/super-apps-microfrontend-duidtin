@@ -6,7 +6,7 @@ const meta: Meta<typeof Badge> = {
   title: "Components/Badge",
   component: Badge,
   args: {
-    children: "Badge",
+    children: "Terjadwal",
   },
 };
 
@@ -26,12 +26,19 @@ export const Outlined: Story = {
   args: { variant: "outlined", color: "primary" },
 };
 
-const colors = ["default", "primary", "success", "danger", "warning", "info"] as const;
+const colors = [
+  "default",
+  "primary",
+  "success",
+  "danger",
+  "warning",
+  "info",
+] as const;
 
 export const AllColors: Story = {
   name: "Semua Warna (perbandingan)",
   render: () => (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
       {colors.map((color) => (
         <Badge key={color} variant="soft" color={color}>
           {color}
@@ -44,7 +51,7 @@ export const AllColors: Story = {
 export const StatusContoh: Story = {
   name: "Contoh Status Transaksi",
   render: () => (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
       <Badge variant="soft" color="success">
         Berhasil
       </Badge>

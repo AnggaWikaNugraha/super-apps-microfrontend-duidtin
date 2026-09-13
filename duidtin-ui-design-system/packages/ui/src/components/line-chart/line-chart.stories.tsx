@@ -25,7 +25,14 @@ const rupiah = (v: number) => `Rp ${(v / 1000000).toFixed(1)}jt`;
 
 export const Basic: Story = {
   name: "Tren Saldo Mingguan (contoh dashboard)",
-  render: () => <LineChart data={data} categoryKey="tanggal" series={[{ dataKey: "saldo", name: "Saldo", color: "#2563eb" }]} valueFormatter={rupiah} />,
+  render: () => (
+    <LineChart
+      data={data}
+      categoryKey="tanggal"
+      series={[{ dataKey: "saldo", name: "Saldo" }]}
+      valueFormatter={rupiah}
+    />
+  ),
 };
 
 export const MultiSeries: Story = {
@@ -35,8 +42,8 @@ export const MultiSeries: Story = {
       data={data.map((d) => ({ ...d, target: 45000000 }))}
       categoryKey="tanggal"
       series={[
-        { dataKey: "saldo", name: "Saldo Aktual", color: "#2563eb" },
-        { dataKey: "target", name: "Target", color: "#f59e0b" },
+        { dataKey: "saldo", name: "Saldo Aktual" },
+        { dataKey: "target", name: "Target" },
       ]}
       valueFormatter={rupiah}
     />

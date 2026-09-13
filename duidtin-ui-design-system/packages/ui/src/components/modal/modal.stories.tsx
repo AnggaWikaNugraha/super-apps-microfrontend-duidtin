@@ -17,13 +17,26 @@ export const ConfirmDialog: Story = {
   render: () => (
     <Modal.Root>
       <Button variant="solid" color="primary">
-        Buka Modal
+        Transfer dana
       </Button>
       <Modal.Content>
         {({ close }) => (
           <>
             <Modal.Heading>Konfirmasi Transfer</Modal.Heading>
-            <Modal.Body>Anda akan mentransfer Rp 2.500.000 ke rekening 1234567890 a.n. Budi Santoso. Lanjutkan?</Modal.Body>
+            <Modal.Body>
+              Periksa detail transfer sebelum melanjutkan.
+              <div
+                style={{
+                  padding: 20,
+                  background: "var(--dtn-surface-muted)",
+                  borderRadius: "var(--dtn-radius)",
+                  marginTop: 20,
+                }}
+              >
+                <div>PT Sumber Makmur · 0012 3456 7890</div>
+                <strong className="dtn-story-amount">Rp 12.500.000</strong>
+              </div>
+            </Modal.Body>
             <Modal.Footer>
               <Button variant="outline" color="default" onPress={close}>
                 Batal
@@ -48,7 +61,9 @@ export const DefaultOpen: Story = {
         {({ close }) => (
           <>
             <Modal.Heading>Detail Transaksi</Modal.Heading>
-            <Modal.Body>ID Transaksi: TRX001. Status: Berhasil. Tanggal: 8 Juli 2026.</Modal.Body>
+            <Modal.Body>
+              ID Transaksi: TRX001. Status: Berhasil. Tanggal: 8 Juli 2026.
+            </Modal.Body>
             <Modal.Footer>
               <Button variant="solid" color="primary" onPress={close}>
                 Tutup

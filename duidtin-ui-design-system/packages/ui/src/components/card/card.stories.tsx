@@ -1,89 +1,112 @@
 import { Button } from "../button";
+import { Badge } from "../badge";
 import { Card } from ".";
-
 import type { Meta, StoryObj } from "@storybook/react";
 
-const meta: Meta<typeof Card> = {
-  title: "Components/Card",
-  component: Card,
-};
-
+const meta: Meta<typeof Card> = { title: "Components/Card", component: Card };
 export default meta;
-
 type Story = StoryObj<typeof Card>;
 
 export const Elevated: Story = {
   args: { variant: "elevated", size: "md" },
   render: (args) => (
-    <Card {...args} style={{ maxWidth: 360 }}>
-      <Card.Header>Konfirmasi Transfer</Card.Header>
-      <Card.Body>Anda akan mentransfer Rp 2.500.000 ke rekening 1234567890 a.n. Budi Santoso.</Card.Body>
+    <Card {...args} style={{ maxWidth: 480 }}>
+      <Card.Header>Konfirmasi transfer</Card.Header>
+      <Card.Body>
+        Transfer ke PT Sumber Makmur · 0012 3456 7890
+        <div className="dtn-story-amount" style={{ marginTop: 16 }}>
+          Rp 12.500.000
+        </div>
+      </Card.Body>
       <Card.Footer>
         <Button variant="outline" color="default">
           Batal
         </Button>
-        <Button variant="solid" color="primary">
-          Konfirmasi
-        </Button>
+        <Button>Konfirmasi</Button>
       </Card.Footer>
     </Card>
   ),
 };
-
 export const Outlined: Story = {
   args: { variant: "outlined", size: "md" },
   render: (args) => (
-    <Card {...args} style={{ maxWidth: 360 }}>
-      <Card.Header>Informasi Akun</Card.Header>
-      <Card.Body>Data akun Anda sudah terverifikasi dan aktif sepenuhnya.</Card.Body>
+    <Card {...args} style={{ maxWidth: 480 }}>
+      <Card.Header>Rekening operasional</Card.Header>
+      <Card.Body>
+        Giro operasional · 7890
+        <div style={{ marginTop: 16 }}>
+          <Badge color="success" variant="soft">
+            Aktif
+          </Badge>
+        </div>
+      </Card.Body>
     </Card>
   ),
 };
-
 export const Soft: Story = {
   args: { variant: "soft", size: "sm" },
   render: (args) => (
-    <Card {...args} style={{ maxWidth: 280 }}>
-      <Card.Body>Card ukuran kecil, varian soft — cocok buat info sekunder.</Card.Body>
+    <Card {...args} style={{ maxWidth: 480 }}>
+      <Card.Header>Menunggu persetujuan</Card.Header>
+      <Card.Body>
+        <div className="dtn-story-amount">12 transaksi</div>
+        <div style={{ marginTop: 16 }}>
+          <Badge color="warning" variant="soft">
+            Perlu ditinjau
+          </Badge>
+        </div>
+      </Card.Body>
     </Card>
   ),
 };
-
 export const StatCard: Story = {
-  name: "Stat Card (contoh dashboard)",
+  name: "Ringkasan rekening",
   args: { variant: "elevated", size: "md" },
   render: (args) => (
-    <div style={{ display: "flex", gap: 16 }}>
-      <Card {...args} style={{ width: 220 }}>
-        <p style={{ fontSize: 13, color: "var(--ui-color-gray-500, #6b7280)", marginBottom: 8 }}>Total Saldo</p>
-        <p style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>Rp 42.500.000</p>
-        <p style={{ fontSize: 13, color: "#16a34a", marginTop: 8 }}>+3.2% dari bulan lalu</p>
-      </Card>
-      <Card {...args} style={{ width: 220 }}>
-        <p style={{ fontSize: 13, color: "var(--ui-color-gray-500, #6b7280)", marginBottom: 8 }}>Transaksi Bulan Ini</p>
-        <p style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>128</p>
-        <p style={{ fontSize: 13, color: "#dc2626", marginTop: 8 }}>-1.4% dari bulan lalu</p>
-      </Card>
+    <div className="dtn-story-grid">
+      {["Saldo tersedia", "Pemasukan bulan ini"].map((title, i) => (
+        <Card {...args} key={title}>
+          <Card.Header>{title}</Card.Header>
+          <Card.Body>
+            <div className="dtn-story-amount">
+              {i ? "Rp 82.000.000" : "Rp 248.500.000"}
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <Badge color="success" variant="soft">
+                +12,8% bulan ini
+              </Badge>
+            </div>
+          </Card.Body>
+        </Card>
+      ))}
     </div>
   ),
 };
-
 export const AllVariants: Story = {
-  name: "Semua Varian (perbandingan)",
+  name: "Semua varian",
   render: () => (
-    <div style={{ display: "flex", gap: 16 }}>
-      <Card variant="elevated" size="md" style={{ width: 200 }}>
-        <Card.Header>Elevated</Card.Header>
-        <Card.Body>Shadow lembut, tanpa border.</Card.Body>
-      </Card>
-      <Card variant="outlined" size="md" style={{ width: 200 }}>
-        <Card.Header>Outlined</Card.Header>
-        <Card.Body>Border tipis, tanpa shadow.</Card.Body>
-      </Card>
-      <Card variant="soft" size="md" style={{ width: 200 }}>
-        <Card.Header>Soft</Card.Header>
-        <Card.Body>Background abu-abu lembut.</Card.Body>
-      </Card>
+    <div className="dtn-story-grid">
+      {(["outlined", "elevated", "soft"] as const).map((variant, i) => (
+        <Card key={variant} variant={variant}>
+          <Card.Header>
+            {
+              ["Saldo tersedia", "Pemasukan bulan ini", "Menunggu persetujuan"][
+                i
+              ]
+            }
+          </Card.Header>
+          <Card.Body>
+            <div className="dtn-story-amount">
+              {["Rp 248.500.000", "Rp 82.000.000", "12 transaksi"][i]}
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <Badge color={i === 2 ? "warning" : "success"} variant="soft">
+                {i === 2 ? "Perlu ditinjau" : "+12,8% bulan ini"}
+              </Badge>
+            </div>
+          </Card.Body>
+        </Card>
+      ))}
     </div>
   ),
 };

@@ -20,16 +20,25 @@ export const Basic: Story = {
         <Tabs.Tab id="mingguan">Mingguan</Tabs.Tab>
         <Tabs.Tab id="bulanan">Bulanan</Tabs.Tab>
       </Tabs.List>
-      <Tabs.Panel id="harian">Ringkasan transaksi hari ini: 12 transaksi, total Rp 3.200.000.</Tabs.Panel>
-      <Tabs.Panel id="mingguan">Ringkasan transaksi minggu ini: 84 transaksi, total Rp 22.500.000.</Tabs.Panel>
-      <Tabs.Panel id="bulanan">Ringkasan transaksi bulan ini: 312 transaksi, total Rp 98.750.000.</Tabs.Panel>
+      <Tabs.Panel id="harian">
+        Ringkasan transaksi hari ini: 12 transaksi, total Rp 3.200.000.
+      </Tabs.Panel>
+      <Tabs.Panel id="mingguan">
+        Ringkasan transaksi minggu ini: 84 transaksi, total Rp 22.500.000.
+      </Tabs.Panel>
+      <Tabs.Panel id="bulanan">
+        Ringkasan transaksi bulan ini: 312 transaksi, total Rp 98.750.000.
+      </Tabs.Panel>
     </Tabs>
   ),
 };
 
 export const Disabled: Story = {
   render: () => (
-    <Tabs aria-label="Periode dengan salah satu disabled" style={{ maxWidth: 420 }}>
+    <Tabs
+      aria-label="Periode dengan salah satu disabled"
+      style={{ maxWidth: 420 }}
+    >
       <Tabs.List>
         <Tabs.Tab id="harian">Harian</Tabs.Tab>
         <Tabs.Tab id="mingguan" isDisabled>

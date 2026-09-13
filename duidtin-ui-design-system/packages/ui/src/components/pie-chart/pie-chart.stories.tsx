@@ -12,10 +12,10 @@ export default meta;
 type Story = StoryObj<typeof PieChart>;
 
 const data = [
-  { name: "Transfer", value: 45, color: "#2563eb" },
-  { name: "Pembayaran Tagihan", value: 28, color: "#16a34a" },
-  { name: "Top Up", value: 17, color: "#f59e0b" },
-  { name: "Lainnya", value: 10, color: "#7c3aed" },
+  { name: "Transfer", value: 45 },
+  { name: "Pembayaran Tagihan", value: 28 },
+  { name: "Top Up", value: 17 },
+  { name: "Lainnya", value: 10 },
 ];
 
 export const Basic: Story = {
@@ -25,5 +25,7 @@ export const Basic: Story = {
 
 export const Donut: Story = {
   name: "Varian Donut (innerRadius)",
-  render: () => <PieChart data={data} innerRadius={60} valueFormatter={(v) => `${v}%`} />,
+  render: () => (
+    <PieChart data={data} innerRadius={60} valueFormatter={(v) => `${v}%`} />
+  ),
 };

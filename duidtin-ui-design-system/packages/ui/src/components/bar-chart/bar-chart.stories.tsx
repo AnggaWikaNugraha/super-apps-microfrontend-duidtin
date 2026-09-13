@@ -28,8 +28,8 @@ export const Basic: Story = {
       data={data}
       categoryKey="bulan"
       series={[
-        { dataKey: "masuk", name: "Uang Masuk", color: "#16a34a" },
-        { dataKey: "keluar", name: "Uang Keluar", color: "#dc2626" },
+        { dataKey: "masuk", name: "Uang Masuk" },
+        { dataKey: "keluar", name: "Uang Keluar" },
       ]}
       valueFormatter={rupiah}
     />
@@ -38,5 +38,15 @@ export const Basic: Story = {
 
 export const NoLegendNoGrid: Story = {
   name: "Tanpa Legend & Grid",
-  render: () => <BarChart data={data} categoryKey="bulan" series={[{ dataKey: "masuk", name: "Uang Masuk" }]} showLegend={false} showGrid={false} valueFormatter={rupiah} height={200} />,
+  render: () => (
+    <BarChart
+      data={data}
+      categoryKey="bulan"
+      series={[{ dataKey: "masuk", name: "Uang Masuk" }]}
+      showLegend={false}
+      showGrid={false}
+      valueFormatter={rupiah}
+      height={200}
+    />
+  ),
 };

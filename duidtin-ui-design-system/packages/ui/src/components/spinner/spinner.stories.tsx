@@ -20,7 +20,7 @@ const sizes = ["sm", "md", "lg", "xl"] as const;
 export const AllSizes: Story = {
   name: "Semua Ukuran (perbandingan)",
   render: () => (
-    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
       {sizes.map((size) => (
         <Spinner key={size} size={size} />
       ))}
@@ -31,7 +31,15 @@ export const AllSizes: Story = {
 export const InButton: Story = {
   name: "Contoh Loading State di Tabel",
   render: () => (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#6b7280", fontSize: 14 }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        color: "var(--dtn-ink-muted)",
+        fontSize: 14,
+      }}
+    >
       <Spinner size="sm" />
       Memuat data transaksi...
     </div>

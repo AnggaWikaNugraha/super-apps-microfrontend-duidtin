@@ -13,9 +13,27 @@ export default meta;
 type Story = StoryObj<typeof Table>;
 
 const transactions = [
-  { id: "TRX001", tanggal: "2026-07-08", tujuan: "Budi Santoso", jumlah: "Rp 2.500.000", status: "success" as const },
-  { id: "TRX002", tanggal: "2026-07-08", tujuan: "Siti Aminah", jumlah: "Rp 750.000", status: "warning" as const },
-  { id: "TRX003", tanggal: "2026-07-07", tujuan: "PT Maju Jaya", jumlah: "Rp 15.000.000", status: "danger" as const },
+  {
+    id: "TRX001",
+    tanggal: "2026-09-13",
+    tujuan: "PT Sumber Makmur",
+    jumlah: "Rp 2.500.000",
+    status: "success" as const,
+  },
+  {
+    id: "TRX002",
+    tanggal: "2026-09-13",
+    tujuan: "PT Cipta Karya",
+    jumlah: "Rp 750.000",
+    status: "warning" as const,
+  },
+  {
+    id: "TRX003",
+    tanggal: "2026-09-12",
+    tujuan: "CV Maju Bersama",
+    jumlah: "Rp 15.000.000",
+    status: "danger" as const,
+  },
 ];
 
 const statusLabel: Record<string, string> = {
@@ -32,7 +50,7 @@ export const Basic: Story = {
         <Table.Column isRowHeader>ID Transaksi</Table.Column>
         <Table.Column>Tanggal</Table.Column>
         <Table.Column>Tujuan</Table.Column>
-        <Table.Column>Jumlah</Table.Column>
+        <Table.Column data-align="right">Nominal</Table.Column>
         <Table.Column>Status</Table.Column>
       </Table.Header>
       <Table.Body>
@@ -41,7 +59,12 @@ export const Basic: Story = {
             <Table.Cell>{trx.id}</Table.Cell>
             <Table.Cell>{trx.tanggal}</Table.Cell>
             <Table.Cell>{trx.tujuan}</Table.Cell>
-            <Table.Cell>{trx.jumlah}</Table.Cell>
+            <Table.Cell
+              data-align="right"
+              style={{ whiteSpace: "nowrap", fontWeight: 600 }}
+            >
+              {trx.jumlah}
+            </Table.Cell>
             <Table.Cell>
               <Badge variant="soft" color={trx.status}>
                 {statusLabel[trx.status]}
@@ -61,14 +84,19 @@ export const Compact: Story = {
       <Table.Header>
         <Table.Column isRowHeader>ID</Table.Column>
         <Table.Column>Tujuan</Table.Column>
-        <Table.Column>Jumlah</Table.Column>
+        <Table.Column data-align="right">Nominal</Table.Column>
       </Table.Header>
       <Table.Body>
         {transactions.map((trx) => (
           <Table.Row key={trx.id}>
             <Table.Cell>{trx.id}</Table.Cell>
             <Table.Cell>{trx.tujuan}</Table.Cell>
-            <Table.Cell>{trx.jumlah}</Table.Cell>
+            <Table.Cell
+              data-align="right"
+              style={{ whiteSpace: "nowrap", fontWeight: 600 }}
+            >
+              {trx.jumlah}
+            </Table.Cell>
           </Table.Row>
         ))}
       </Table.Body>

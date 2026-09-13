@@ -5,6 +5,10 @@ import type { Meta, StoryObj } from "@storybook/react";
 const meta: Meta<typeof DateRangePicker> = {
   title: "Components/DateRangePicker",
   component: DateRangePicker,
+  args: {
+    fromInputProps: { defaultValue: "2026-09-01" },
+    toInputProps: { defaultValue: "2026-09-30" },
+  },
 };
 
 export default meta;

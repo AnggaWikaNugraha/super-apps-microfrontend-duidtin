@@ -1,0 +1,132 @@
+.dtn-story {
+  min-height: 100vh;
+  padding: clamp(20px, 4vw, 56px);
+  background: var(--dtn-canvas);
+  color: var(--dtn-ink);
+  font-family: var(--dtn-font);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.dtn-story__container {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+.dtn-story__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--dtn-line);
+}
+.dtn-story__brand {
+  font-size: 25px;
+  font-weight: 750;
+  letter-spacing: -0.05em;
+}
+.dtn-story__brand span {
+  color: var(--dtn-primary);
+}
+.dtn-story__brand-caption {
+  color: var(--dtn-ink-muted);
+  font-size: 12px;
+}
+.dtn-story__intro {
+  padding-top: 32px;
+}
+.dtn-story__eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dtn-primary);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.dtn-story__intro h1 {
+  margin-top: 8px;
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+.dtn-story__description {
+  margin-top: 12px;
+  color: var(--dtn-ink-muted);
+  max-width: 600px;
+}
+.dtn-story__section {
+  margin-top: 40px;
+}
+.dtn-story__section-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.dtn-story__section-heading span {
+  font-size: 12px;
+  color: var(--dtn-ink-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.dtn-story__section-heading h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.dtn-story__surface {
+  min-width: 0;
+  padding: 24px;
+  background: var(--dtn-surface);
+  border: 1px solid var(--dtn-line);
+  border-radius: var(--dtn-radius-lg);
+  box-shadow: var(--dtn-shadow-raised);
+}
+.dtn-story__surface[data-component="Table"] {
+  overflow-x: auto;
+}
+.dtn-story__surface[data-component="Card"] {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.dtn-story__surface:is(
+  [data-component="BarChart"],
+  [data-component="LineChart"],
+  [data-component="PieChart"]
+) {
+  max-width: 800px;
+}
+.dtn-story__footer {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--dtn-line);
+  color: var(--dtn-ink-subtle);
+  font-size: 12px;
+}
+.dtn-story-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 24px;
+}
+.dtn-story-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.dtn-story-stack {
+  display: grid;
+  gap: 24px;
+}
+.dtn-story-amount {
+  color: var(--dtn-ink);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.dtn-story-caption {
+  color: var(--dtn-ink-muted);
+  font-size: 13px;
+}
