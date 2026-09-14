@@ -6,10 +6,14 @@
     "dev": "turbo run dev",
     "dev:producer": "turbo run dev --filter=@duidtin/producer --filter=@duidtin/ui",
     "build": "turbo run build",
+    "build:vercel": "bun run scripts/build-vercel.ts",
     "check-types": "turbo run check-types",
     "storybook": "turbo run storybook --filter=@duidtin/ui"
   },
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "devDependencies": {
     "turbo": "^2.9.6",
     "typescript": "~5.9.3"

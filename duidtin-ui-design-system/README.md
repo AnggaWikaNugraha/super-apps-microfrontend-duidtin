@@ -294,13 +294,40 @@ This script is what removed the manual "write a shim + register it in `component
 
 ## Component preview (Storybook)
 
-`packages/ui` has its own Storybook (`.storybook/main.ts`, `.storybook/preview.ts`) — purely a dev tool, **entirely separate** from the Module Federation path. Storybook imports components straight from `src/` (not through `loadRemote`); its purpose is visual preview & documentation during development, not part of what `apps/producer`/the host consumes. Delete Storybook and the `remoteEntry.js` other repos consume keeps working — there is no dependency between them.
+`packages/ui` has its own Storybook (`.storybook/main.ts`, `.storybook/preview.ts`) — **separate** from the Module Federation path at runtime. Storybook imports components straight from `src/` (not through `loadRemote`); its purpose is visual preview & documentation of each component, not part of what `apps/producer`/the host consumes. At runtime `remoteEntry.js` does not depend on Storybook. The only coupling is the Vercel build: `build:vercel` also builds Storybook, so removing Storybook means updating that script too (see the Vercel section below).
 
 - The builder is Vite (`@storybook/react-vite`), not Rslib/Rsbuild — Storybook runs independently of this package's production build pipeline.
 - `viteFinal` in `.storybook/main.ts` adds the `@tailwindcss/vite` plugin so Tailwind utility classes (the `ui:` prefix) compile while Storybook runs — without it components render unstyled in Storybook even though the classes are there.
 - `.storybook/preview.ts` imports `../src/styles/index.tailwind.css` globally, so every story gets the styles without re-importing them per story file.
 - Each component has a `<name>.stories.tsx` file in its own folder (`src/components/button/button.stories.tsx`) containing several "stories" (prop combinations) you can browse one by one in the Storybook UI.
 - Run `bun run storybook` in `packages/ui` (after `bun install`) to open the preview at `localhost:6006`.
+
+### Storybook on Vercel: same project as the remote
+
+The static Storybook is served from the same Vercel project as the remote, at `https://super-apps-duidtin-ui-system.vercel.app/storybook/`. Opening the domain root redirects there.
+
+Two files configure this:
+
+- **`vercel.json`** sets the install command, the build command (`bun run build:vercel`), the output directory (`apps/producer/dist/mf`) and the redirects. It **overrides** the build settings in the Vercel dashboard, so change this file, not the dashboard.
+- **`scripts/build-vercel.ts`** runs three steps:
+  1. `bun run build` builds the remote.
+  2. `build-storybook` runs in `packages/ui`.
+  3. `storybook-static` is copied into `apps/producer/dist/mf/storybook`.
+
+  The script refuses to run if `MF_PUBLIC_PATH` is set, because the value would be baked into `remoteEntry.js`.
+
+The result is one output folder:
+
+```
+apps/producer/dist/mf/
+  remoteEntry.js, mf-manifest.json, <chunk>.js   ← remote, stays at the root
+  storybook/index.html, storybook/sb-manager/…  ← Storybook
+```
+
+- **The remote must stay at the root.** The host rewrite maps `/design-system/static/:path*` to `<this domain>/:path*`, so moving the remote into a subfolder breaks every page.
+- **Storybook is safe in a subfolder** because its static build uses relative asset paths (`./sb-manager/…`).
+- **The `/storybook` → `/storybook/` redirect is required.** Without the trailing slash, relative paths resolve from the root, `/sb-manager/runtime.js` returns 404, and the page stays blank.
+- **Tradeoff:** if the Storybook build fails, the remote deploy fails with it. Accepted in exchange for a single URL. If this starts to hurt, move Storybook to its own Vercel project.
 
 
 ## `packages/ui` — the component factory

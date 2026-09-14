@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "bun install",
+  "buildCommand": "bun run build:vercel",
+  "outputDirectory": "apps/producer/dist/mf",
+  "redirects": [
+    { "source": "/", "destination": "/storybook/", "permanent": false },
+    { "source": "/storybook", "destination": "/storybook/", "permanent": false }
+  ]
+}

@@ -139,12 +139,14 @@ A rewrite is **not a redirect**. The address bar never changes, and only JavaScr
 
 | Project | Root Directory | Framework | Build Command | Output Directory |
 |---|---|---|---|---|
-| `duidtin-ui-design-system` | `duidtin-ui-design-system` | Other | `bun run build` | `apps/producer/dist/mf` |
+| `duidtin-ui-design-system` | `duidtin-ui-design-system` | Other | `bun run build:vercel` | `apps/producer/dist/mf` |
 | `duidtin-ui-layout` | `duidtin-ui-layout` | Next.js | `bun run build` | *(default)* |
 | `duidtin-feature-beranda` | `duidtin-feature-beranda` | Next.js | `bun run build` | *(default)* |
 | `duidtin-ui` | `duidtin-ui` | Next.js | `bun run build` | *(default)* |
 
 The Install Command for all four is `bun install`. The `build` scripts work as they are: `NEXT_PRIVATE_LOCAL_WEBPACK=true` is already in the host and layout scripts, and beranda's `prebuild` compiles Tailwind through the local binary.
+
+The design system's settings live in `duidtin-ui-design-system/vercel.json` and override the dashboard fields. `build:vercel` builds the remote and Storybook together, and Storybook is served at `/storybook/` on the same domain. See the Storybook section of the design-system README for details.
 
 So that a push touching one folder does not build all four, set **Settings → Git → Ignored Build Step** in every project:
 

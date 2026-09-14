@@ -135,12 +135,14 @@ Rewrite **bukan redirect**. Alamat di browser tidak berubah, dan yang dirutekan 
 
 | Project | Root Directory | Framework | Build Command | Output Directory |
 |---|---|---|---|---|
-| `duidtin-ui-design-system` | `duidtin-ui-design-system` | Other | `bun run build` | `apps/producer/dist/mf` |
+| `duidtin-ui-design-system` | `duidtin-ui-design-system` | Other | `bun run build:vercel` | `apps/producer/dist/mf` |
 | `duidtin-ui-layout` | `duidtin-ui-layout` | Next.js | `bun run build` | *(bawaan)* |
 | `duidtin-feature-beranda` | `duidtin-feature-beranda` | Next.js | `bun run build` | *(bawaan)* |
 | `duidtin-ui` | `duidtin-ui` | Next.js | `bun run build` | *(bawaan)* |
 
 Install Command keempatnya `bun install`. Script `build` bisa dipakai apa adanya: `NEXT_PRIVATE_LOCAL_WEBPACK=true` sudah ada di script host dan layout, dan `prebuild` beranda mengompilasi Tailwind lewat binary lokal.
+
+Pengaturan design-system tersimpan di `duidtin-ui-design-system/vercel.json` dan menimpa isian dashboard. `build:vercel` membangun remote sekaligus Storybook, lalu Storybook disajikan di `/storybook/` pada domain yang sama. Detailnya ada di README design-system, bagian Storybook.
 
 Supaya push yang cuma menyentuh satu folder tidak membangun keempatnya, isi **Settings → Git → Ignored Build Step** di tiap project:
 

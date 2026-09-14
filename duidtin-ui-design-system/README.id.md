@@ -294,13 +294,40 @@ Script ini yang menghilangkan langkah manual "bikin shim + daftarin ke `componen
 
 ## Preview komponen (Storybook)
 
-`packages/ui` punya Storybook sendiri (`.storybook/main.ts`, `.storybook/preview.ts`) — murni tool dev, **terpisah total** dari alur Module Federation. Storybook cuma import komponen langsung dari `src/` (bukan lewat `loadRemote`), tujuannya buat preview visual & dokumentasi tiap komponen saat develop — bukan bagian dari yang dikonsumsi `apps/producer`/host. Kalau Storybook dihapus, `remoteEntry.js` yang dikonsumsi repo lain tetap jalan normal, nggak ada ketergantungan.
+`packages/ui` punya Storybook sendiri (`.storybook/main.ts`, `.storybook/preview.ts`) — **terpisah** dari alur Module Federation di runtime. Storybook cuma import komponen langsung dari `src/` (bukan lewat `loadRemote`), tujuannya buat preview visual & dokumentasi tiap komponen — bukan bagian dari yang dikonsumsi `apps/producer`/host. Di runtime `remoteEntry.js` tidak bergantung pada Storybook. Ketergantungannya hanya di build Vercel: `build:vercel` ikut membangun Storybook, jadi kalau Storybook dihapus, script itu juga harus disesuaikan (lihat bagian Vercel di bawah).
 
 - Builder pakai Vite (`@storybook/react-vite`), bukan Rslib/Rsbuild — Storybook jalan independen dari pipeline build produksi paket ini.
 - `viteFinal` di `.storybook/main.ts` nambahin plugin `@tailwindcss/vite`, supaya class utility Tailwind (prefix `ui:`) ke-compile pas Storybook jalan — tanpa ini, komponen bakal tampil unstyled di Storybook walau class-nya ada.
 - `.storybook/preview.ts` nge-`import` `../src/styles/index.tailwind.css` secara global, jadi semua story otomatis dapat style tanpa perlu di-import ulang tiap file story.
 - Tiap komponen punya file `<nama>.stories.tsx` di folder yang sama (`src/components/button/button.stories.tsx`), isinya beberapa "story" (kombinasi props) yang bisa di-browse satu-satu di UI Storybook.
 - Jalankan `bun run storybook` di `packages/ui` (setelah `bun install`) untuk buka preview-nya di `localhost:6006`.
+
+### Storybook di Vercel: satu project dengan remote
+
+Storybook versi statis disajikan dari project Vercel yang sama dengan remote, di `https://super-apps-duidtin-ui-system.vercel.app/storybook/`. Membuka root domain akan dialihkan ke sana.
+
+Pengaturannya ada di dua berkas:
+
+- **`vercel.json`** menentukan install command, build command (`bun run build:vercel`), output directory (`apps/producer/dist/mf`) dan redirect. Isinya **menimpa** pengaturan build di dashboard Vercel, jadi ubah berkas ini, bukan dashboard.
+- **`scripts/build-vercel.ts`** menjalankan tiga langkah:
+  1. `bun run build` untuk membangun remote.
+  2. `build-storybook` di `packages/ui`.
+  3. Menyalin `storybook-static` ke `apps/producer/dist/mf/storybook`.
+
+  Script menolak jalan kalau `MF_PUBLIC_PATH` terisi, karena nilainya akan terkunci di dalam `remoteEntry.js`.
+
+Hasilnya satu folder output:
+
+```
+apps/producer/dist/mf/
+  remoteEntry.js, mf-manifest.json, <chunk>.js   ← remote, tetap di root
+  storybook/index.html, storybook/sb-manager/…  ← Storybook
+```
+
+- **Remote wajib tetap di root.** Rewrite host memetakan `/design-system/static/:path*` ke `<domain ini>/:path*`, jadi memindahkan remote ke sub-folder akan memutus semua halaman.
+- **Storybook aman di sub-folder** karena build statisnya memakai path aset relatif (`./sb-manager/…`).
+- **Redirect `/storybook` → `/storybook/` wajib ada.** Tanpa garis miring penutup, path relatif dihitung dari root dan `/sb-manager/runtime.js` jadi 404, sehingga halaman kosong.
+- **Konsekuensinya:** kalau build Storybook gagal, deploy remote ikut gagal. Dipilih demi satu URL. Kalau ini mulai mengganggu, pisahkan Storybook ke project Vercel sendiri.
 
 
 ## `packages/ui` — pabrik komponen
