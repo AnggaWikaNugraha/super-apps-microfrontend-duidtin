@@ -29,7 +29,7 @@ Sudah diverifikasi jalan di browser:
 - Repo ini feature remote pertama, jadi **FASE 2 di host akhirnya benar-benar jalan** — sebelumnya `featureRegistry` kosong dan loop-nya nol iterasi.
 - Tipe design-system ter-generate otomatis ke `@mf-types/` — `dts` lintas-repo ikut jalan lintas versi MF.
 
-- Lima blok dengan **empat query terpisah** — tiap blok punya keadaan memuat/gagal sendiri, jadi satu blok gagal tidak menjatuhkan yang lain.
+- Lima blok; empat di antaranya berbasis data dari **tiga query** — `rekening` dipakai dua blok sekaligus dan digabung TanStack jadi satu request. Tiap blok punya keadaan memuat/gagal sendiri, jadi blok yang gagal tidak menjatuhkan blok lain yang query-nya berbeda.
 - **Tiga lapis penanganan error** terbukti jalan (lihat bagian di bawah).
 
 Belum ada:
@@ -238,6 +238,133 @@ styles/globals.css                        @import tailwindcss prefix(fber)
 ```
 
 `styles/global.exposes.ts` **berkas hasil generate** — jangan diedit tangan, dan tidak masuk git. Kalau CSS-nya terlihat basi, jalankan `bun run style`.
+
+## Flow aplikasi & data
+
+Empat alur, semuanya ditelusuri dari kode: bagaimana beranda sampai ke layar, bagaimana satu query berubah jadi angka di layar, apa yang terjadi saat pengguna menekan sesuatu, dan apa yang terjadi saat API gagal. Alasan di balik tiap keputusan ada di bagian [Data](#data-tanstack-query--api-palsu) dan [Tiga lapis penanganan error](#tiga-lapis-penanganan-error).
+
+### 1. Flow aplikasi — dari host sampai blok tampil
+
+```
+Browser buka localhost:3000/
+  └─▶ host duidtin-ui — pages/index.tsx
+        │  FASE 2 host sudah memanaskan container lebih dulu:
+        │    loadRemote("duidtin_feature_beranda/globals")
+        │      → styles/global.exposes.ts → ensureGlobalsStylesheet() → <style> fber-*
+        │
+        │  dynamic(() => loadRemote("duidtin_feature_beranda/base"), { ssr: false })
+        ▼
+      containers/beranda/index.tsx                     ← yang di-expose sebagai "./base"
+        ├─ import components/remote/design-system.tsx
+        │    └─ module scope: ensureDesignSystemRegistered()
+        │         ├─ init({ name: "duidtin_feature_beranda", remotes: [design-system] })
+        │         └─ loadRemote("duidtin_ui_design_system/globals")   → token --dtn-* + ui-*
+        ├─ useState(buatQueryClient)                   → QueryClient milik repo ini
+        └─ <QueryClientProvider>
+             ├─ <PageHeading>                          → usePageHeading()
+             ├─ <GlobalErrorBanner>                    → store useErrorGlobal
+             ├─ ErrorBoundary › <RingkasanSaldo>       → useRingkasanSaldo()
+             ├─ ErrorBoundary › <Pintasan>             → statis, tanpa hook & tanpa query
+             ├─ ErrorBoundary › <RekeningPerusahaan>   → useRekeningPerusahaan()
+             ├─ ErrorBoundary › <AntreanPersetujuan>   → useAntreanPersetujuan()
+             └─ ErrorBoundary › <AktivitasTerakhir>    → useAktivitasTerakhir()
+```
+
+`pages/_app.tsx` tidak muncul di pohon ini karena memang **tidak pernah dieksekusi** saat dimuat host. Karena itu pendaftaran remote dan `QueryClientProvider` ditaruh di jalur yang di-import container.
+
+### 2. Flow data — satu query dari mock sampai layar
+
+Contoh: query `rekening` menuju blok Ringkasan saldo.
+
+```
+mocks/beranda.ts
+  rekeningDummy: Rekening[]            3 rekening — 2 IDR, 1 USD
+  │
+services/api/beranda.ts
+  ambilRekening() → apiGet("rekening", rekeningDummy)
+  │
+services/api/client.ts — apiGet(endpoint, data)
+  ├─ tunggu(acak(500, 1100) × pengaliLambat())     ← ?lambat=N
+  ├─ endpoint ada di ?gagal=… → throw new ApiError(endpoint, 503)
+  └─ return data                                    → Promise<Rekening[]>
+  │
+TanStack Query
+  useQuery({ queryKey: ["beranda", "rekening"], queryFn: ambilRekening })
+  cache per queryKey · retry 1 · staleTime 60 detik · tidak refetch saat jendela fokus
+  │
+hooks/use-ringkasan-saldo.ts           ← mengolah, komponen tidak menghitung apa pun
+  data ?? []  →
+    total                = Σ saldo IDR   → 1.228.550.000
+    totalValas           = Σ saldo USD   → 55.950.000
+    jumlahRekening       = 3
+    jumlahRekeningRupiah = 2 · jumlahRekeningValas = 1
+    isLoading = isPending · isError · isEmpty · retry()
+  + dari store tampilan-beranda: terlihat, toggleSaldo
+  │
+containers/beranda/blocks/ringkasan-saldo.tsx   ← cuma merender
+  <DataState isLoading isError isEmpty onRetry={retry} loadingFallback={<Skeleton…/>}>
+    terlihat ? rupiah(total) : "••••••••"
+```
+
+Saldo IDR dan USD **tidak dijumlahkan** — keduanya ditampilkan terpisah, karena menjumlahkan beda mata uang butuh kurs.
+
+Peta lengkap query ke blok:
+
+| `queryKey` | Fungsi | `?gagal=` | Hook | Blok |
+|---|---|---|---|---|
+| `["beranda", "rekening"]` | `ambilRekening` | `rekening` | `useRingkasanSaldo`, `useRekeningPerusahaan` | Ringkasan saldo, Rekening perusahaan |
+| `["beranda", "persetujuan"]` | `ambilPersetujuan` | `persetujuan` | `useAntreanPersetujuan` | Antrean persetujuan |
+| `["beranda", "aktivitas"]` | `ambilAktivitas` | `aktivitas` | `useAktivitasTerakhir` | Aktivitas terakhir |
+
+Baris pertama yang paling penting: dua hook memakai `queryKey` yang sama, jadi TanStack menggabungkannya jadi **satu request** — dan keduanya selalu gagal atau berhasil bersamaan.
+
+### 3. Flow aksi pengguna
+
+```
+Klik ikon mata — Ringkasan saldo
+  toggleSaldo()                               hook → store
+  └─▶ useTampilanBeranda: saldoTerlihat = !saldoTerlihat
+        └─▶ komponen yang berlangganan re-render → "••••••••"
+  Tidak ada request. State bertahan walau host me-mount ulang remote ini.
+
+Klik filter Semua / Masuk / Keluar — Aktivitas terakhir
+  setFilter("masuk")                          = pilihFilterAktivitas
+  └─▶ store: filterAktivitas = "masuk"
+        └─▶ hook: ditampilkan = aktivitas.filter(item.arah === filter)
+              └─▶ "Menampilkan N dari 4 transaksi"
+  Tidak ada request — yang disaring data yang sudah ada di cache.
+
+Klik Perbarui — PageHeading
+  perbarui()
+  └─▶ queryClient.invalidateQueries({ queryKey: ["beranda"] })
+        └─▶ ketiga query berprefiks "beranda" refetch bersamaan
+  useIsFetching({ queryKey: ["beranda"] }) > 0 → tombol jadi "Memperbarui", nonaktif
+```
+
+Saat **Perbarui**, skeleton tidak muncul. `isPending` hanya bernilai `true` kalau belum ada data sama sekali; saat refetch, data lama tetap tampil sampai data baru datang.
+
+### 4. Flow gagal — satu endpoint mati
+
+```
+localhost:3000/?gagal=rekening
+  apiGet("rekening") → throw ApiError("rekening", 503)
+  └─▶ TanStack retry 1× → masih gagal
+        │
+        ├─▶ QueryCache.onError                 sekali per query gagal
+        │     ├─ console.error("[beranda] query gagal: rekening")
+        │     └─ useErrorGlobal.getState().setPesan("Sebagian data gagal dimuat (rekening)…")
+        │           └─▶ <GlobalErrorBanner> tampil · "Tutup" → bersihkan()
+        │
+        └─▶ hook: isError = true
+              ├─ Ringkasan saldo     → <DataState> gagal + "Coba lagi" → refetch()
+              └─ Rekening perusahaan → sama, karena queryKey-nya sama
+            Antrean persetujuan & Aktivitas terakhir tetap tampil — queryKey berbeda.
+
+Komponen crash saat render — bug, bukan API
+  └─▶ <ErrorBoundary title="…"> milik blok itu yang menangkap → blok lain tetap tampil
+```
+
+`QueryCache.onError` hidup di luar React, jadi dia menulis ke store lewat `getState()` — bukan lewat hook.
 
 ## Data: TanStack Query + API palsu
 

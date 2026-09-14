@@ -98,6 +98,112 @@ cd duidtin-ui               && bun install && bun run dev            # :3000 ←
 
 Kalau remote-nya belum nyala, halaman tetap tampil — bagian yang gagal diganti kotak error oleh `fallbackPlugin` (bagian 5 di bawah). Itu memang perilaku yang diinginkan.
 
+
+## Deploy
+
+> **Status: belum ter-deploy.** Bagian ini rencana yang sudah diputuskan. Item bertanda ☐ di [checklist](#checklist-sebelum-deploy-pertama) belum dikerjakan di kode.
+
+### Topologi: satu domain, dibedakan path
+
+```
+https://duidtin-ui.vercel.app/                                  → project host
+https://duidtin-ui.vercel.app/layout/_next/static/…             → project layout
+https://duidtin-ui.vercel.app/beranda/_next/static/…            → project beranda
+https://duidtin-ui.vercel.app/design-system/static/…            → project design-system
+```
+
+Topologi ini **sudah dikunci oleh kode**, bukan pilihan bebas. Di ketiga repo Next, `getBaseFederationUrl()` memulangkan `window.location.origin` saat bukan localhost, jadi di produksi host mencari semua remote di domain yang sama dengan dirinya. Kalau tiap remote dipublish ke domainnya sendiri, host langsung rusak.
+
+Satu origin juga yang membuat pengembangan berikutnya sederhana: cookie sesi dan `localStorage` otomatis dipakai bersama semua remote, dan backend bisa diletakkan di `/api` tanpa CORS.
+
+### Sama dengan qcash, beda di lapisan router
+
+| | qcash | duidtin |
+|---|---|---|
+| Satu domain, remote dibedakan path | ya | ya |
+| Satu repo = satu deploy independen | `Dockerfile` per repo | satu project Vercel per folder |
+| Versi MF dicampur di produksi | host `0.18.1`, dhe `2.x` | host `0.24.1`, beranda `2.9` |
+| **Yang menyatukan domain** | **router OpenShift** (infrastruktur) | **rewrites di host** |
+
+Host `qcash-ui` memang punya `rewrites()`, tapi hanya aktif saat development — komentarnya menulis *"Deployed envs are same-origin, so no rewrite is needed."* Di Vercel tidak ada router OpenShift, jadi rewrites host mengambil peran itu. Browser tidak melihat perbedaannya.
+
+Rewrite **bukan redirect**. Alamat di browser tidak berubah, dan yang dirutekan hanya berkas chunk JavaScript/CSS — bukan halaman. Penggabungan layout, beranda, dan design-system tetap terjadi di dalam satu halaman lewat Module Federation.
+
+### Platform: Vercel Hobby, empat project dari satu repo
+
+**Kenapa bukan satu project:** satu project Vercel membangun satu aplikasi dari satu root. Keempat aplikasi punya toolchain berbeda, dan deploy independen — alasan utama MFE — akan hilang.
+
+| Project | Root Directory | Framework | Build Command | Output Directory |
+|---|---|---|---|---|
+| `duidtin-ui-design-system` | `duidtin-ui-design-system` | Other | `bun run build` | `apps/producer/dist/mf` |
+| `duidtin-ui-layout` | `duidtin-ui-layout` | Next.js | `bun run build` | *(bawaan)* |
+| `duidtin-feature-beranda` | `duidtin-feature-beranda` | Next.js | `bun run build` | *(bawaan)* |
+| `duidtin-ui` | `duidtin-ui` | Next.js | `bun run build` | *(bawaan)* |
+
+Install Command keempatnya `bun install`. Script `build` bisa dipakai apa adanya: `NEXT_PRIVATE_LOCAL_WEBPACK=true` sudah ada di script host dan layout, dan `prebuild` beranda mengompilasi Tailwind lewat binary lokal.
+
+Supaya push yang cuma menyentuh satu folder tidak membangun keempatnya, isi **Settings → Git → Ignored Build Step** di tiap project:
+
+```bash
+git diff --quiet HEAD^ HEAD -- .
+```
+
+**Urutan membuat project:** design-system → layout & beranda → host. Host dibuat terakhir karena rewrites-nya butuh URL ketiga remote.
+
+### Env var host
+
+| Env var | Isi | Rewrite |
+|---|---|---|
+| `REMOTE_DESIGN_SYSTEM_URL` | URL `*.vercel.app` design-system | `/design-system/static/:path*` → `…/:path*` |
+| `REMOTE_LAYOUT_URL` | URL `*.vercel.app` layout | `/layout/:path*` → `…/layout/:path*` |
+| `REMOTE_BERANDA_URL` | URL `*.vercel.app` beranda | `/beranda/:path*` → `…/beranda/:path*` |
+| `REMOTE_AUTH_URL` *(nanti)* | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
+| `BACKEND_URL` *(nanti)* | backend | `/api/:path*` → `…/:path*` |
+
+Design-system berbeda dari dua lainnya: dia bukan Next dan tidak punya `basePath`, jadi berkasnya ada di root domain Vercel-nya dan rewrite-nya **membuang** prefiks `/design-system/static`. Layout dan beranda tetap membawa prefiksnya.
+
+Saat dev lokal env ini kosong, jadi rewrites tidak aktif dan remote tetap diakses langsung lewat port masing-masing.
+
+### Checklist sebelum deploy pertama
+
+- ☐ **Rewrites host berbasis env var**, hanya aktif kalau env-nya terisi.
+- ☐ **`Cache-Control: no-cache` untuk `remoteEntry.js` dan `mf-manifest.json`** di ketiga remote. Namanya tetap tiap deploy; kalau di-cache, browser memakai daftar isi lama yang menunjuk chunk yang sudah dihapus, lalu muncul `ChunkLoadError`.
+- ☐ **`?gagal` dan `?lambat` di balik flag `NEXT_PUBLIC_API_SIMULASI`.** Sekarang keduanya aktif juga di produksi — siapa pun bisa mematikan blok beranda lewat URL.
+- ☐ **Verifikasi build beranda sebelum host.** `next-rspack` masih eksperimental, dan kombinasi Next 16 + Rspack di Vercel belum punya preseden — qcash men-deploy dhe lewat Docker.
+- ☐ **Jangan isi `MF_PUBLIC_PATH` di env produksi.** Script `build` sengaja tidak mengisinya supaya path aset relatif terhadap satu domain.
+
+### Aturan untuk remote berikutnya
+
+**basePath remote tidak boleh bentrok dengan route host.** Rewrites Next dijalankan setelah halaman host dicek tapi sebelum dynamic route. Kalau ada route `/mutasi/[...slug]` di host sekaligus basePath `/mutasi`, request `/mutasi/_next/…` ditangkap halaman host dan remote-nya gagal dimuat tanpa pesan yang jelas.
+
+Contoh yang benar untuk auth nanti: **route** `/login` dan `/aktivasi` adalah halaman host, sedangkan **basePath aset** `duidtin-feature-auth` adalah `/auth`.
+
+Kalau paket `@duidtin/auth` dipublish privat ke GitHub Packages, tiap project Vercel butuh env `NPM_TOKEN` supaya `bun install` bisa mengunduhnya.
+
+### Risiko yang diketahui
+
+- **Chunk lama hilang saat redeploy.** Pengguna yang halamannya masih terbuka akan meminta chunk versi sebelumnya dan kena 404. `RetryPlugin` dan `fallbackPlugin` di host meredam gejalanya; perbaikan sebenarnya adalah mempertahankan aset build sebelumnya untuk sementara.
+- **Preview PR tidak tersusun otomatis.** Rewrites host menunjuk remote produksi, jadi preview sebuah remote tidak otomatis dipakai preview host.
+
+### Kalau nanti pindah ke VPS + Docker + Caddy
+
+Rewrites produksi di host dihapus, dan Caddy mengambil peran router — hasilnya persis seperti qcash dengan router OpenShift-nya. Ketiga repo Next sudah `output: "standalone"`, jadi tinggal dibungkus container.
+
+```caddy
+duidtin.com {
+	@entry path */remoteEntry.js */mf-manifest.json
+	header @entry Cache-Control "no-cache"
+
+	handle_path /design-system/static/* {
+		root * /srv/design-system
+		file_server
+	}
+	handle /layout/*  { reverse_proxy layout:3002 }
+	handle /beranda/* { reverse_proxy beranda:3003 }
+	handle            { reverse_proxy host:3000 }
+}
+```
+
 ---
 
 ## Alur Arsitektur

@@ -98,6 +98,116 @@ cd duidtin-ui               && bun install && bun run dev            # :3000 ←
 
 If a remote isn't running the page still renders — the failed part is swapped for an error box by `fallbackPlugin` (section 5 below). That is the intended behaviour.
 
+
+## Deploy
+
+> **Status: not deployed yet.** This section is a decided plan. Items marked ☐ in the [checklist](#checklist-before-the-first-deploy) are not yet done in code.
+
+### Topology: one domain, told apart by path
+
+```
+https://duidtin-ui.vercel.app/                                  → host project
+https://duidtin-ui.vercel.app/layout/_next/static/…             → layout project
+https://duidtin-ui.vercel.app/beranda/_next/static/…            → beranda project
+https://duidtin-ui.vercel.app/design-system/static/…            → design-system project
+```
+
+This topology is **already locked in by the code**, not a free choice. In all three Next repos, `getBaseFederationUrl()` returns `window.location.origin` whenever it is not on localhost, so in production the host looks for every remote on its own domain. Publish each remote to its own domain and the host breaks immediately.
+
+A single origin is also what keeps the next stage simple: session cookies and `localStorage` are shared by every remote automatically, and a backend can live at `/api` with no CORS.
+
+### Same as qcash, different at the router layer
+
+| | qcash | duidtin |
+|---|---|---|
+| One domain, remotes told apart by path | yes | yes |
+| One repo = one independent deploy | a `Dockerfile` per repo | one Vercel project per folder |
+| Mixed MF versions in production | host `0.18.1`, dhe `2.x` | host `0.24.1`, beranda `2.9` |
+| **What unifies the domain** | **the OpenShift router** (infrastructure) | **rewrites in the host** |
+
+The `qcash-ui` host does have `rewrites()`, but they only run in development — its comment reads *"Deployed envs are same-origin, so no rewrite is needed."* Vercel has no OpenShift router, so the host's rewrites take on that role. The browser cannot tell the difference.
+
+A rewrite is **not a redirect**. The address bar never changes, and only JavaScript/CSS chunk files are routed — not pages. Layout, beranda and the design system are still composed inside a single page by Module Federation.
+
+### Platform: Vercel Hobby, four projects from one repo
+
+**Why Vercel:** free with no credit card, the repo is already on GitHub, and servers do not sleep when idle — a remote stuck in a *cold start* makes the host render error boxes.
+
+**Why not the Vercel Microfrontends feature:** as of September 2026, the Hobby plan fits only **2 projects** per microfrontends group, and on Pro each extra project is **$250/month**. Duidtin needs 4. The URL shape is the same, so moving later only means swapping the rewrites for `microfrontends.json`, with no application code changes.
+
+**Why not a single project:** one Vercel project builds one application from one root. The four applications use different toolchains, and independent deploys — the whole point of MFE — would disappear.
+
+| Project | Root Directory | Framework | Build Command | Output Directory |
+|---|---|---|---|---|
+| `duidtin-ui-design-system` | `duidtin-ui-design-system` | Other | `bun run build` | `apps/producer/dist/mf` |
+| `duidtin-ui-layout` | `duidtin-ui-layout` | Next.js | `bun run build` | *(default)* |
+| `duidtin-feature-beranda` | `duidtin-feature-beranda` | Next.js | `bun run build` | *(default)* |
+| `duidtin-ui` | `duidtin-ui` | Next.js | `bun run build` | *(default)* |
+
+The Install Command for all four is `bun install`. The `build` scripts work as they are: `NEXT_PRIVATE_LOCAL_WEBPACK=true` is already in the host and layout scripts, and beranda's `prebuild` compiles Tailwind through the local binary.
+
+So that a push touching one folder does not build all four, set **Settings → Git → Ignored Build Step** in every project:
+
+```bash
+git diff --quiet HEAD^ HEAD -- .
+```
+
+**Order of creating projects:** design-system → layout & beranda → host. The host comes last because its rewrites need the other three URLs.
+
+### Host environment variables
+
+| Env var | Value | Rewrite |
+|---|---|---|
+| `REMOTE_DESIGN_SYSTEM_URL` | the design system's `*.vercel.app` URL | `/design-system/static/:path*` → `…/:path*` |
+| `REMOTE_LAYOUT_URL` | the layout's `*.vercel.app` URL | `/layout/:path*` → `…/layout/:path*` |
+| `REMOTE_BERANDA_URL` | beranda's `*.vercel.app` URL | `/beranda/:path*` → `…/beranda/:path*` |
+| `REMOTE_AUTH_URL` *(later)* | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
+| `BACKEND_URL` *(later)* | the backend | `/api/:path*` → `…/:path*` |
+
+The design system differs from the other two: it is not Next and has no `basePath`, so its files sit at the root of its Vercel domain and its rewrite **strips** the `/design-system/static` prefix. The layout and beranda keep their prefixes.
+
+In local dev these variables are empty, so the rewrites stay off and each remote is still reached directly on its own port.
+
+### Checklist before the first deploy
+
+- ☐ **Env-var-driven host rewrites**, active only when their variable is set.
+- ☐ **`Cache-Control: no-cache` for `remoteEntry.js` and `mf-manifest.json`** in all three remotes. Their names stay the same across deploys; if cached, the browser uses a stale table of contents pointing at deleted chunks, producing `ChunkLoadError`.
+- ☐ **`?gagal` and `?lambat` behind a `NEXT_PUBLIC_API_SIMULASI` flag.** Both are currently live in production too — anyone can take down beranda blocks through the URL.
+- ☐ **Verify beranda's build before the host's.** `next-rspack` is still experimental, and Next 16 + Rspack on Vercel has no precedent — qcash deploys dhe through Docker.
+- ☐ **Never set `MF_PUBLIC_PATH` in production env.** The `build` scripts deliberately leave it empty so asset paths stay relative to the single domain.
+
+### Rules for the next remotes
+
+**A remote's basePath must never collide with a host route.** Next rewrites run after host pages are checked but before dynamic routes. With a host route `/mutasi/[...slug]` alongside a basePath of `/mutasi`, a request for `/mutasi/_next/…` is captured by the host page and the remote fails to load with no clear message.
+
+The correct shape for auth later: the **routes** `/login` and `/aktivasi` are host pages, while `duidtin-feature-auth`'s **asset basePath** is `/auth`.
+
+If the `@duidtin/auth` package is published privately to GitHub Packages, every Vercel project needs an `NPM_TOKEN` env var so `bun install` can fetch it.
+
+### Known risks
+
+- **Old chunks disappear on redeploy.** A user whose page is still open requests the previous version's chunks and gets a 404. `RetryPlugin` and `fallbackPlugin` in the host soften the symptom; the real fix is keeping the previous build's assets around for a while.
+- **PR previews do not compose automatically.** The host's rewrites point at production remotes, so a remote's preview is not picked up by the host's preview.
+
+### If it later moves to a VPS + Docker + Caddy
+
+The host's production rewrites are removed and Caddy takes over the router role — exactly like qcash with its OpenShift router. All three Next repos are already `output: "standalone"`, so they only need wrapping in containers.
+
+```caddy
+duidtin.com {
+	@entry path */remoteEntry.js */mf-manifest.json
+	header @entry Cache-Control "no-cache"
+
+	handle_path /design-system/static/* {
+		root * /srv/design-system
+		file_server
+	}
+	handle /layout/*  { reverse_proxy layout:3002 }
+	handle /beranda/* { reverse_proxy beranda:3003 }
+	handle            { reverse_proxy host:3000 }
+}
+```
+
 ---
 
 ## Architecture flow
