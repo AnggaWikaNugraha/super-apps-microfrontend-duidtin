@@ -36,7 +36,7 @@ Belum ada:
 
 - Backend sungguhan. Datanya dummy, tapi bentuknya sudah menyerupai respons API — yang perlu diganti nanti cuma `services/api/client.ts`.
 - Auth/peran. Pintasan masih `isDisabled` semua.
-- i18n, config deploy/container.
+- i18n dan config container (Docker). Untuk Vercel, `vercel.json` hanya berisi `ignoreCommand`; build memakai bawaan Next.js di dashboard.
 
 ## Aturan ngoding di repo feature
 
@@ -139,6 +139,7 @@ duidtin-feature-beranda/
     beranda.css          # kelas BEM + @apply
     global.exposes.ts    # HASIL GENERATE, di-expose sebagai "./globals" — gitignored
   next.config.ts
+  vercel.json            # cuma ignoreCommand: lewati build Vercel kalau folder ini tidak berubah
 ```
 
 ## Config Module Federation

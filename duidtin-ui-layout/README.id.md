@@ -28,7 +28,7 @@ Sudah ada dan sudah diverifikasi jalan:
 Belum ada:
 - Bridging auth/context beneran — `onLogout` & `userName` masih props biasa, belum nyantol ke provider apapun.
 - Menu per peran. `navItems` sudah jadi prop, tapi host belum mengirimnya — jadi masih pakai `DEFAULT_NAV_ITEMS` di repo ini. Begitu auth ada, maker dan checker semestinya lihat menu berbeda.
-- i18n, config deploy/container.
+- i18n dan config container (Docker). Untuk Vercel, `vercel.json` hanya berisi `ignoreCommand`; build memakai bawaan Next.js di dashboard.
 
 ## Stack
 
@@ -68,6 +68,7 @@ duidtin-ui-layout/
   module-federation.config.mjs
   next.config.mjs
   postcss.config.mjs
+  vercel.json            # cuma ignoreCommand: lewati build Vercel kalau folder ini tidak berubah
   package.json
   tsconfig.json
 ```
@@ -201,7 +202,7 @@ Tiga waktu yang beda: `exposes`/`remotes` beku pas **build**, entry remote didaf
 > 4. `assetPrefix` relatif bikin chunk design-system diminta ke origin konsumen (fix di design-system).
 > 5. Dev client rsbuild ke-bundle ke `remoteEntry.js` dan manggil `location.reload()` di halaman konsumen (fix di design-system).
 > 6. Tailwind nggak ke-compile pas `rslib build`, ketutup Storybook yang compile sendiri (fix di design-system).
-> 7. `remotes` runtime **nggak** nimpa yang build-time — **masih terbuka**.
+> 7. `remotes` runtime **nggak** nimpa yang build-time. Aman selama host mendaftarkan design-system lebih dulu (terbukti di simulasi produksi: 0 request ke `localhost:3001`), jadi **sengaja dibiarkan**.
 
 8. **Chunk repo ini sendiri diminta ke origin host — kebalikan persis dari poin 4.** Begitu `duidtin-ui` manggil `loadRemote("duidtin_ui_layout/default")`, `remoteEntry.js` sukses dimuat tapi semua isinya mati dengan:
 
@@ -221,9 +222,9 @@ Tiga waktu yang beda: `exposes`/`remotes` beku pas **build**, entry remote didaf
 
 Host `duidtin-ui` sudah ada dan sudah render layout ini beneran, jadi lingkarannya nutup. Yang tersisa di repo ini:
 
-- **Poin 7 di atas masih terbuka** — dan sekarang taruhannya lebih besar. Host juga mendaftarkan `duidtin_ui_design_system` di remotes-nya sendiri, jadi URL build-time yang salah di repo ini punya jalur kedua buat menggigit di production.
+- **Poin 7 di atas sengaja dibiarkan.** Host mendaftarkan `duidtin_ui_design_system` lebih dulu, jadi URL build-time `localhost:3001` di repo ini tidak pernah dipakai. Perlu dibuka lagi hanya kalau registrasi di host dibuat lazy.
 - Bridging auth/context beneran — `onLogout` & `userName` masih props kosong, belum nyantol ke apapun.
-- i18n dan config deploy/container.
+- i18n dan config container (Docker).
 
 ## Layout Business Banking
 

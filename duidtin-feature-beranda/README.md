@@ -36,7 +36,7 @@ Not there yet:
 
 - A real backend. The data is dummy, but shaped like a real API response — only `services/api/client.ts` needs replacing later.
 - Auth and roles. Every shortcut is still `isDisabled`.
-- i18n, deploy/container config.
+- i18n and container (Docker) config. For Vercel, `vercel.json` holds only `ignoreCommand`; the build uses the Next.js defaults set in the dashboard.
 
 ## Coding rules for feature repos
 
@@ -139,6 +139,7 @@ duidtin-feature-beranda/
     beranda.css          # BEM classes + @apply
     global.exposes.ts    # GENERATED, exposed as "./globals" — gitignored
   next.config.ts
+  vercel.json            # ignoreCommand only: skip the Vercel build when this folder is unchanged
 ```
 
 ## Module Federation config

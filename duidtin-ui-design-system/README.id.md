@@ -37,7 +37,7 @@ Sudah ada:
 - React tetap **satu instance** lintas keempat repo, bahkan lintas versi MF. Buktinya: tombol yang dimuat lewat layout (MF 0.24.1) dan tombol yang dimuat lewat beranda (MF 2.x) berbagi prefix ID React Aria yang sama — kalau React kedobelan, prefiksnya bakal beda.
 
 Belum ada:
-- Config deploy/container.
+- Config container (Docker). Deploy Vercel sudah jalan: remote dan Storybook di satu project (lihat bagian Storybook di Vercel).
 
 ## Token desain (`packages/ui/src/styles/tokens.css`)
 
@@ -70,7 +70,7 @@ API dan nama export komponen tetap sama. `Table size="sm"` kini diteruskan ke ta
 - **React 18** + **react-aria-components** — primitif komponen accessible yang di-wrap tiap komponen `packages/ui`.
 - **Tailwind CSS v4** (prefix `ui:`) + **tailwind-variants** + **tailwind-merge** — styling & komposisi variant per komponen.
 - **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — mekanisme expose komponen ke konsumen luar (`duidtin-ui-layout` dan host `duidtin-ui`), termasuk generate tipe TypeScript lintas-remote.
-- **Storybook** (builder Vite) — preview & dokumentasi visual komponen saat develop, terpisah total dari alur Module Federation.
+- **Storybook** (builder Vite) — preview & dokumentasi visual komponen, terpisah dari alur Module Federation saat runtime. Versi statisnya ikut dipublish di `/storybook/`.
 
 ## Daftar Komponen
 
@@ -308,7 +308,7 @@ Storybook versi statis disajikan dari project Vercel yang sama dengan remote, di
 
 Pengaturannya ada di dua berkas:
 
-- **`vercel.json`** menentukan install command, build command (`bun run build:vercel`), output directory (`apps/producer/dist/mf`) dan redirect. Isinya **menimpa** pengaturan build di dashboard Vercel, jadi ubah berkas ini, bukan dashboard.
+- **`vercel.json`** menentukan install command, build command (`bun run build:vercel`), output directory (`apps/producer/dist/mf`), redirect, dan `ignoreCommand` yang melewati build kalau push tidak menyentuh folder ini (penjelasannya di README root, bagian Deploy). Isinya **menimpa** pengaturan build di dashboard Vercel, jadi ubah berkas ini, bukan dashboard.
 - **`scripts/build-vercel.ts`** menjalankan tiga langkah:
   1. `bun run build` untuk membangun remote.
   2. `build-storybook` di `packages/ui`.

@@ -37,7 +37,7 @@ Done:
 - React stays a **single instance** across all four repos, and even across MF versions. The evidence: a button loaded through the layout (MF 0.24.1) and one loaded through beranda (MF 2.x) share the same React Aria ID prefix — had React been duplicated, the prefixes would differ.
 
 Not done:
-- Deploy/container config.
+- Container (Docker) config. The Vercel deploy is live: the remote and Storybook share one project (see Storybook on Vercel).
 
 ## Design tokens (`packages/ui/src/styles/tokens.css`)
 
@@ -70,7 +70,7 @@ Component APIs and export names are unchanged. `Table size="sm"` now cascades to
 - **React 18** + **react-aria-components** — the accessible component primitives each `packages/ui` component wraps.
 - **Tailwind CSS v4** (prefix `ui:`) + **tailwind-variants** + **tailwind-merge** — styling & per-component variant composition.
 - **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — the mechanism that exposes components to outside consumers (`duidtin-ui-layout` and the host `duidtin-ui`), including cross-remote TypeScript type generation.
-- **Storybook** (Vite builder) — visual preview & documentation during development, entirely separate from the Module Federation path.
+- **Storybook** (Vite builder) — visual preview & documentation, separate from the Module Federation path at runtime. Its static build is also published at `/storybook/`.
 
 ## Component list
 
@@ -308,7 +308,7 @@ The static Storybook is served from the same Vercel project as the remote, at `h
 
 Two files configure this:
 
-- **`vercel.json`** sets the install command, the build command (`bun run build:vercel`), the output directory (`apps/producer/dist/mf`) and the redirects. It **overrides** the build settings in the Vercel dashboard, so change this file, not the dashboard.
+- **`vercel.json`** sets the install command, the build command (`bun run build:vercel`), the output directory (`apps/producer/dist/mf`), the redirects, and an `ignoreCommand` that skips the build when a push does not touch this folder (explained in the root README's Deploy section). It **overrides** the build settings in the Vercel dashboard, so change this file, not the dashboard.
 - **`scripts/build-vercel.ts`** runs three steps:
   1. `bun run build` builds the remote.
   2. `build-storybook` runs in `packages/ui`.

@@ -101,7 +101,7 @@ Kalau remote-nya belum nyala, halaman tetap tampil — bagian yang gagal diganti
 
 ## Deploy
 
-> **Status: belum ter-deploy.** Bagian ini rencana yang sudah diputuskan. Item bertanda ☐ di [checklist](#checklist-sebelum-deploy-pertama) belum dikerjakan di kode.
+> **Status: sebagian ter-deploy.** Design-system (remote + Storybook) sudah live di `https://super-apps-duidtin-ui-system.vercel.app` (Storybook di `/storybook/`). Layout, beranda, dan host belum. Sisa bagian ini rencana yang sudah diputuskan. Item bertanda ☐ di [checklist](#checklist-sebelum-deploy-pertama) belum dikerjakan di kode.
 
 ### Topologi: satu domain, dibedakan path
 
@@ -144,11 +144,22 @@ Install Command keempatnya `bun install`. Script `build` bisa dipakai apa adanya
 
 Pengaturan design-system tersimpan di `duidtin-ui-design-system/vercel.json` dan menimpa isian dashboard. `build:vercel` membangun remote sekaligus Storybook, lalu Storybook disajikan di `/storybook/` pada domain yang sama. Detailnya ada di README design-system, bagian Storybook.
 
-Supaya push yang cuma menyentuh satu folder tidak membangun keempatnya, isi **Settings → Git → Ignored Build Step** di tiap project:
+**Build otomatis saat push.** Setiap push ke repo membuat deploy di **semua** project yang terhubung, termasuk project yang foldernya tidak berubah. Fitur skip otomatis bawaan Vercel untuk monorepo tidak berlaku di sini, karena fitur itu mensyaratkan `workspaces` di `package.json` root, sedangkan repo ini tidak punya `package.json` root.
+
+Karena itu, tiap folder memasang `ignoreCommand` di `vercel.json`-nya sendiri. Nilai ini menimpa kolom **Ignored Build Step** di dashboard dan ikut tercatat di git. Keempatnya memakai perintah yang sama, karena `.` berarti Root Directory project itu:
 
 ```bash
-git diff --quiet HEAD^ HEAD -- .
+git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
 ```
+
+- Exit `0` (tidak ada perubahan) berarti build dilewati. Exit `1` atau lebih berarti build jalan.
+- `VERCEL_GIT_PREVIOUS_SHA` adalah commit deploy sukses terakhir project itu, jadi satu push berisi beberapa commit tetap dibandingkan seluruhnya. `HEAD^` saja hanya membandingkan commit terakhir, sehingga perubahan layout di commit sebelumnya bisa terlewat.
+- Vercel meng-clone dengan `--depth=10`. Kalau commit pembanding sudah di luar kedalaman itu, `git diff` error dan keluar dengan kode bukan `0`, jadi build tetap jalan. Gagalnya ke arah aman.
+- Remote tidak perlu memicu build host. Host membaca `remoteEntry.js` terbaru saat runtime.
+- Di `vercel.json` tanda kutipnya di-escape: `"ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- ."`.
+- **Status:** terpasang di `vercel.json` keempat folder. Design-system juga menyimpan pengaturan build-nya di sana; tiga lainnya hanya berisi `ignoreCommand`, dan pengaturan build tetap bawaan Next.js di dashboard.
+- Berlaku mulai commit yang menambahkannya, jadi push itu sendiri masih membangun semua project yang terhubung.
+- Redeploy manual untuk commit yang sama juga ikut dilewati. Hilangkan centang **Use project's Ignore Build Step** di dialog Redeploy.
 
 **Urutan membuat project:** design-system → layout & beranda → host. Host dibuat terakhir karena rewrites-nya butuh URL ketiga remote.
 

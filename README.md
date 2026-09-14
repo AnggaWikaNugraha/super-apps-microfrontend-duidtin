@@ -101,7 +101,7 @@ If a remote isn't running the page still renders — the failed part is swapped 
 
 ## Deploy
 
-> **Status: not deployed yet.** This section is a decided plan. Items marked ☐ in the [checklist](#checklist-before-the-first-deploy) are not yet done in code.
+> **Status: partly deployed.** The design system (remote + Storybook) is live at `https://super-apps-duidtin-ui-system.vercel.app` (Storybook at `/storybook/`). The layout, beranda and host are not yet. The rest of this section is a decided plan. Items marked ☐ in the [checklist](#checklist-before-the-first-deploy) are not yet done in code.
 
 ### Topology: one domain, told apart by path
 
@@ -148,11 +148,22 @@ The Install Command for all four is `bun install`. The `build` scripts work as t
 
 The design system's settings live in `duidtin-ui-design-system/vercel.json` and override the dashboard fields. `build:vercel` builds the remote and Storybook together, and Storybook is served at `/storybook/` on the same domain. See the Storybook section of the design-system README for details.
 
-So that a push touching one folder does not build all four, set **Settings → Git → Ignored Build Step** in every project:
+**Automatic builds on push.** Every push to the repo creates a deployment in **every** connected project, including projects whose folder did not change. Vercel's built-in skipping for monorepos does not apply here: it requires `workspaces` in a root `package.json`, and this repo has no root `package.json`.
+
+So each folder sets `ignoreCommand` in its own `vercel.json`. It overrides the **Ignored Build Step** field in the dashboard and is tracked in git. All four use the same command, because `.` means that project's Root Directory:
 
 ```bash
-git diff --quiet HEAD^ HEAD -- .
+git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
 ```
+
+- Exit `0` (no changes) skips the build. Exit `1` or higher runs it.
+- `VERCEL_GIT_PREVIOUS_SHA` is the project's last successful deployment, so a push containing several commits is compared as a whole. `HEAD^` alone compares only the last commit, so a layout change in an earlier commit could be missed.
+- Vercel clones with `--depth=10`. If the comparison commit falls outside that depth, `git diff` errors with a non-zero code and the build runs. It fails safe.
+- A remote does not need to trigger a host build. The host reads the latest `remoteEntry.js` at runtime.
+- In `vercel.json` the quotes are escaped: `"ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- ."`.
+- **Status:** set in the `vercel.json` of all four folders. The design system also keeps its build settings there; the other three hold only `ignoreCommand`, and their build settings stay at the Next.js defaults in the dashboard.
+- It takes effect from the commit that adds it, so that push itself still builds every connected project.
+- A manual redeploy of the same commit is skipped too. Untick **Use project's Ignore Build Step** in the Redeploy dialog.
 
 **Order of creating projects:** design-system → layout & beranda → host. The host comes last because its rewrites need the other three URLs.
 

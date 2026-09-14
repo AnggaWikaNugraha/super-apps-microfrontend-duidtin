@@ -74,6 +74,7 @@ duidtin-ui/
   types/global.d.ts      # window.__FEDERATION_LOADED
   module-federation.config.mjs
   next.config.mjs
+  vercel.json            # ignoreCommand only: skip the Vercel build when this folder is unchanged
 ```
 
 ## Why `remotes` and `exposes` are empty

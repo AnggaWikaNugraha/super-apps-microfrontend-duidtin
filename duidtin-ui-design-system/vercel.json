@@ -4,6 +4,7 @@
   "installCommand": "bun install",
   "buildCommand": "bun run build:vercel",
   "outputDirectory": "apps/producer/dist/mf",
+  "ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- .",
   "redirects": [
     { "source": "/", "destination": "/storybook/", "permanent": false },
     { "source": "/storybook", "destination": "/storybook/", "permanent": false }

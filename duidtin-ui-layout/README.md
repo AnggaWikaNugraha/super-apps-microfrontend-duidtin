@@ -28,7 +28,7 @@ Done and verified working:
 Not done:
 - Real auth/context bridging — `onLogout` & `userName` are still plain props, not wired to any provider.
 - A role-aware menu. `navItems` is already a prop, but the host does not send one yet, so `DEFAULT_NAV_ITEMS` in this repo is still used. Once auth exists, a maker and a checker should see different menus.
-- i18n, deploy/container config.
+- i18n and container (Docker) config. For Vercel, `vercel.json` holds only `ignoreCommand`; the build uses the Next.js defaults set in the dashboard.
 
 ## Stack
 
@@ -68,6 +68,7 @@ duidtin-ui-layout/
   module-federation.config.mjs
   next.config.mjs
   postcss.config.mjs
+  vercel.json            # ignoreCommand only: skip the Vercel build when this folder is unchanged
   package.json
   tsconfig.json
 ```
@@ -193,7 +194,7 @@ Three distinct moments: `exposes`/`remotes` freeze at **build**, the remote entr
 
 ## Snags we hit (and why the fixes look like that)
 
-None of the eight below were in the original plan. Items 1-7 surfaced once this repo became the design system's first real consumer; item 8 only surfaced once the `duidtin-ui` host made this repo a *consumed* remote for the first time. Items 3-6 are fixed in the `duidtin-ui-design-system` repo, not here; item 7 is still open.
+None of the eight below were in the original plan. Items 1-7 surfaced once this repo became the design system's first real consumer; item 8 only surfaced once the `duidtin-ui` host made this repo a *consumed* remote for the first time. Items 3-6 are fixed in the `duidtin-ui-design-system` repo, not here; item 7 is deliberately left as is.
 
 1. **`nextjs-mf` needs a local webpack.** The build died immediately: `process.env.NEXT_PRIVATE_LOCAL_WEBPACK is not set to true`. Fix: `npm install webpack` plus the env var prefixed onto the `dev`/`build` scripts — both, not either.
 
@@ -207,15 +208,17 @@ None of the eight below were in the original plan. Items 1-7 surfaced once this 
 
 6. **Remote components rendered, but completely unstyled.** The design system's `dist/index.tailwind.css` turned out to still contain raw `@apply ui:...` — Tailwind was never compiled during `rslib build`, the file was merely copied through. This had been masked all along by Storybook compiling Tailwind itself through `@tailwindcss/vite`, so the components looked right in Storybook while the published CSS was broken. Fix (in the design system): add `postcss.config.mjs` to `packages/ui` and exclude `.css` files from the `bundle: false` entry.
 
-7. **The runtime `remotes` does NOT override the build-time one — still open.** `module-federation.config.mjs` registers `duidtin_ui_design_system` at `http://localhost:3001/...` (hardcoded), and `pages/_app.tsx` registers the same name at whatever `getBaseFederationUrl()` returns. The assumption was that the runtime one wins. What actually happens is the reverse:
+7. **The runtime `remotes` does NOT override the build-time one — left as is, safe while the host registers first.** `module-federation.config.mjs` registers `duidtin_ui_design_system` at `http://localhost:3001/...` (hardcoded), and `pages/_app.tsx` registers the same name at whatever `getBaseFederationUrl()` returns. The assumption was that the runtime one wins. What actually happens is the reverse:
 
    - The build-time URL is inlined into the webpack runtime chunk and registered during bootstrap, **before** the `_app.tsx` module is executed.
    - `init()` in `_app.tsx` uses the same `name`, so the runtime **reuses the existing instance** (`getGlobalFederationInstance`) rather than creating a new one.
    - Merging the remotes goes through `formatAndRegisterRemote(...)`, which calls `registerRemote(remote, res, { force: false })`. If a remote name is already registered and `force` isn't set, the new entry is **discarded silently** — with no warning at all (the warning message is only emitted on the `force: true` branch).
 
-   The effect: in production `duidtin-ui-layout` would look for the design system at `http://localhost:3001` and fail. It isn't visible today because it has only ever run in local dev — where `getBaseFederationUrl()` happens to return `http://localhost:3001` as well, identical to the build-time value, so right and wrong are indistinguishable.
+   Why production does not break: the same first-registration-wins rule works in this repo's favour inside the host. When the layout runs inside `duidtin-ui`, its `_app.tsx` does not run at all (only `./default` is loaded), and the host's `federationInit()` has already registered `duidtin_ui_design_system` with the correct runtime URL before this repo's `remoteEntry.js` is fetched. This repo's build-time entry arrives second, so it is the one discarded. A single-origin production simulation confirmed it: zero requests to `localhost:3001`, and the header's `Button` loaded from the correct origin.
 
-   Two options for a fix (neither applied yet):
+   What remains: this holds only while the host registers the design system first. If that registration ever becomes lazy, the build-time `localhost:3001` URL wins and production breaks. Opening this repo directly is not affected, because `pages/index.tsx` is a guard page that loads no design-system component.
+
+   If the host's order ever changes, there are two fixes (neither applied, by decision):
    - **Empty out `remotes` in `module-federation.config.mjs`** (to `{}`) so the runtime is the only thing registering it. This is the pattern the `qcash-ui` host uses. It is safe because this repo never statically `import()`s a remote module — everything goes through `loadRemote()`.
    - Or change `init({ remotes })` into `init({ name })` + `registerRemotes([...], { force: true })`, which overrides the old entry explicitly.
 
@@ -237,9 +240,9 @@ None of the eight below were in the original plan. Items 1-7 surfaced once this 
 
 The `duidtin-ui` host now exists and renders this layout for real, so the loop is closed. What remains here:
 
-- **Item 7 above is still open** — and it now matters more than before. The host registers `duidtin_ui_design_system` in its own remotes too, so a wrong build-time URL in this repo has a second path to bite in production.
+- **Item 7 above is deliberately left as is.** The host registers `duidtin_ui_design_system` first, so this repo's build-time `localhost:3001` URL is never used. Revisit it only if the host's registration becomes lazy.
 - Real auth/context bridging — `onLogout` and `userName` are still plain props, wired to nothing.
-- i18n and deploy/container config.
+- i18n and container (Docker) config.
 
 ## Business Banking layout
 
