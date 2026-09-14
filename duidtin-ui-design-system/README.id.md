@@ -32,7 +32,7 @@ Sudah ada:
 - Empat sisanya **pola lintas fitur**, dibuat saat membangun beranda: `Skeleton` (placeholder saat memuat), `EmptyState` (kosong & gagal), `ErrorBoundary` (crash saat render, per blok), dan `DataState` (pembungkus tiga keadaan blok data). Semuanya di sini, bukan di repo feature — kalau dibuat lokal, tiap feature bakal punya salinannya sendiri yang lama-lama saling melenceng.
 - `apps/producer` expose semua komponen di atas + `globals` lewat Module Federation, dengan codegen exposes otomatis dan tipe TypeScript lintas-remote (`dts`) sudah dikonfigurasi.
 - `loadRemote()` sudah kebukti jalan dari **dua konsumen nyata sekaligus**, keduanya diverifikasi di browser:
-  - `duidtin-ui-layout` render `Button` & `Badge` dari remote ini di header-nya;
+  - `duidtin-ui-layout` render `Button` dari remote ini di header-nya (tombol Keluar). Badge sempat dipakai untuk nama pengguna, tapi dihapus saat revamp header;
   - `duidtin-feature-beranda` render `Card`, `Button`, `Badge` & `Alert` di halaman beranda — dan repo itu jalan di **MF 2.x**, sedangkan remote ini di 0.24.1.
 - React tetap **satu instance** lintas keempat repo, bahkan lintas versi MF. Buktinya: tombol yang dimuat lewat layout (MF 0.24.1) dan tombol yang dimuat lewat beranda (MF 2.x) berbagi prefix ID React Aria yang sama — kalau React kedobelan, prefiksnya bakal beda.
 

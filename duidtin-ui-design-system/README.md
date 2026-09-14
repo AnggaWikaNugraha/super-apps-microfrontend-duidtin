@@ -32,7 +32,7 @@ Done:
 - The other four are **cross-feature patterns**, added while building beranda: `Skeleton` (loading placeholder), `EmptyState` (empty and error), `ErrorBoundary` (render crashes, per block), and `DataState` (a wrapper for a data block's three states). They live here rather than in a feature repo — built locally, each feature would end up with its own copy and they would drift apart.
 - `apps/producer` exposes all of the above plus `globals` over Module Federation, with automatic exposes codegen and cross-remote TypeScript types (`dts`) configured.
 - `loadRemote()` is proven to work from **two real consumers at once**, both verified in a browser:
-  - `duidtin-ui-layout` renders this remote's `Button` & `Badge` in its header;
+  - `duidtin-ui-layout` renders this remote's `Button` in its header (the sign-out button). A Badge used to show the user's name, but it was removed in the header revamp;
   - `duidtin-feature-beranda` renders `Card`, `Button`, `Badge` & `Alert` on the home page — and that repo runs **MF 2.x**, while this remote is on 0.24.1.
 - React stays a **single instance** across all four repos, and even across MF versions. The evidence: a button loaded through the layout (MF 0.24.1) and one loaded through beranda (MF 2.x) share the same React Aria ID prefix — had React been duplicated, the prefixes would differ.
 
