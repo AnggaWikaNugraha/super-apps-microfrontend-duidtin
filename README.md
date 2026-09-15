@@ -87,7 +87,7 @@ What still differs between repos is **how the CSS reaches the browser**: Next fo
 
 ### Running it
 
-Three terminals, remotes before the host:
+Four terminals, remotes before the host:
 
 ```bash
 cd duidtin-ui-design-system && bun install && bun run dev:producer   # :3001
@@ -97,6 +97,8 @@ cd duidtin-ui               && bun install && bun run dev            # :3000 ←
 ```
 
 If a remote isn't running the page still renders — the failed part is swapped for an error box by `fallbackPlugin` (section 5 below). That is the intended behaviour.
+
+**You don't have to run everything.** When changing one remote, run only that remote's server and open the production host with `?remote-lokal=name@port`. When changing the host, run it in `NEXT_PUBLIC_REMOTE_DARI=publish` mode. Details in the [host README](duidtin-ui/README.md#dev-without-running-every-server).
 
 
 ## Deploy

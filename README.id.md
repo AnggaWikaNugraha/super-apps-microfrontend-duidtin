@@ -87,7 +87,7 @@ Yang tetap berbeda antar repo adalah **cara CSS-nya sampai ke browser**: Next me
 
 ### Cara menjalankan
 
-Tiga terminal, remote duluan lalu host:
+Empat terminal, remote duluan lalu host:
 
 ```bash
 cd duidtin-ui-design-system && bun install && bun run dev:producer   # :3001
@@ -97,6 +97,8 @@ cd duidtin-ui               && bun install && bun run dev            # :3000 ←
 ```
 
 Kalau remote-nya belum nyala, halaman tetap tampil — bagian yang gagal diganti kotak error oleh `fallbackPlugin` (bagian 5 di bawah). Itu memang perilaku yang diinginkan.
+
+**Tidak perlu menyalakan semuanya.** Saat mengubah satu remote, jalankan server remote itu saja lalu buka host produksi dengan `?remote-lokal=nama@port`. Saat mengubah host, jalankan host dalam mode `NEXT_PUBLIC_REMOTE_DARI=publish`. Rinciannya di [README host](duidtin-ui/README.id.md#dev-tanpa-menyalakan-semua-server).
 
 
 ## Deploy

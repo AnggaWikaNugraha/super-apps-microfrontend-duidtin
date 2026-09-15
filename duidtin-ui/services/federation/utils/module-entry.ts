@@ -1,11 +1,13 @@
 import { getFeatureByName, getFeatureEntryUrl } from "./registry";
+import { bacaRemoteLokal } from "./remote-lokal";
 
 /**
- * Dari nama remote jadi URL remoteEntry sungguhan.
+ * Dari nama remote jadi URL remoteEntry sungguhan. Dua lapis, sama seperti `qcash-ui`:
  *
- * Versi host `qcash-ui` punya lapis kedua di sini (override port lokal per-module
- * lewat IndexedDB/devtools). Di sini sengaja belum — cuma satu lapis, environment
- * detection, sampai jumlah remote-nya memang bikin itu kepakai.
+ *   Lapis B — override `?remote-lokal` (remote-lokal.ts): kalau remote ini diarahkan
+ *             ke laptop, pakai http://localhost:<port> + entryPath. Menang atas lapis A.
+ *   Lapis A — environment detection (getBaseFederationUrl): devOrigin di localhost,
+ *             origin halaman di tempat lain.
  */
 export const getModuleEntry = (name: string): string => {
   const feature = getFeatureByName(name);
@@ -13,6 +15,10 @@ export const getModuleEntry = (name: string): string => {
   if (!feature) {
     throw new Error(`[MFE] Feature "${name}" nggak terdaftar di registry`);
   }
+
+  const originLokal = bacaRemoteLokal()[name];
+
+  if (originLokal) return `${originLokal}${feature.entryPath}`;
 
   return getFeatureEntryUrl(feature);
 };

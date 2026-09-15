@@ -33,7 +33,7 @@ Belum ada:
 - **Feature remote kedua dan seterusnya** — sekarang baru ada satu (`duidtin_feature_beranda` di route `/`). Payroll, Transfer, Mutasi, Persetujuan masih kosong.
 - i18n (`loadLocalesForModule` di host `qcash-ui` belum ada padanannya di sini).
 - Auth/context provider — `userName` & `onLogout` masih hardcode di `pages/index.tsx`, dan menu di layout belum menyesuaikan peran (maker vs checker).
-- Override port lokal per-module (lapis B `getModuleEntry` di `qcash-ui`) — belum kepakai selama remote-nya masih sedikit.
+- Uji browser untuk `?remote-lokal` dari **host produksi** dan untuk mode `NEXT_PUBLIC_REMOTE_DARI=publish` — lihat [Dev tanpa menyalakan semua server](#dev-tanpa-menyalakan-semua-server).
 
 ## Stack
 
@@ -59,6 +59,7 @@ duidtin-ui/
     utils/
       registry.ts        # getAllFeatures / getGlobalFeatures / getModulesForRoute
       module-entry.ts    # getModuleEntry(name) → URL
+      remote-lokal.ts    # lapis B: override ?remote-lokal
       loader.ts          # dynamicLoadStyles(name)
   components/
     federation/
@@ -67,12 +68,13 @@ duidtin-ui/
     remote/index.tsx     # jembatan remote INFRASTRUKTUR saja (layout).
                          # remote FITUR dideklarasikan langsung di pages/-nya
     ui/RemoteErrorBoundary.tsx   # FASE 4 lapis 3
+    ui/PenandaRemoteLokal.tsx    # penanda saat ada remote lokal
   utils/index.ts         # getBaseFederationUrl() — environment detection
   pages/
     _app.tsx             # FASE 1 dipanggil di sini + provider + getLayout
     index.tsx            # FASE 3 — halaman pertama yang beneran render remote
   styles/globals.css     # tailwind prefix(app)
-  types/global.d.ts      # window.__FEDERATION_LOADED
+  types/global.d.ts      # window.__FEDERATION_LOADED, window.__DUIDTIN_REMOTE_ENTRY__
   module-federation.config.mjs
   next.config.mjs        # rewrites produksi (dari env)
   vercel.json            # cuma ignoreCommand: lewati build Vercel kalau folder ini tidak berubah
@@ -92,6 +94,56 @@ exposes: {},   // ← permanen kosong
 
 **`exposes: {}`** — permanen. Host cuma consumer, nggak pernah jadi remote buat repo lain. `filename` tetap perlu karena plugin butuh nama container-nya sendiri buat share scope, walaupun isinya nggak dipakai siapa-siapa.
 
+## Dev tanpa menyalakan semua server
+
+Jalankan hanya repo yang sedang diubah; sisanya diambil dari Vercel.
+
+| Yang diubah | Server lokal | Buka |
+|---|---|---|
+| beranda | `duidtin-feature-beranda`: `bun run dev` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_feature_beranda@3003` |
+| layout | `duidtin-ui-layout`: `bun run dev` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_ui_layout@3002` |
+| ui system | `duidtin-ui-design-system`: `bun run dev:producer` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_ui_design_system@3001` |
+| host | `duidtin-ui` dalam mode publish | `http://localhost:3000` |
+| host + beranda | keduanya | `http://localhost:3000/?remote-lokal=duidtin_feature_beranda@3003` |
+
+### `?remote-lokal` — remote diambil dari laptop
+
+- Format `nama@port`, dipisah koma untuk lebih dari satu remote. `?remote-lokal=hapus` mengembalikan semuanya ke normal.
+- Param dipakai sekali: isinya disimpan ke `localStorage["duidtin:remote-lokal"]` (**mengganti** daftar sebelumnya), lalu dibuang dari address bar. Berlaku hanya di browser itu.
+- Selama ada override, penanda oranye muncul di pojok kiri bawah dengan tautan untuk kembali ke versi normal.
+- **Pengaman:** tujuan override hanya `http://localhost:<port>` atau `http://127.0.0.1:<port>`, nama harus terdaftar di registry, dan port 1–65535; entri lain dibuang. Kode ini ikut ke produksi, dan batasan inilah yang mencegahnya dipakai untuk memuat script dari server orang lain.
+- Host menaruh URL final tiap remote di `window.__DUIDTIN_REMOTE_ENTRY__`. Beranda — runtime MF 2.x dengan registry sendiri — membacanya untuk design-system, jadi override design-system berlaku juga di dalam beranda. Layout memakai runtime yang sama dengan host, jadi otomatis ikut.
+- Kode: [`services/federation/utils/remote-lokal.ts`](services/federation/utils/remote-lokal.ts), [`getModuleEntry()`](services/federation/utils/module-entry.ts), [`components/ui/PenandaRemoteLokal.tsx`](components/ui/PenandaRemoteLokal.tsx).
+
+Dev server remote harus menerima request script dari domain host produksi:
+
+| Remote | Perilaku dev server | Pengaturan |
+|---|---|---|
+| beranda (Next 16) | request script `/_next/*` lintas situs dijawab 403, kecuali hostname Referer ada di `allowedDevOrigins` | `allowedDevOrigins: ["super-apps-duidtin.vercel.app"]` |
+| layout (Next 14.2) | tanpa `allowedDevOrigins` hanya memberi peringatan; kalau diisi, **semua** script lintas situs ditolak | sengaja tidak diisi |
+| ui system (Rsbuild) | tidak memblokir | — |
+
+Diuji dengan request bertanda lintas situs (`Sec-Fetch-Site: cross-site`) ke dev server: beranda 200 untuk Referer host produksi dan 403 untuk domain lain; layout dan ui system 200. Di browser, `?remote-lokal` diuji pada host dev lokal: param tersimpan, entri tidak valid dibuang, penanda tampil, dan layout + beranda + tombol design-system tetap tampil. Dari host produksi belum diuji, karena host dengan kode ini belum di-deploy.
+
+- Pakai Chrome. Chrome versi baru meminta izin akses jaringan lokal sekali saat halaman Vercel memuat `localhost` — pilih izinkan. Safari bisa memblokir `http://localhost` dari halaman `https`.
+- Setelah menyimpan berkas, reload browser. Hot reload dari halaman Vercel belum diuji.
+
+### `NEXT_PUBLIC_REMOTE_DARI=publish` — host lokal, remote dari Vercel
+
+Buat `.env.local` di `duidtin-ui` (sudah di-gitignore):
+
+```
+NEXT_PUBLIC_REMOTE_DARI=publish
+REMOTE_DESIGN_SYSTEM_URL=https://super-apps-duidtin-ui-system.vercel.app
+REMOTE_LAYOUT_URL=https://super-apps-duidtin-ui-layout.vercel.app
+REMOTE_BERANDA_URL=https://<domain-beranda>.vercel.app
+```
+
+- `getBaseFederationUrl()` memakai origin `http://localhost:3000` walaupun hostname-nya localhost, dan rewrites di `next.config.mjs` — yang juga aktif saat `next dev` — meneruskan `/design-system/static/*`, `/layout/*`, dan `/beranda/*` ke Vercel.
+- Remote produksi tidak bisa dipakai langsung tanpa mode ini: `publicPath`-nya relatif (mis. `/layout/_next/`), jadi chunk-nya dicari di `localhost:3000` dan 404.
+- `NEXT_PUBLIC_*` dibaca saat `next dev` mulai — restart setelah mengubah `.env.local`.
+- Belum diuji di browser.
+
 ## Deploy (Vercel)
 
 Live di `https://super-apps-duidtin.vercel.app` (project Vercel dengan Root Directory `duidtin-ui`). Diverifikasi dari luar: `/`, `remoteEntry.js` dan chunk design-system serta layout 200 lewat domain host. `/beranda/*` baru jalan setelah `REMOTE_BERANDA_URL` diisi dan host di-build ulang.
@@ -107,6 +159,8 @@ Di produksi host menjadi router satu domain. `next.config.mjs` membangun `rewrit
 - Garis miring di akhir URL dibuang, jadi `https://x.vercel.app/` dan `https://x.vercel.app` sama saja.
 - Saat dev lokal env kosong, jadi tidak ada rewrite. Remote tetap diakses lewat port masing-masing.
 - Rewrites dikunci saat build. **Mengganti env berarti redeploy**, dan di dialog Redeploy centang **Use project's Ignore Build Step** harus dihilangkan: kodenya tidak berubah, jadi `ignoreCommand` akan melewati build.
+
+**Cache webpack dimatikan saat build produksi** (`if (!dev) config.cache = false` di `next.config.mjs`). Vercel memulihkan cache build dari deployment sebelumnya, dan bersama `nextjs-mf` itu pernah menggagalkan build host dengan `RealContentHashPlugin: Some kind of unexpected caching problem occurred` — hash chunk di cache tidak lagi cocok dengan hasil build baru. Kalau pesan itu muncul lagi, Redeploy dengan centang **Use existing Build Cache** dihilangkan. Saat dev cache tetap aktif.
 
 **Beranda terpasang di `/`.** `REMOTE_BERANDA_URL` wajib terisi di project Vercel host **sebelum** build yang membawa kode ini. Tanpa env itu tidak ada rewrite `/beranda/*`, jadi `remoteEntry.js` beranda 404, `RetryPlugin` mencoba 3 kali, lalu area konten berubah jadi kotak error dari `fallbackPlugin`.
 
@@ -182,14 +236,16 @@ Hasilnya sekarang — 2 global + 1 feature:
 
 #### 2. `getModuleEntry(name)` → `string`
 
-Ini bukan satu fungsi, tapi **rantai tiga fungsi**. Dipanggil sekali untuk tiap remote:
+Ini bukan satu fungsi, tapi **rantai beberapa fungsi** dalam dua lapis: override lokal (lapis B) diperiksa dulu, baru environment detection (lapis A). Dipanggil sekali untuk tiap remote:
 
 ```
 getModuleEntry("duidtin_ui_layout")                     → string
   ├─▶ getFeatureByName("duidtin_ui_layout")             → FeatureMetadata | undefined
   │     └─▶ getAllFeatures().find(f => f.name === name)
   ├─▶ (guard) kalau undefined → THROW
-  └─▶ getFeatureEntryUrl(feature)                        → string
+  ├─▶ bacaRemoteLokal()[name]                           → string | undefined   ← lapis B
+  │     └─ ada → `${originLokal}${feature.entryPath}`, selesai
+  └─▶ getFeatureEntryUrl(feature)                        → string              ← lapis A
         └─▶ getBaseFederationUrl(feature.devOrigin)      → string
 ```
 
@@ -252,12 +308,13 @@ Perhatikan: dari 4 field yang masuk, **cuma 2 yang dipakai** (`devOrigin` dan `e
 
 ##### 2d. `getBaseFederationUrl(devOrigin: string)` → `string`
 
-Ini satu-satunya fungsi yang menyentuh `window`. Punya **tiga** cabang, bukan dua:
+Fungsi lapis A, yang membaca `window.location`. Punya **empat** cabang:
 
 | Kondisi | Yang dipulangkan | Kapan terjadi | Contoh hasil |
 |---|---|---|---|
 | `!globalThis.window` | `devOrigin` | SSR / prerender Next — tidak ada `window` | `http://localhost:3002` |
 | hostname `localhost` / `127.0.0.1` | `devOrigin` | dev lokal, tiap remote beda port | `http://localhost:3002` |
+| hostname `localhost` / `127.0.0.1` **dan** `NEXT_PUBLIC_REMOTE_DARI=publish` | `window.location.origin` | host lokal memakai remote Vercel lewat rewrites | `http://localhost:3000` |
 | selain itu | `window.location.origin` | production, semua remote satu domain | `https://duidtin.example.com` |
 
 Cabang pertama ada supaya fungsi ini tidak meledak saat Next melakukan prerender di server. Nilainya sendiri tidak terpakai untuk fetch — di server tidak ada remote yang dimuat.
@@ -265,6 +322,15 @@ Cabang pertama ada supaya fungsi ini tidak meledak saat Next melakukan prerender
 **Wajib fungsi, bukan konstanta.** Kalau URL-nya di-hardcode saat build, host akan tetap memanggil URL dev meskipun sedang diakses dari production. Karena dibaca dari `window.location.hostname` **saat itu juga**, satu bundle yang sama benar di semua environment.
 
 Di production `devOrigin` **diabaikan sepenuhnya** — yang membedakan remote satu sama lain tinggal prefix di `entryPath` (`/design-system`, `/layout`).
+
+##### 2e. Lapis B — `bacaRemoteLokal()` → `Record<string, string>`
+
+| | |
+|---|---|
+| **Parameter** | — |
+| **Memulangkan** | `{ nama_remote: "http://localhost:<port>" }` dari `localStorage["duidtin:remote-lokal"]`; `{}` kalau kosong, rusak, atau storage diblokir |
+
+Isinya ditulis `terapkanParamRemoteLokal()` di awal `federationInit()`, dari `?remote-lokal=nama@port`. Nilai yang bukan `http://localhost:*` / `http://127.0.0.1:*` dibuang saat dibaca. Rinciannya di [Dev tanpa menyalakan semua server](#dev-tanpa-menyalakan-semua-server).
 
 ##### Contoh utuh — dua remote, dari nama sampai URL
 
@@ -295,6 +361,7 @@ Perhatikan bentuk `entryPath` keduanya **berbeda** — `/static/` untuk Rslib, `
 | `getFeatureByName` | `name: string` | `FeatureMetadata \| undefined` |
 | `getFeatureEntryUrl` | `feature: FeatureMetadata` | `string` (URL utuh) |
 | `getBaseFederationUrl` | `devOrigin: string` | `string` (origin saja) |
+| `bacaRemoteLokal` | — | `Record<string, string>` |
 | `getModuleEntry` | `name: string` | `string`, atau **throw** |
 
 #### 3. `init({ name, remotes, plugins })`

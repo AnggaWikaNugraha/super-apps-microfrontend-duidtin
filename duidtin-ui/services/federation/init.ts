@@ -4,6 +4,7 @@ import { init } from "@module-federation/runtime";
 import { fallbackPlugin } from "./fallbackPlugin";
 import { dynamicLoadStyles } from "./utils/loader";
 import { getModuleEntry } from "./utils/module-entry";
+import { bacaRemoteLokal, terapkanParamRemoteLokal } from "./utils/remote-lokal";
 import { getAllFeatures, getGlobalFeatures } from "./utils/registry";
 
 import type { FeatureMetadata } from "@/constants/features/types";
@@ -26,10 +27,23 @@ export const HOST_NAME = "duidtin_ui";
 export const federationInit = async (): Promise<void> => {
   if (globalThis.window.__FEDERATION_LOADED) return;
 
+  // ?remote-lokal harus diterapkan SEBELUM URL remote di-resolve
+  terapkanParamRemoteLokal(getAllFeatures().map((feature: FeatureMetadata) => feature.name));
+
   const remotes = getAllFeatures().map((feature: FeatureMetadata) => ({
     name: feature.name,
     entry: getModuleEntry(feature.name),
   }));
+
+  // Remote dengan MF runtime sendiri (beranda, MF 2.x) tidak berbagi registry dengan
+  // host, jadi mereka membaca URL final di sini supaya memakai design-system yang SAMA.
+  globalThis.window.__DUIDTIN_REMOTE_ENTRY__ = Object.fromEntries(remotes.map((remote) => [remote.name, remote.entry]));
+
+  const remoteLokal = bacaRemoteLokal();
+
+  if (Object.keys(remoteLokal).length > 0) {
+    console.warn("[MFE] remote lokal aktif:", remoteLokal);
+  }
 
   init({
     name: HOST_NAME,

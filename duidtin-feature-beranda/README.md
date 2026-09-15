@@ -130,6 +130,7 @@ duidtin-feature-beranda/
   services/
     federation.ts        # ← remote registration, see "Snags" item 4
   constants/federation.ts
+  types/global.d.ts      # window.__DUIDTIN_REMOTE_ENTRY__ (set by the host)
   utils/index.ts         # getBaseFederationUrl()
   pages/
     _app.tsx             # DELIBERATELY empty
@@ -184,6 +185,13 @@ Drop those lines and React is duplicated, producing an immediate `Invalid hook c
 
 **3. Build-time `remotes` is left empty.**
 dhe registers `qui` in its config. Here `remotes` is empty and registration happens only at runtime — the lesson from snag 7 in `duidtin-ui-layout`: if the same name is registered at build time **and** at runtime, the build-time one wins and the runtime one is silently discarded, so the dev URL gets baked all the way into production.
+
+### Loaded from the production host during dev
+
+Beranda can be developed without running the host, layout or design system: run `bun run dev` in this repo, then open `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_feature_beranda@3003`. Details in the host README, section *Dev without running every server*. Two things in this repo make it work:
+
+- **`allowedDevOrigins: ["super-apps-duidtin.vercel.app"]`** in `next.config.ts`. Next 16 answers cross-site script requests to `/_next/*` with a 403 unless the Referer hostname is on this list. Tested: the production host's Referer → 200, another domain → 403. It only has an effect in dev.
+- **`ensureDesignSystemRegistered()` uses the host's `window.__DUIDTIN_REMOTE_ENTRY__`** when present. The MF runtime here (2.x) has its own registry, so without it beranda would register the design system at a URL it computes itself and would ignore the host's `?remote-lokal` override or publish mode. Opened on its own at `:3003`, that variable is empty and the old path is used.
 
 ## A dual role
 

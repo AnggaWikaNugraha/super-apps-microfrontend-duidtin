@@ -41,7 +41,13 @@ const nextConfig = {
   async rewrites() {
     return remoteRewrites();
   },
-  webpack: (config) => {
+  webpack: (config, { dev }) => {
+    // Build produksi tanpa cache webpack. Vercel memulihkan cache dari deployment
+    // sebelumnya, dan bersama nextjs-mf itu bisa menggagalkan build dengan
+    // "RealContentHashPlugin: Some kind of unexpected caching problem occurred".
+    // Saat dev cache tetap aktif supaya kompilasi ulang cepat.
+    if (!dev) config.cache = false;
+
     config.plugins.push(new NextFederationPlugin({ ...federationConfig }));
 
     return config;

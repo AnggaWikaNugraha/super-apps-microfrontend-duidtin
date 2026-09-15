@@ -29,12 +29,16 @@ export const ensureDesignSystemRegistered = (): void => {
 
   isRegistered = true;
 
+  // Kalau dimuat host, pakai URL design-system yang sudah di-resolve host (termasuk
+  // override ?remote-lokal dan mode REMOTE_DARI=publish). Dibuka sendiri → cara lama.
+  const entryDariHost = globalThis.window.__DUIDTIN_REMOTE_ENTRY__?.[DESIGN_SYSTEM_REMOTE];
+
   init({
     name: "duidtin_feature_beranda",
     remotes: [
       {
         name: DESIGN_SYSTEM_REMOTE,
-        entry: `${getBaseFederationUrl()}${DESIGN_SYSTEM_ENTRY_PATH}`,
+        entry: entryDariHost ?? `${getBaseFederationUrl()}${DESIGN_SYSTEM_ENTRY_PATH}`,
       },
     ],
   });

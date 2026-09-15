@@ -28,6 +28,14 @@ const nextConfig: NextConfig = {
    */
   assetPrefix: process.env.MF_PUBLIC_PATH,
 
+  /**
+   * Izinkan host produksi memuat remote ini dari `next dev` lokal
+   * (`?remote-lokal=duidtin_feature_beranda@3003`). Next 16 menjawab 403 untuk
+   * request script /_next/* lintas situs, kecuali hostname Referer-nya ada di sini.
+   * Hanya berpengaruh saat dev.
+   */
+  allowedDevOrigins: ["super-apps-duidtin.vercel.app"],
+
   // runtime MF perlu ikut ke-trace buat `output: "standalone"`
   outputFileTracingIncludes: {
     "/*": [

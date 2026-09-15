@@ -115,6 +115,15 @@ void loadRemote(`${DESIGN_SYSTEM_REMOTE}/globals`);
 
 Dev lokal dia balikin `http://localhost:3001` (design-system beda port), selain itu balikin origin yang lagi dibuka — di production semua remote satu domain, dibedain lewat `basePath` masing-masing (`/layout` buat repo ini, `/design-system` buat design-system).
 
+### C. Tanpa `allowedDevOrigins` — sengaja
+
+Host produksi bisa memuat layout dari dev server lokal lewat `?remote-lokal=duidtin_ui_layout@3002` (README host, bagian *Dev tanpa menyalakan semua server*). Untuk itu `next.config.mjs` **sengaja tidak** mengisi `allowedDevOrigins`:
+
+- Tanpa diisi, Next 14.2 berada di mode **warn**: request script `/_next/*` lintas situs tetap dilayani, hanya muncul peringatan di terminal.
+- Kalau diisi, Next 14.2 pindah ke mode **block**, dan di mode itu request script lintas situs **selalu** dijawab 403 — daftar origin tidak diperiksa untuk request `no-cors`. Berbeda dengan Next 16 di beranda, yang memeriksa Referer.
+
+Diuji dengan request bertanda lintas situs ke dev server layout: 200.
+
 ## Alur Arsitektur
 
 Repo ini punya peran ganda — **remote buat host** (expose `./default`), tapi juga **host mini buat dirinya sendiri** (consume `duidtin_ui_design_system`). Jadi dia punya `_app.tsx` boot sequence sendiri, terpisah dari host (`duidtin-ui`) yang sebenarnya.
@@ -217,6 +226,8 @@ Tiga waktu yang beda: `exposes`/`remotes` beku pas **build**, entry remote didaf
    Fix: `assetPrefix: process.env.MF_PUBLIC_PATH` di `next.config.mjs`, plus `MF_PUBLIC_PATH=http://localhost:3002/layout` di depan script `dev` — bentuknya sama dengan fix design-system. Production nggak kena: di sana semua remote satu domain dan `basePath` sudah cukup.
 
    Mendiagnosisnya lebih susah dari seharusnya: `nextjs-mf` nyuntik plugin internal yang `errorLoadRemote`-nya cuma nge-log `"duidtin_ui_layout/default offline"` dan menelan objek error-nya. `ChunkLoadError` aslinya baru kelihatan setelah `fallbackPlugin` di host diubah supaya ikut nge-log `error`.
+
+9. **Build Vercel gagal karena cache webpack yang dipulihkan.** Host — yang config webpack-nya sama dengan repo ini — gagal di-deploy dengan `RealContentHashPlugin: Some kind of unexpected caching problem occurred`: Vercel memulihkan cache build dari deployment sebelumnya, dan hash chunk di cache itu tidak lagi cocok dengan hasil build baru. Fix: `if (!dev) config.cache = false` di `next.config.mjs`, sama seperti beranda yang sejak awal mematikan cache. Repo ini ikut diubah sebelum sempat kena; saat dev cache tetap aktif.
 
 ## Langkah berikutnya
 

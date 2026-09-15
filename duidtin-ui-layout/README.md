@@ -115,6 +115,15 @@ void loadRemote(`${DESIGN_SYSTEM_REMOTE}/globals`);
 
 Locally it returns `http://localhost:3001` (the design system on a different port); anywhere else it returns the origin currently being viewed — in production every remote shares one domain, separated by their own `basePath` (`/layout` for this repo, `/design-system` for the design system).
 
+### C. No `allowedDevOrigins` — on purpose
+
+The production host can load the layout from a local dev server through `?remote-lokal=duidtin_ui_layout@3002` (host README, section *Dev without running every server*). For that, `next.config.mjs` **deliberately leaves** `allowedDevOrigins` unset:
+
+- Unset, Next 14.2 stays in **warn** mode: cross-site script requests to `/_next/*` are still served, with only a warning in the terminal.
+- Set, Next 14.2 switches to **block** mode, where cross-site script requests are **always** answered with a 403 — the origin list is not checked for `no-cors` requests. Unlike Next 16 in beranda, which checks the Referer.
+
+Tested with a cross-site-flagged request against the layout dev server: 200.
+
 ## Architecture flow
 
 This repo plays a double role — a **remote to the host** (exposing `./default`), but also a **mini host to itself** (consuming `duidtin_ui_design_system`). So it has its own `_app.tsx` boot sequence, separate from the actual host (`duidtin-ui`).
@@ -194,7 +203,7 @@ Three distinct moments: `exposes`/`remotes` freeze at **build**, the remote entr
 
 ## Snags we hit (and why the fixes look like that)
 
-None of the eight below were in the original plan. Items 1-7 surfaced once this repo became the design system's first real consumer; item 8 only surfaced once the `duidtin-ui` host made this repo a *consumed* remote for the first time. Items 3-6 are fixed in the `duidtin-ui-design-system` repo, not here; item 7 is deliberately left as is.
+None of the nine below were in the original plan. Items 1-7 surfaced once this repo became the design system's first real consumer; item 8 only surfaced once the `duidtin-ui` host made this repo a *consumed* remote for the first time. Item 9 surfaced on a Vercel redeploy. Items 3-6 are fixed in the `duidtin-ui-design-system` repo, not here; item 7 is deliberately left as is.
 
 1. **`nextjs-mf` needs a local webpack.** The build died immediately: `process.env.NEXT_PRIVATE_LOCAL_WEBPACK is not set to true`. Fix: `npm install webpack` plus the env var prefixed onto the `dev`/`build` scripts — both, not either.
 
@@ -235,6 +244,8 @@ None of the eight below were in the original plan. Items 1-7 surfaced once this 
    Fix: `assetPrefix: process.env.MF_PUBLIC_PATH` in `next.config.mjs`, with `MF_PUBLIC_PATH=http://localhost:3002/layout` prefixed onto the `dev` script — the same shape as the design system's fix. Production is unaffected, since every remote shares one domain there and `basePath` is enough.
 
    Diagnosing it was harder than it should have been: `nextjs-mf` injects an internal plugin whose `errorLoadRemote` logs only `"duidtin_ui_layout/default offline"` and swallows the error object. The real `ChunkLoadError` only appeared after the host's own `fallbackPlugin` was changed to log `error` too.
+
+9. **A Vercel build failed on a restored webpack cache.** The host — whose webpack config matches this repo's — failed to deploy with `RealContentHashPlugin: Some kind of unexpected caching problem occurred`: Vercel restored the build cache from the previous deployment, and the chunk hashes in that cache no longer matched the new build. Fix: `if (!dev) config.cache = false` in `next.config.mjs`, the same as beranda, which has disabled caching from the start. This repo was changed before it hit the problem; the cache stays on in dev.
 
 ## Next steps
 

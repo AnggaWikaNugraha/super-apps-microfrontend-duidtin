@@ -33,7 +33,7 @@ Not there yet:
 - **A second feature remote and beyond** — there is only one so far (`duidtin_feature_beranda` at route `/`). Payroll, Transfer, Statement and Approvals are still missing.
 - i18n (no equivalent of `qcash-ui`'s `loadLocalesForModule` yet).
 - Auth/context provider — `userName` and `onLogout` are still hardcoded in `pages/index.tsx`, and the layout's menu does not yet adapt to roles (maker vs checker).
-- Per-module local port overrides (`getModuleEntry` layer B in `qcash-ui`) — not worth it while there are still few remotes.
+- A browser test of `?remote-lokal` from the **production host**, and of `NEXT_PUBLIC_REMOTE_DARI=publish` mode — see [Dev without running every server](#dev-without-running-every-server).
 
 ## Stack
 
@@ -59,6 +59,7 @@ duidtin-ui/
     utils/
       registry.ts        # getAllFeatures / getGlobalFeatures / getModulesForRoute
       module-entry.ts    # getModuleEntry(name) → URL
+      remote-lokal.ts    # layer B: the ?remote-lokal override
       loader.ts          # dynamicLoadStyles(name)
   components/
     federation/
@@ -67,12 +68,13 @@ duidtin-ui/
     remote/index.tsx     # bridge for INFRASTRUCTURE remotes only (the layout).
                          # FEATURE remotes are declared in their own pages/ file
     ui/RemoteErrorBoundary.tsx   # PHASE 4, layer 3
+    ui/PenandaRemoteLokal.tsx    # badge shown while a local remote is active
   utils/index.ts         # getBaseFederationUrl() — environment detection
   pages/
     _app.tsx             # PHASE 1 is kicked off here + provider + getLayout
     index.tsx            # PHASE 3 — the first page that actually renders remotes
   styles/globals.css     # tailwind prefix(app)
-  types/global.d.ts      # window.__FEDERATION_LOADED
+  types/global.d.ts      # window.__FEDERATION_LOADED, window.__DUIDTIN_REMOTE_ENTRY__
   module-federation.config.mjs
   next.config.mjs        # production rewrites (from env)
   vercel.json            # ignoreCommand only: skip the Vercel build when this folder is unchanged
@@ -92,6 +94,56 @@ exposes: {},   // ← permanently empty
 
 **`exposes: {}`** — permanently. The host is only ever a consumer, never a remote for another repo. `filename` is still required because the plugin needs a name for its own container to manage the shared scope, even though nobody consumes it.
 
+## Dev without running every server
+
+Run only the repo you are changing; everything else comes from Vercel.
+
+| Changing | Local server | Open |
+|---|---|---|
+| beranda | `duidtin-feature-beranda`: `bun run dev` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_feature_beranda@3003` |
+| layout | `duidtin-ui-layout`: `bun run dev` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_ui_layout@3002` |
+| ui system | `duidtin-ui-design-system`: `bun run dev:producer` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_ui_design_system@3001` |
+| host | `duidtin-ui` in publish mode | `http://localhost:3000` |
+| host + beranda | both | `http://localhost:3000/?remote-lokal=duidtin_feature_beranda@3003` |
+
+### `?remote-lokal` — a remote served from your laptop
+
+- Format `name@port`, comma-separated for several remotes. `?remote-lokal=hapus` returns everything to normal.
+- The param is used once: its contents are saved to `localStorage["duidtin:remote-lokal"]` (**replacing** the previous list), then removed from the address bar. It applies to that browser only.
+- While an override is active, an orange badge sits in the bottom-left corner with a link back to the normal version.
+- **Safeguard:** override targets must be `http://localhost:<port>` or `http://127.0.0.1:<port>`, the name must be in the registry, and the port 1–65535; anything else is dropped. This code ships to production, and that restriction is what stops it from being used to load scripts from someone else's server.
+- The host puts every remote's final URL in `window.__DUIDTIN_REMOTE_ENTRY__`. Beranda — an MF 2.x runtime with its own registry — reads it for the design system, so a design-system override also applies inside beranda. The layout shares the host's runtime, so it follows automatically.
+- Code: [`services/federation/utils/remote-lokal.ts`](services/federation/utils/remote-lokal.ts), [`getModuleEntry()`](services/federation/utils/module-entry.ts), [`components/ui/PenandaRemoteLokal.tsx`](components/ui/PenandaRemoteLokal.tsx).
+
+The remote's dev server has to accept script requests from the production host's domain:
+
+| Remote | Dev server behaviour | Setting |
+|---|---|---|
+| beranda (Next 16) | cross-site script requests to `/_next/*` get a 403 unless the Referer hostname is in `allowedDevOrigins` | `allowedDevOrigins: ["super-apps-duidtin.vercel.app"]` |
+| layout (Next 14.2) | without `allowedDevOrigins` it only warns; once set, **every** cross-site script is rejected | deliberately unset |
+| ui system (Rsbuild) | does not block | — |
+
+Tested with cross-site-flagged requests (`Sec-Fetch-Site: cross-site`) against the dev servers: beranda returns 200 for the production host's Referer and 403 for another domain; the layout and ui system return 200. In a browser, `?remote-lokal` was tested against the local dev host: the param is saved, invalid entries are dropped, the badge shows, and the layout, beranda and design-system button still render. It has not been tested from the production host, because a host with this code is not deployed yet.
+
+- Use Chrome. Recent Chrome versions ask once for local network access when a Vercel page loads `localhost` — allow it. Safari may block `http://localhost` from an `https` page.
+- After saving a file, reload the browser. Hot reload from the Vercel page is untested.
+
+### `NEXT_PUBLIC_REMOTE_DARI=publish` — local host, remotes from Vercel
+
+Create `.env.local` in `duidtin-ui` (already git-ignored):
+
+```
+NEXT_PUBLIC_REMOTE_DARI=publish
+REMOTE_DESIGN_SYSTEM_URL=https://super-apps-duidtin-ui-system.vercel.app
+REMOTE_LAYOUT_URL=https://super-apps-duidtin-ui-layout.vercel.app
+REMOTE_BERANDA_URL=https://<beranda-domain>.vercel.app
+```
+
+- `getBaseFederationUrl()` uses the `http://localhost:3000` origin even though the hostname is localhost, and the rewrites in `next.config.mjs` — also active under `next dev` — forward `/design-system/static/*`, `/layout/*` and `/beranda/*` to Vercel.
+- Production remotes cannot be used directly without this mode: their `publicPath` is relative (e.g. `/layout/_next/`), so their chunks are looked up on `localhost:3000` and 404.
+- `NEXT_PUBLIC_*` is read when `next dev` starts — restart after changing `.env.local`.
+- Not yet tested in a browser.
+
 ## Deploy (Vercel)
 
 Live at `https://super-apps-duidtin.vercel.app` (a Vercel project with Root Directory `duidtin-ui`). Verified from outside: `/`, plus the design system's and layout's `remoteEntry.js` and chunks, return 200 through the host domain. `/beranda/*` works once `REMOTE_BERANDA_URL` is set and the host is rebuilt.
@@ -107,6 +159,8 @@ In production the host acts as a single-domain router. `next.config.mjs` builds 
 - A trailing slash on the URL is stripped, so `https://x.vercel.app/` and `https://x.vercel.app` behave the same.
 - In local dev the variables are empty, so there are no rewrites. Remotes are still reached through their own ports.
 - Rewrites are locked in at build time. **Changing an env var means a redeploy**, and in the Redeploy dialog **Use project's Ignore Build Step** must be unticked: the code has not changed, so `ignoreCommand` would skip the build.
+
+**Webpack caching is off for production builds** (`if (!dev) config.cache = false` in `next.config.mjs`). Vercel restores the build cache from the previous deployment, and together with `nextjs-mf` that once failed the host build with `RealContentHashPlugin: Some kind of unexpected caching problem occurred` — the chunk hashes in the cache no longer matched the new build. If that message appears again, Redeploy with **Use existing Build Cache** unticked. The cache stays on in dev.
 
 **Beranda is attached on `/`.** `REMOTE_BERANDA_URL` must be set in the host's Vercel project **before** the build that ships this code. Without it there is no `/beranda/*` rewrite, so beranda's `remoteEntry.js` returns 404, `RetryPlugin` tries 3 times, and the content area turns into the `fallbackPlugin` error box.
 
@@ -176,14 +230,16 @@ What it returns today — 2 global + 1 feature:
 
 #### 2. `getModuleEntry(name)` → `string`
 
-This is not one function but a **chain of three**. Called once per remote:
+This is not one function but a **chain of functions** in two layers: the local override (layer B) is checked first, then environment detection (layer A). Called once per remote:
 
 ```
 getModuleEntry("duidtin_ui_layout")                     → string
   ├─▶ getFeatureByName("duidtin_ui_layout")             → FeatureMetadata | undefined
   │     └─▶ getAllFeatures().find(f => f.name === name)
   ├─▶ (guard) if undefined → THROW
-  └─▶ getFeatureEntryUrl(feature)                        → string
+  ├─▶ bacaRemoteLokal()[name]                           → string | undefined   ← layer B
+  │     └─ present → `${localOrigin}${feature.entryPath}`, done
+  └─▶ getFeatureEntryUrl(feature)                        → string              ← layer A
         └─▶ getBaseFederationUrl(feature.devOrigin)      → string
 ```
 
@@ -242,12 +298,13 @@ Note that of the 4 fields going in, **only 2 are used** (`devOrigin` and `entryP
 
 ##### 2d. `getBaseFederationUrl(devOrigin: string)` → `string`
 
-The only function here that touches `window`. It has **three** branches, not two:
+The layer-A function, which reads `window.location`. It has **four** branches:
 
 | Condition | What it returns | When it happens | Example result |
 |---|---|---|---|
 | `!globalThis.window` | `devOrigin` | SSR / Next prerender — no `window` | `http://localhost:3002` |
 | hostname is `localhost` / `127.0.0.1` | `devOrigin` | local dev, each remote on its own port | `http://localhost:3002` |
+| hostname is `localhost` / `127.0.0.1` **and** `NEXT_PUBLIC_REMOTE_DARI=publish` | `window.location.origin` | local host using Vercel remotes through the rewrites | `http://localhost:3000` |
 | anything else | `window.location.origin` | production, all remotes on one domain | `https://duidtin.example.com` |
 
 The first branch exists so the function doesn't blow up while Next prerenders on the server. Its value is never actually used for a fetch — no remote is loaded server-side.
@@ -255,6 +312,15 @@ The first branch exists so the function doesn't blow up while Next prerenders on
 **It must be a function, not a constant.** Hard-coding the URL at build time would make the host call the dev URL even when served from production. Because it reads `window.location.hostname` **at that very moment**, one and the same bundle is correct in every environment.
 
 In production `devOrigin` is **ignored entirely** — the only thing distinguishing one remote from another is the prefix in `entryPath` (`/design-system`, `/layout`).
+
+##### 2e. Layer B — `bacaRemoteLokal()` → `Record<string, string>`
+
+| | |
+|---|---|
+| **Parameter** | — |
+| **Returns** | `{ remote_name: "http://localhost:<port>" }` from `localStorage["duidtin:remote-lokal"]`; `{}` when empty, corrupt, or storage is blocked |
+
+Its contents are written by `terapkanParamRemoteLokal()` at the start of `federationInit()`, from `?remote-lokal=name@port`. Values other than `http://localhost:*` / `http://127.0.0.1:*` are dropped on read. Details in [Dev without running every server](#dev-without-running-every-server).
 
 ##### A full worked example — two remotes, from name to URL
 
@@ -285,6 +351,7 @@ Notice the two `entryPath` shapes **differ** — `/static/` for Rslib, `/_next/s
 | `getFeatureByName` | `name: string` | `FeatureMetadata \| undefined` |
 | `getFeatureEntryUrl` | `feature: FeatureMetadata` | `string` (complete URL) |
 | `getBaseFederationUrl` | `devOrigin: string` | `string` (origin only) |
+| `bacaRemoteLokal` | — | `Record<string, string>` |
 | `getModuleEntry` | `name: string` | `string`, or **throws** |
 
 #### 3. `init({ name, remotes, plugins })`

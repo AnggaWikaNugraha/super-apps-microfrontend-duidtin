@@ -1,4 +1,5 @@
 import ModuleFederationProvider from "@/components/federation/provider";
+import PenandaRemoteLokal from "@/components/ui/PenandaRemoteLokal";
 import { federationInit } from "@/services/federation/init";
 
 import "@/styles/globals.css";
@@ -37,7 +38,12 @@ type AppPropsWithLayout = AppProps & {
 const App = ({ Component, pageProps }: AppPropsWithLayout) => {
   const getLayout = Component.getLayout ?? ((page: ReactElement) => page);
 
-  return <ModuleFederationProvider>{getLayout(<Component {...pageProps} />)}</ModuleFederationProvider>;
+  return (
+    <ModuleFederationProvider>
+      {getLayout(<Component {...pageProps} />)}
+      <PenandaRemoteLokal />
+    </ModuleFederationProvider>
+  );
 };
 
 export default App;

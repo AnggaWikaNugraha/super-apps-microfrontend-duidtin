@@ -22,7 +22,18 @@ const nextConfig = {
   //
   // Di production nggak diisi: semua remote satu domain, basePath sudah cukup.
   assetPrefix: process.env.MF_PUBLIC_PATH,
-  webpack: (config) => {
+  // SENGAJA tanpa `allowedDevOrigins`. Di Next 14.2 mengisinya mengubah mode dari
+  // "warn" ke "block", dan di mode block request script /_next/* lintas situs
+  // SELALU dijawab 403 tanpa melihat daftar origin. Akibatnya host produksi tidak
+  // bisa memuat layout dari `next dev` lokal lewat ?remote-lokal. Tanpa diisi,
+  // Next hanya mencetak peringatan dan request tetap dilayani.
+  webpack: (config, { dev }) => {
+    // Build produksi tanpa cache webpack. Vercel memulihkan cache dari deployment
+    // sebelumnya, dan bersama nextjs-mf itu bisa menggagalkan build dengan
+    // "RealContentHashPlugin: Some kind of unexpected caching problem occurred".
+    // Saat dev cache tetap aktif supaya kompilasi ulang cepat.
+    if (!dev) config.cache = false;
+
     // supaya `exposes["./globals"]` (file CSS) bisa di-loadRemote konsumen —
     // CSS-nya di-inject lewat style-loader pas modul-nya diambil, bukan lewat
     // pipeline CSS bawaan Next yang cuma jalan buat import lokal

@@ -130,6 +130,7 @@ duidtin-feature-beranda/
   services/
     federation.ts        # ← registrasi remote, lihat "Ganjalan" poin 4
   constants/federation.ts
+  types/global.d.ts      # window.__DUIDTIN_REMOTE_ENTRY__ (diisi host)
   utils/index.ts         # getBaseFederationUrl()
   pages/
     _app.tsx             # SENGAJA kosong
@@ -184,6 +185,13 @@ Kalau baris ini hilang, React kedobelan dan halaman langsung `Invalid hook call`
 
 **3. `remotes` build-time dikosongkan.**
 dhe mendaftarkan `qui` di config. Di sini `remotes` kosong dan pendaftarannya cuma runtime — pelajaran dari ganjalan poin 7 di `duidtin-ui-layout`: kalau nama yang sama didaftarkan build-time **dan** runtime, yang build-time menang dan yang runtime dibuang diam-diam, sehingga URL dev ikut ke-bake sampai production.
+
+### Dimuat dari host produksi saat dev
+
+Beranda bisa dikembangkan tanpa menjalankan host, layout, dan design-system: jalankan `bun run dev` di repo ini, lalu buka `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_feature_beranda@3003`. Rinciannya di README host, bagian *Dev tanpa menyalakan semua server*. Dua hal di repo ini yang membuatnya jalan:
+
+- **`allowedDevOrigins: ["super-apps-duidtin.vercel.app"]`** di `next.config.ts`. Next 16 menjawab 403 untuk request script `/_next/*` lintas situs, kecuali hostname Referer-nya ada di daftar ini. Diuji: Referer host produksi → 200, domain lain → 403. Hanya berpengaruh saat dev.
+- **`ensureDesignSystemRegistered()` memakai `window.__DUIDTIN_REMOTE_ENTRY__`** dari host kalau ada. Runtime MF di sini (2.x) punya registry sendiri, jadi tanpa itu beranda mendaftarkan design-system ke URL hasil hitungannya sendiri dan tidak ikut override `?remote-lokal` atau mode publish di host. Dibuka sendiri di `:3003`, variabel itu kosong dan cara lama yang dipakai.
 
 ## Peran ganda
 
