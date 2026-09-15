@@ -20,16 +20,17 @@ If a remote isn't running the page **still renders** — the failed part is repl
 
 Verified working in a real browser (not just a successful build):
 
-- Boot registers every remote (2 global + 1 feature); the global CSS is fetched before the first render.
+- Boot registers every remote (2 global; no feature remote right now, since beranda is detached); the global CSS is fetched before the first render.
 - `loadRemote("duidtin_ui_layout/default")` wraps the page — header and footer render with their styles intact.
-- **PHASE 2 now genuinely runs**, ever since `duidtin_feature_beranda` was registered on route `/`. Before that, `featureRegistry` was empty and the loop did zero iterations.
+- **PHASE 2 has been proven to run** while `duidtin_feature_beranda` was registered on route `/`. Beranda is detached for now, so `featureRegistry` is empty again and the loop does zero iterations until beranda is re-attached.
 - **React stays a single instance across 4 repos AND across MF versions.** Concrete evidence: the button loaded through the layout (MF 0.24.1) and the button loaded through beranda (MF **2.x**) share the same React Aria ID prefix (`react-aria4676304478-:r2:` vs `:r6:`) — had React been duplicated, the prefixes would differ.
 - `fallbackPlugin` is proven to fire: while the layout was still failing to load, the page did not go blank; only that part was swapped for an error box.
-- The host renders **no UI component of its own at all** — the shell is genuinely thin. Everything on `/` comes from a remote.
+- The host renders **no UI component of its own** — the shell is genuinely thin. `/` normally comes from the beranda remote, but while beranda is not deployed it is filled by `components/ui/BerandaSementara.tsx` (see [Deploy](#deploy-vercel)).
+- **Production rewrites verified locally**: built with the design system and layout that are live on Vercel, `next start`, opened through the LAN IP. Every request goes through one origin, `remoteEntry.js` is requested with `?t=`, there are 0 requests to localhost and 0 to beranda, and the layout, the design-system button and the placeholder page all render. (Verified while beranda was still gated behind a flag; the flag was later removed and beranda detached entirely.)
 
 Not there yet:
 
-- **A second feature remote and beyond** — there is only one so far (`duidtin_feature_beranda` at route `/`). Payroll, Transfer, Statement and Approvals are still missing.
+- **A second feature remote and beyond** — only one exists so far (`duidtin_feature_beranda`, route `/`), and it is detached from the host until it is deployed. Payroll, Transfer, Statement and Approvals are still missing.
 - i18n (no equivalent of `qcash-ui`'s `loadLocalesForModule` yet).
 - Auth/context provider — `userName` and `onLogout` are still hardcoded in `pages/index.tsx`, and the layout's menu does not yet adapt to roles (maker vs checker).
 - Per-module local port overrides (`getModuleEntry` layer B in `qcash-ui`) — not worth it while there are still few remotes.
@@ -66,6 +67,7 @@ duidtin-ui/
     remote/index.tsx     # bridge for INFRASTRUCTURE remotes only (the layout).
                          # FEATURE remotes are declared in their own pages/ file
     ui/RemoteErrorBoundary.tsx   # PHASE 4, layer 3
+    ui/BerandaSementara.tsx      # content of `/` while beranda is detached
   utils/index.ts         # getBaseFederationUrl() — environment detection
   pages/
     _app.tsx             # PHASE 1 is kicked off here + provider + getLayout
@@ -73,7 +75,7 @@ duidtin-ui/
   styles/globals.css     # tailwind prefix(app)
   types/global.d.ts      # window.__FEDERATION_LOADED
   module-federation.config.mjs
-  next.config.mjs
+  next.config.mjs        # production rewrites (from env)
   vercel.json            # ignoreCommand only: skip the Vercel build when this folder is unchanged
 ```
 
@@ -90,6 +92,31 @@ exposes: {},   // ← permanently empty
 **`remotes: {}`** — this is the deepest difference from `duidtin-ui-layout`, where hardcoding `remotes` is fine. If the host's remote list were static here, adding a single new remote would force a host rebuild and redeploy. Leaving it empty means the list is resolved later by ordinary JS (`federationInit()`), so adding a feature is just one more entry in `constants/features/registry.ts`.
 
 **`exposes: {}`** — permanently. The host is only ever a consumer, never a remote for another repo. `filename` is still required because the plugin needs a name for its own container to manage the shared scope, even though nobody consumes it.
+
+## Deploy (Vercel)
+
+In production the host acts as a single-domain router. `next.config.mjs` builds `rewrites()` from env, and each rule is added only when its variable is set:
+
+| Env | Rewrite |
+|---|---|
+| `REMOTE_DESIGN_SYSTEM_URL` | `/design-system/static/:path*` → `${url}/:path*` (prefix stripped, since the design system's files sit at the root of its domain) |
+| `REMOTE_LAYOUT_URL` | `/layout/:path*` → `${url}/layout/:path*` |
+| `REMOTE_BERANDA_URL` | `/beranda/:path*` → `${url}/beranda/:path*` |
+
+- A trailing slash on the URL is stripped, so `https://x.vercel.app/` and `https://x.vercel.app` behave the same.
+- In local dev the variables are empty, so there are no rewrites. Remotes are still reached through their own ports.
+- Rewrites are locked in at build time. **Changing an env var means a redeploy**, and in the Redeploy dialog **Use project's Ignore Build Step** must be unticked: the code has not changed, so `ignoreCommand` would skip the build.
+
+**Beranda is detached from the host for now.** Its remote is not deployed (still static, no API or auth yet), so:
+
+- `featureRegistry` in [constants/features/registry.ts](constants/features/registry.ts) is empty. Beranda is neither registered with the MF runtime nor preloaded in PHASE 2, so there are no 404 fetches, retries, or console errors.
+- [pages/index.tsx](pages/index.tsx) renders `BerandaSementara` (static markup owned by the host), still wrapped in the remote layout. `loadRemote("duidtin_feature_beranda/base")` is never called.
+- Local dev is affected too: beranda does not show in the host even when `:3003` is running.
+
+To re-attach beranda:
+1. Restore the `duidtin_feature_beranda` entry in `featureRegistry` (the example is in that file's comment).
+2. In `pages/index.tsx`, replace `<BerandaSementara />` with `dynamic(() => loadRemote("duidtin_feature_beranda/base"), { ssr: false })`.
+3. Set `REMOTE_BERANDA_URL` in the host's Vercel project, commit, and push.
 
 ## Architecture flow
 
@@ -836,6 +863,8 @@ That first row is the whole point: on `/` this phase **did not run at all**, yet
 > This phase **now genuinely runs**, ever since `duidtin_feature_beranda` was registered on route `/`. Open `localhost:3000` with the console open, filter for `[MFE]`, and the log `FASE 2 warm-up "duidtin_feature_beranda" → ok` appears. Before the first feature remote existed, `getModulesForRoute()` always returned `[]` and this whole phase was a no-op.
 
 ### PHASE 3 — The actual render (`pages/index.tsx`)
+
+> The walkthrough below describes the host with beranda attached. Beranda is detached for now: `HomePage` renders `BerandaSementara`, and the `loadRemote("duidtin_feature_beranda/base")` step never happens. The layout is still loaded through `getLayout`.
 
 ```
 Browser opens "/"

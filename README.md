@@ -101,7 +101,7 @@ If a remote isn't running the page still renders — the failed part is swapped 
 
 ## Deploy
 
-> **Status: partly deployed.** The design system (remote + Storybook) is live at `https://super-apps-duidtin-ui-system.vercel.app` (Storybook at `/storybook/`). The layout, beranda and host are not yet. The rest of this section is a decided plan. Items marked ☐ in the [checklist](#checklist-before-the-first-deploy) are not yet done in code.
+> **Status: partly deployed.** The design system (remote + Storybook) is live at `https://super-apps-duidtin-ui-system.vercel.app` (Storybook at `/storybook/`). The layout is live at `https://super-apps-duidtin-ui-layout.vercel.app/layout` (`remoteEntry.js` under `/layout/_next/static/chunks/`). The host and beranda are not deployed yet; the host rewrites are now in code. The rest of this section is a decided plan. Items marked ☐ in the [checklist](#checklist-before-the-first-deploy) are not yet done in code.
 
 ### Topology: one domain, told apart by path
 
@@ -165,7 +165,7 @@ git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
 - It takes effect from the commit that adds it, so that push itself still builds every connected project.
 - A manual redeploy of the same commit is skipped too. Untick **Use project's Ignore Build Step** in the Redeploy dialog.
 
-**Order of creating projects:** design-system → layout & beranda → host. The host comes last because its rewrites need the other three URLs.
+**Order of creating projects:** design-system → layout → host → beranda. The original plan put the host last, but beranda is still static (no API or auth yet), so the host goes first. Meanwhile beranda is detached from the host: `/` shows a static page owned by the host. Re-attaching it takes a small host code change plus `REMOTE_BERANDA_URL`, detailed in the host README's Deploy section.
 
 ### Host environment variables
 
@@ -183,8 +183,12 @@ In local dev these variables are empty, so the rewrites stay off and each remote
 
 ### Checklist before the first deploy
 
-- ☐ **Env-var-driven host rewrites**, active only when their variable is set.
-- ☐ **`Cache-Control: no-cache` for `remoteEntry.js` and `mf-manifest.json`** in all three remotes. Their names stay the same across deploys; if cached, the browser uses a stale table of contents pointing at deleted chunks, producing `ChunkLoadError`.
+- ☑ **Env-var-driven host rewrites**, active only when their variable is set. In `duidtin-ui/next.config.mjs`. Verified locally against the design system and layout that are live on Vercel: every request goes through one origin. Changing an env var means redeploying the host with **Use project's Ignore Build Step** unticked.
+- ☑ **`remoteEntry.js` caching — no extra header needed after all.** The concern: `remoteEntry.js` keeps its name across deploys, so if cached, the browser uses a stale table of contents pointing at deleted chunks (`ChunkLoadError`). What the deployed remotes actually send:
+  - Design system: `max-age=0, must-revalidate` (Vercel's default for static files).
+  - Layout: `public,max-age=31536000,immutable`, because Next applies it to everything under `_next/static`, `remoteEntry.js` and `mf-manifest.json` included.
+  - Still safe, because the host never requests the bare URL. The `nextjs-mf` runtime plugin (`runtimePlugin.cjs`, `beforeRequest` hook) always appends `?t=Date.now()` to a remote's entry, in dev and production alike, so every page load uses a fresh cache key. The host never requests `mf-manifest.json` at all.
+  - Still to confirm once the host is live: in the Network tab, the layout's and beranda's `remoteEntry.js` are requested with `?t=`.
 - ☐ **`?gagal` and `?lambat` behind a `NEXT_PUBLIC_API_SIMULASI` flag.** Both are currently live in production too — anyone can take down beranda blocks through the URL.
 - ☐ **Verify beranda's build before the host's.** `next-rspack` is still experimental, and Next 16 + Rspack on Vercel has no precedent — qcash deploys dhe through Docker.
 - ☐ **Never set `MF_PUBLIC_PATH` in production env.** The `build` scripts deliberately leave it empty so asset paths stay relative to the single domain.

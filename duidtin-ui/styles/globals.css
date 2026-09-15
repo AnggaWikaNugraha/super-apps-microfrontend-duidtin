@@ -18,6 +18,10 @@
   @apply app:grid app:gap-4 app:sm:grid-cols-2;
 }
 
+.app-page__card {
+  @apply app:rounded-2xl app:border app:border-gray-200 app:bg-white app:p-5;
+}
+
 .app-page__stat-label {
   @apply app:text-xs app:text-gray-500;
 }

@@ -51,8 +51,8 @@ const isRouteMatch = (pattern: string, route: string, matchType: RouteMatchType)
  * SENGAJA cuma `featureRegistry`, TANPA `globalFeatures` — yang global sudah
  * dimuat unconditional di FASE 1, nggak perlu di-route-match lagi.
  *
- * KONDISI SEKARANG: `featureRegistry` masih kosong, jadi fungsi ini SELALU
- * balik [] buat route apapun.
+ * KONDISI SEKARANG: `featureRegistry` kosong (beranda sedang dilepas), jadi
+ * fungsi ini SELALU balik [] buat route apapun.
  */
 export const getModulesForRoute = (route: string): string[] =>
   // ── Langkah 1: objek → array ────────────────────────────────────────────

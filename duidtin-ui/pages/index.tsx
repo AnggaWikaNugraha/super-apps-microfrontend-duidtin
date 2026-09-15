@@ -1,31 +1,20 @@
-import { loadRemote } from "@module-federation/runtime";
-import dynamic from "next/dynamic";
-
 import { DefaultLayout } from "@/components/remote";
+import BerandaSementara from "@/components/ui/BerandaSementara";
 
-import type { ComponentType, ReactElement } from "react";
+import type { ReactElement } from "react";
 
 /**
- * FASE 3 — route "/" dilayani feature remote, bukan konten host.
+ * FASE 3 — route "/".
  *
- * `loadRemote` fitur ditulis LANGSUNG di sini, bukan lewat `components/remote/`.
- * Berkas itu khusus remote infrastruktur (layout, design-system) yang dipakai
- * lintas halaman; remote fitur cuma dipakai satu halaman, jadi lebih jelas kalau
- * dideklarasikan di tempat dia dipakai.
+ * Seharusnya dilayani feature remote `duidtin_feature_beranda`, tapi remote itu
+ * belum di-deploy, jadi sementara diisi halaman statis milik host. Layout tetap
+ * remote (`duidtin_ui_layout`) lewat getLayout.
  *
- * Dua stack berbeda ketemu di halaman ini:
- *   <DefaultLayout>      → duidtin_ui_layout       (Next 14 + webpack + MF 0.24.1)
- *   <BerandaContainer>   → duidtin_feature_beranda (Next 16 + Rspack  + MF 2.x)
+ * Memasang beranda lagi: kembalikan entry-nya di constants/features/registry.ts,
+ * lalu ganti <BerandaSementara /> dengan
+ *   dynamic(() => loadRemote("duidtin_feature_beranda/base"), { ssr: false })
  */
-const BerandaContainer = dynamic(
-  () =>
-    loadRemote("duidtin_feature_beranda/base") as Promise<{
-      default: ComponentType<Record<string, never>>;
-    }>,
-  { ssr: false },
-);
-
-const HomePage = () => <BerandaContainer />;
+const HomePage = () => <BerandaSementara />;
 
 HomePage.getLayout = (page: ReactElement) => (
   <DefaultLayout activePath="/" onLogout={() => window.alert("logout ditekan")} userName="Angga">

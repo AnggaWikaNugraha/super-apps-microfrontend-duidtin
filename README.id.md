@@ -101,7 +101,7 @@ Kalau remote-nya belum nyala, halaman tetap tampil — bagian yang gagal diganti
 
 ## Deploy
 
-> **Status: sebagian ter-deploy.** Design-system (remote + Storybook) sudah live di `https://super-apps-duidtin-ui-system.vercel.app` (Storybook di `/storybook/`). Layout, beranda, dan host belum. Sisa bagian ini rencana yang sudah diputuskan. Item bertanda ☐ di [checklist](#checklist-sebelum-deploy-pertama) belum dikerjakan di kode.
+> **Status: sebagian ter-deploy.** Design-system (remote + Storybook) sudah live di `https://super-apps-duidtin-ui-system.vercel.app` (Storybook di `/storybook/`). Layout sudah live di `https://super-apps-duidtin-ui-layout.vercel.app/layout` (`remoteEntry.js` di `/layout/_next/static/chunks/`). Host dan beranda belum di-deploy; rewrites host sudah ada di kode. Sisa bagian ini rencana yang sudah diputuskan. Item bertanda ☐ di [checklist](#checklist-sebelum-deploy-pertama) belum dikerjakan di kode.
 
 ### Topologi: satu domain, dibedakan path
 
@@ -161,7 +161,7 @@ git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
 - Berlaku mulai commit yang menambahkannya, jadi push itu sendiri masih membangun semua project yang terhubung.
 - Redeploy manual untuk commit yang sama juga ikut dilewati. Hilangkan centang **Use project's Ignore Build Step** di dialog Redeploy.
 
-**Urutan membuat project:** design-system → layout & beranda → host. Host dibuat terakhir karena rewrites-nya butuh URL ketiga remote.
+**Urutan membuat project:** design-system → layout → host → beranda. Rencana awalnya host paling akhir, tapi beranda masih statis (belum ada API dan auth), jadi host didahulukan. Sementara itu beranda dilepas dari host: `/` menampilkan halaman statis milik host. Memasangnya lagi butuh perubahan kode kecil di host plus `REMOTE_BERANDA_URL`, detailnya di README host bagian Deploy.
 
 ### Env var host
 
@@ -179,8 +179,12 @@ Saat dev lokal env ini kosong, jadi rewrites tidak aktif dan remote tetap diakse
 
 ### Checklist sebelum deploy pertama
 
-- ☐ **Rewrites host berbasis env var**, hanya aktif kalau env-nya terisi.
-- ☐ **`Cache-Control: no-cache` untuk `remoteEntry.js` dan `mf-manifest.json`** di ketiga remote. Namanya tetap tiap deploy; kalau di-cache, browser memakai daftar isi lama yang menunjuk chunk yang sudah dihapus, lalu muncul `ChunkLoadError`.
+- ☑ **Rewrites host berbasis env var**, hanya aktif kalau env-nya terisi. Ada di `duidtin-ui/next.config.mjs`. Diverifikasi lokal dengan design-system dan layout yang live di Vercel: semua request lewat satu origin. Mengganti env berarti redeploy host dengan centang **Use project's Ignore Build Step** dihilangkan.
+- ☑ **Cache `remoteEntry.js` — ternyata tidak perlu header tambahan.** Kekhawatirannya: nama `remoteEntry.js` tetap tiap deploy, jadi kalau di-cache browser memakai daftar isi lama yang menunjuk chunk yang sudah dihapus (`ChunkLoadError`). Hasil cek setelah deploy:
+  - Design-system: `max-age=0, must-revalidate` (bawaan Vercel untuk file statis).
+  - Layout: `public,max-age=31536000,immutable`, karena Next memberi header ini ke semua `_next/static`, termasuk `remoteEntry.js` dan `mf-manifest.json`.
+  - Tetap aman, karena host tidak pernah meminta URL polosnya. Plugin runtime `nextjs-mf` (`runtimePlugin.cjs`, hook `beforeRequest`) selalu menempelkan `?t=Date.now()` ke entry remote, di dev maupun produksi, jadi tiap muat halaman memakai URL cache baru. `mf-manifest.json` tidak diminta host sama sekali.
+  - Yang masih perlu dipastikan saat host live: di tab Network, `remoteEntry.js` layout dan beranda diminta dengan `?t=`.
 - ☐ **`?gagal` dan `?lambat` di balik flag `NEXT_PUBLIC_API_SIMULASI`.** Sekarang keduanya aktif juga di produksi — siapa pun bisa mematikan blok beranda lewat URL.
 - ☐ **Verifikasi build beranda sebelum host.** `next-rspack` masih eksperimental, dan kombinasi Next 16 + Rspack di Vercel belum punya preseden — qcash men-deploy dhe lewat Docker.
 - ☐ **Jangan isi `MF_PUBLIC_PATH` di env produksi.** Script `build` sengaja tidak mengisinya supaya path aset relatif terhadap satu domain.

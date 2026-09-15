@@ -20,16 +20,17 @@ Kalau remote-nya belum nyala, halaman **tetap tampil** — bagian yang gagal dig
 
 Sudah diverifikasi jalan di browser (bukan cuma build sukses):
 
-- Boot mendaftarkan semua remote (2 global + 1 feature), CSS yang global ke-fetch sebelum render pertama.
+- Boot mendaftarkan semua remote (2 global; feature remote sedang kosong karena beranda dilepas), CSS yang global ke-fetch sebelum render pertama.
 - `loadRemote("duidtin_ui_layout/default")` membungkus halaman — header & footer kerender lengkap dengan style-nya.
-- **FASE 2 sudah benar-benar jalan** sejak `duidtin_feature_beranda` terdaftar di route `/`. Sebelum itu `featureRegistry` kosong dan loop-nya nol iterasi.
+- **FASE 2 sudah terbukti jalan** selama `duidtin_feature_beranda` terdaftar di route `/`. Sekarang beranda dilepas sementara, jadi `featureRegistry` kosong lagi dan loop-nya nol iterasi sampai beranda dipasang kembali.
 - **React tetap satu instance lintas 4 repo DAN lintas versi MF.** Buktinya konkret: tombol yang dimuat lewat layout (MF 0.24.1) dan tombol yang dimuat lewat beranda (MF **2.x**) punya prefix ID React Aria yang sama (`react-aria4676304478-:r2:` vs `:r6:`) — kalau React-nya kedobelan, prefiksnya bakal beda.
 - `fallbackPlugin` terbukti kepakai: waktu layout masih gagal dimuat, halaman nggak blank, cuma bagian itu yang diganti kotak error.
-- Host **tidak merender komponen UI sendiri sama sekali** — shell-nya benar-benar tipis. Seluruh isi `/` datang dari remote.
+- Host **tidak merender komponen UI sendiri** — shell-nya benar-benar tipis. Isi `/` normalnya datang dari remote beranda, tapi selama beranda belum di-deploy `/` diisi `components/ui/BerandaSementara.tsx` (lihat [Deploy](#deploy-vercel)).
+- **Rewrites produksi diverifikasi lokal**: build dengan env design-system + layout yang live di Vercel, `next start`, dibuka lewat IP jaringan. Semua request lewat satu origin, `remoteEntry.js` diminta dengan `?t=`, 0 request ke localhost dan 0 ke beranda, layout + tombol design-system + halaman sementara tampil. (Diverifikasi saat beranda masih dipasang lewat flag; flag itu kemudian dihapus dan beranda dilepas sepenuhnya.)
 
 Belum ada:
 
-- **Feature remote kedua dan seterusnya** — sekarang baru ada satu (`duidtin_feature_beranda` di route `/`). Payroll, Transfer, Mutasi, Persetujuan masih kosong.
+- **Feature remote kedua dan seterusnya** — baru ada satu yang dibuat (`duidtin_feature_beranda`, route `/`), dan itu pun sedang dilepas dari host sampai di-deploy. Payroll, Transfer, Mutasi, Persetujuan masih kosong.
 - i18n (`loadLocalesForModule` di host `qcash-ui` belum ada padanannya di sini).
 - Auth/context provider — `userName` & `onLogout` masih hardcode di `pages/index.tsx`, dan menu di layout belum menyesuaikan peran (maker vs checker).
 - Override port lokal per-module (lapis B `getModuleEntry` di `qcash-ui`) — belum kepakai selama remote-nya masih sedikit.
@@ -66,6 +67,7 @@ duidtin-ui/
     remote/index.tsx     # jembatan remote INFRASTRUKTUR saja (layout).
                          # remote FITUR dideklarasikan langsung di pages/-nya
     ui/RemoteErrorBoundary.tsx   # FASE 4 lapis 3
+    ui/BerandaSementara.tsx      # isi `/` selama beranda dilepas
   utils/index.ts         # getBaseFederationUrl() — environment detection
   pages/
     _app.tsx             # FASE 1 dipanggil di sini + provider + getLayout
@@ -73,7 +75,7 @@ duidtin-ui/
   styles/globals.css     # tailwind prefix(app)
   types/global.d.ts      # window.__FEDERATION_LOADED
   module-federation.config.mjs
-  next.config.mjs
+  next.config.mjs        # rewrites produksi (dari env)
   vercel.json            # cuma ignoreCommand: lewati build Vercel kalau folder ini tidak berubah
 ```
 
@@ -90,6 +92,31 @@ exposes: {},   // ← permanen kosong
 **`remotes: {}`** — ini beda paling mendasar dari `duidtin-ui-layout`, yang `remotes`-nya boleh hardcode. Kalau daftar remote host ditulis statis di sini, tiap nambah satu remote baru host wajib rebuild + redeploy. Dengan dikosongkan, daftarnya di-resolve belakangan lewat kode JS biasa (`federationInit()`), jadi nambah fitur cukup nambah satu entry di `constants/features/registry.ts`.
 
 **`exposes: {}`** — permanen. Host cuma consumer, nggak pernah jadi remote buat repo lain. `filename` tetap perlu karena plugin butuh nama container-nya sendiri buat share scope, walaupun isinya nggak dipakai siapa-siapa.
+
+## Deploy (Vercel)
+
+Di produksi host menjadi router satu domain. `next.config.mjs` membangun `rewrites()` dari env, dan tiap aturan hanya dipasang kalau env-nya terisi:
+
+| Env | Rewrite |
+|---|---|
+| `REMOTE_DESIGN_SYSTEM_URL` | `/design-system/static/:path*` → `${url}/:path*` (prefiks dibuang, karena berkas design-system ada di root domainnya) |
+| `REMOTE_LAYOUT_URL` | `/layout/:path*` → `${url}/layout/:path*` |
+| `REMOTE_BERANDA_URL` | `/beranda/:path*` → `${url}/beranda/:path*` |
+
+- Garis miring di akhir URL dibuang, jadi `https://x.vercel.app/` dan `https://x.vercel.app` sama saja.
+- Saat dev lokal env kosong, jadi tidak ada rewrite. Remote tetap diakses lewat port masing-masing.
+- Rewrites dikunci saat build. **Mengganti env berarti redeploy**, dan di dialog Redeploy centang **Use project's Ignore Build Step** harus dihilangkan: kodenya tidak berubah, jadi `ignoreCommand` akan melewati build.
+
+**Beranda sedang dilepas dari host.** Remote-nya belum di-deploy (masih statis, belum ada API dan auth), jadi:
+
+- `featureRegistry` di [constants/features/registry.ts](constants/features/registry.ts) kosong. Beranda tidak didaftarkan ke MF runtime dan tidak di-preload di FASE 2, jadi tidak ada fetch 404, retry, atau error di console.
+- [pages/index.tsx](pages/index.tsx) merender `BerandaSementara` (markup statis milik host), tetap dibungkus layout remote. `loadRemote("duidtin_feature_beranda/base")` tidak dipanggil.
+- Dev lokal ikut terdampak: beranda tidak tampil di host walaupun `:3003` jalan.
+
+Memasang beranda lagi:
+1. Kembalikan entry `duidtin_feature_beranda` di `featureRegistry` (contohnya ada di komentar berkas itu).
+2. Di `pages/index.tsx`, ganti `<BerandaSementara />` dengan `dynamic(() => loadRemote("duidtin_feature_beranda/base"), { ssr: false })`.
+3. Isi `REMOTE_BERANDA_URL` di project Vercel host, commit, lalu push.
 
 ## Alur Arsitektur
 
@@ -846,6 +873,8 @@ Baris pertama itu intinya: di `/` fase ini **sama sekali tidak jalan**, tapi lay
 > Fase ini **sudah benar-benar jalan** sejak `duidtin_feature_beranda` terdaftar di route `/`. Buka `localhost:3000` dengan console terbuka, filter `[MFE]`, dan log `FASE 2 warm-up "duidtin_feature_beranda" → ok` akan muncul. Sebelum ada feature remote, `getModulesForRoute()` selalu memulangkan `[]` dan seluruh fase ini no-op.
 
 ### FASE 3 — Render sebenarnya (`pages/index.tsx`)
+
+> Uraian di bawah menggambarkan saat beranda terpasang. Sekarang beranda sedang dilepas: `HomePage` merender `BerandaSementara`, dan langkah `loadRemote("duidtin_feature_beranda/base")` tidak terjadi. Layout tetap dimuat lewat `getLayout`.
 
 ```
 Browser buka "/"
