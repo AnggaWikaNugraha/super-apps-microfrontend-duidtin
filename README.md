@@ -101,15 +101,15 @@ If a remote isn't running the page still renders — the failed part is swapped 
 
 ## Deploy
 
-> **Status: partly deployed.** The design system (remote + Storybook) is live at `https://super-apps-duidtin-ui-system.vercel.app` (Storybook at `/storybook/`). The layout is live at `https://super-apps-duidtin-ui-layout.vercel.app/layout` (`remoteEntry.js` under `/layout/_next/static/chunks/`). The host and beranda are not deployed yet; the host rewrites are now in code. The rest of this section is a decided plan. Items marked ☐ in the [checklist](#checklist-before-the-first-deploy) are not yet done in code.
+> **Status: the host, design system and layout are deployed. Beranda is not yet.** The host is live at `https://super-apps-duidtin.vercel.app`, joining the remotes through rewrites. The design system (remote + Storybook) is live at `https://super-apps-duidtin-ui-system.vercel.app` (Storybook at `/storybook/`). The layout is live at `https://super-apps-duidtin-ui-layout.vercel.app/layout` (`remoteEntry.js` under `/layout/_next/static/chunks/`). Beranda is not deployed yet and is detached from the host, so `/` shows a placeholder page. The rest of this section is a decided plan. Items marked ☐ in the [checklist](#checklist-before-the-first-deploy) are not yet done in code.
 
 ### Topology: one domain, told apart by path
 
 ```
-https://duidtin-ui.vercel.app/                                  → host project
-https://duidtin-ui.vercel.app/layout/_next/static/…             → layout project
-https://duidtin-ui.vercel.app/beranda/_next/static/…            → beranda project
-https://duidtin-ui.vercel.app/design-system/static/…            → design-system project
+https://super-apps-duidtin.vercel.app/                                  → host project
+https://super-apps-duidtin.vercel.app/layout/_next/static/…             → layout project
+https://super-apps-duidtin.vercel.app/beranda/_next/static/…            → beranda project
+https://super-apps-duidtin.vercel.app/design-system/static/…            → design-system project
 ```
 
 This topology is **already locked in by the code**, not a free choice. In all three Next repos, `getBaseFederationUrl()` returns `window.location.origin` whenever it is not on localhost, so in production the host looks for every remote on its own domain. Publish each remote to its own domain and the host breaks immediately.

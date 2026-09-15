@@ -95,6 +95,8 @@ exposes: {},   // ← permanen kosong
 
 ## Deploy (Vercel)
 
+Live di `https://super-apps-duidtin.vercel.app` (project Vercel dengan Root Directory `duidtin-ui`). Diverifikasi dari luar: `/`, `remoteEntry.js` dan chunk design-system serta layout 200 lewat domain host; `/beranda/*` 404 sesuai rencana.
+
 Di produksi host menjadi router satu domain. `next.config.mjs` membangun `rewrites()` dari env, dan tiap aturan hanya dipasang kalau env-nya terisi:
 
 | Env | Rewrite |

@@ -95,6 +95,8 @@ exposes: {},   // ← permanently empty
 
 ## Deploy (Vercel)
 
+Live at `https://super-apps-duidtin.vercel.app` (a Vercel project with Root Directory `duidtin-ui`). Verified from outside: `/`, plus the design system's and layout's `remoteEntry.js` and chunks, return 200 through the host domain; `/beranda/*` returns 404 as planned.
+
 In production the host acts as a single-domain router. `next.config.mjs` builds `rewrites()` from env, and each rule is added only when its variable is set:
 
 | Env | Rewrite |

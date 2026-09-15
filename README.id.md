@@ -101,15 +101,15 @@ Kalau remote-nya belum nyala, halaman tetap tampil — bagian yang gagal diganti
 
 ## Deploy
 
-> **Status: sebagian ter-deploy.** Design-system (remote + Storybook) sudah live di `https://super-apps-duidtin-ui-system.vercel.app` (Storybook di `/storybook/`). Layout sudah live di `https://super-apps-duidtin-ui-layout.vercel.app/layout` (`remoteEntry.js` di `/layout/_next/static/chunks/`). Host dan beranda belum di-deploy; rewrites host sudah ada di kode. Sisa bagian ini rencana yang sudah diputuskan. Item bertanda ☐ di [checklist](#checklist-sebelum-deploy-pertama) belum dikerjakan di kode.
+> **Status: host, design-system, dan layout ter-deploy. Beranda belum.** Host live di `https://super-apps-duidtin.vercel.app`, menyatukan remote lewat rewrites. Design-system (remote + Storybook) sudah live di `https://super-apps-duidtin-ui-system.vercel.app` (Storybook di `/storybook/`). Layout sudah live di `https://super-apps-duidtin-ui-layout.vercel.app/layout` (`remoteEntry.js` di `/layout/_next/static/chunks/`). Beranda belum di-deploy dan sedang dilepas dari host, jadi `/` menampilkan halaman sementara. Sisa bagian ini rencana yang sudah diputuskan. Item bertanda ☐ di [checklist](#checklist-sebelum-deploy-pertama) belum dikerjakan di kode.
 
 ### Topologi: satu domain, dibedakan path
 
 ```
-https://duidtin-ui.vercel.app/                                  → project host
-https://duidtin-ui.vercel.app/layout/_next/static/…             → project layout
-https://duidtin-ui.vercel.app/beranda/_next/static/…            → project beranda
-https://duidtin-ui.vercel.app/design-system/static/…            → project design-system
+https://super-apps-duidtin.vercel.app/                                  → project host
+https://super-apps-duidtin.vercel.app/layout/_next/static/…             → project layout
+https://super-apps-duidtin.vercel.app/beranda/_next/static/…            → project beranda
+https://super-apps-duidtin.vercel.app/design-system/static/…            → project design-system
 ```
 
 Topologi ini **sudah dikunci oleh kode**, bukan pilihan bebas. Di ketiga repo Next, `getBaseFederationUrl()` memulangkan `window.location.origin` saat bukan localhost, jadi di produksi host mencari semua remote di domain yang sama dengan dirinya. Kalau tiap remote dipublish ke domainnya sendiri, host langsung rusak.
