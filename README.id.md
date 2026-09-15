@@ -101,7 +101,7 @@ Kalau remote-nya belum nyala, halaman tetap tampil — bagian yang gagal diganti
 
 ## Deploy
 
-> **Status: host, design-system, dan layout ter-deploy. Beranda belum.** Host live di `https://super-apps-duidtin.vercel.app`, menyatukan remote lewat rewrites. Design-system (remote + Storybook) sudah live di `https://super-apps-duidtin-ui-system.vercel.app` (Storybook di `/storybook/`). Layout sudah live di `https://super-apps-duidtin-ui-layout.vercel.app/layout` (`remoteEntry.js` di `/layout/_next/static/chunks/`). Beranda belum di-deploy dan sedang dilepas dari host, jadi `/` menampilkan halaman sementara. Sisa bagian ini rencana yang sudah diputuskan. Item bertanda ☐ di [checklist](#checklist-sebelum-deploy-pertama) belum dikerjakan di kode.
+> **Status: keempat project ter-deploy.** Host live di `https://super-apps-duidtin.vercel.app`, menyatukan remote lewat rewrites. Design-system (remote + Storybook) sudah live di `https://super-apps-duidtin-ui-system.vercel.app` (Storybook di `/storybook/`). Layout sudah live di `https://super-apps-duidtin-ui-layout.vercel.app/layout` (`remoteEntry.js` di `/layout/_next/static/chunks/`). Beranda sudah di-deploy; host memasangnya di `/` begitu `REMOTE_BERANDA_URL` terisi. Sisa bagian ini rencana yang sudah diputuskan. Item bertanda ☐ di [checklist](#checklist-sebelum-deploy-pertama) belum dikerjakan di kode.
 
 ### Topologi: satu domain, dibedakan path
 
@@ -161,7 +161,7 @@ git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
 - Berlaku mulai commit yang menambahkannya, jadi push itu sendiri masih membangun semua project yang terhubung.
 - Redeploy manual untuk commit yang sama juga ikut dilewati. Hilangkan centang **Use project's Ignore Build Step** di dialog Redeploy.
 
-**Urutan membuat project:** design-system → layout → host → beranda. Rencana awalnya host paling akhir, tapi beranda masih statis (belum ada API dan auth), jadi host didahulukan. Sementara itu beranda dilepas dari host: `/` menampilkan halaman statis milik host. Memasangnya lagi butuh perubahan kode kecil di host plus `REMOTE_BERANDA_URL`, detailnya di README host bagian Deploy.
+**Urutan membuat project:** design-system → layout → host → beranda. Rencana awalnya host paling akhir, tapi beranda masih statis (belum ada API dan auth), jadi host didahulukan. Selama beranda belum di-deploy, host sempat melepasnya dan menampilkan halaman statis di `/`. Setelah beranda di-deploy, host memasangnya kembali; `REMOTE_BERANDA_URL` wajib terisi sebelum build host.
 
 ### Env var host
 

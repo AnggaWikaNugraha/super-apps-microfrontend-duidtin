@@ -14,8 +14,7 @@ import type { ComponentType, ReactNode } from "react";
  *
  * Catatan: host TIDAK lagi mengonsumsi `duidtin_ui_design_system` langsung.
  * Sejak konten `/` pindah ke `duidtin_feature_beranda`, host nggak merender
- * komponen UI sendiri — memang itu tujuan shell yang tipis. Pengecualiannya
- * `components/ui/BerandaSementara.tsx`, markup statis selama beranda belum di-deploy.
+ * komponen UI sendiri sama sekali — memang itu tujuan shell yang tipis.
  * Design-system sekarang dikonsumsi dari dua tempat lain: layout (buat Badge &
  * Button di header) dan tiap feature remote.
  *

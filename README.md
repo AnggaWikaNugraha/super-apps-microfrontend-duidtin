@@ -101,7 +101,7 @@ If a remote isn't running the page still renders — the failed part is swapped 
 
 ## Deploy
 
-> **Status: the host, design system and layout are deployed. Beranda is not yet.** The host is live at `https://super-apps-duidtin.vercel.app`, joining the remotes through rewrites. The design system (remote + Storybook) is live at `https://super-apps-duidtin-ui-system.vercel.app` (Storybook at `/storybook/`). The layout is live at `https://super-apps-duidtin-ui-layout.vercel.app/layout` (`remoteEntry.js` under `/layout/_next/static/chunks/`). Beranda is not deployed yet and is detached from the host, so `/` shows a placeholder page. The rest of this section is a decided plan. Items marked ☐ in the [checklist](#checklist-before-the-first-deploy) are not yet done in code.
+> **Status: all four projects are deployed.** The host is live at `https://super-apps-duidtin.vercel.app`, joining the remotes through rewrites. The design system (remote + Storybook) is live at `https://super-apps-duidtin-ui-system.vercel.app` (Storybook at `/storybook/`). The layout is live at `https://super-apps-duidtin-ui-layout.vercel.app/layout` (`remoteEntry.js` under `/layout/_next/static/chunks/`). Beranda is deployed; the host attaches it on `/` once `REMOTE_BERANDA_URL` is set. The rest of this section is a decided plan. Items marked ☐ in the [checklist](#checklist-before-the-first-deploy) are not yet done in code.
 
 ### Topology: one domain, told apart by path
 
@@ -165,7 +165,7 @@ git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
 - It takes effect from the commit that adds it, so that push itself still builds every connected project.
 - A manual redeploy of the same commit is skipped too. Untick **Use project's Ignore Build Step** in the Redeploy dialog.
 
-**Order of creating projects:** design-system → layout → host → beranda. The original plan put the host last, but beranda is still static (no API or auth yet), so the host goes first. Meanwhile beranda is detached from the host: `/` shows a static page owned by the host. Re-attaching it takes a small host code change plus `REMOTE_BERANDA_URL`, detailed in the host README's Deploy section.
+**Order of creating projects:** design-system → layout → host → beranda. The original plan put the host last, but beranda is still static (no API or auth yet), so the host goes first. While beranda was not deployed, the host detached it and showed a static page on `/`. Now that beranda is deployed, the host attaches it again; `REMOTE_BERANDA_URL` must be set before the host build.
 
 ### Host environment variables
 

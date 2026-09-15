@@ -24,17 +24,13 @@ export const globalFeatures: FeatureMetadata[] = [
 /**
  * Remote per-fitur, dimuat cuma kalau route-nya cocok (FASE 2).
  *
- * SENGAJA KOSONG untuk sementara. `duidtin_feature_beranda` dilepas dari host
- * karena belum di-deploy (masih statis, belum ada API/auth) — kalau tetap
- * terdaftar di route "/", FASE 2 akan mem-fetch remoteEntry-nya dan kena 404.
- * `/` sekarang diisi `components/ui/BerandaSementara.tsx`.
- *
- * Memasang beranda lagi = kembalikan entry ini + `loadRemote` di pages/index.tsx:
- *   duidtin_feature_beranda: {
- *     name: "duidtin_feature_beranda",
- *     entryPath: "/beranda/_next/static/chunks/remoteEntry.js",
- *     devOrigin: "http://localhost:3003",
- *     routes: ["/"],
- *   },
+ * Nambah fitur cukup nambah satu entry di sini.
  */
-export const featureRegistry: Record<string, FeatureMetadata> = {};
+export const featureRegistry: Record<string, FeatureMetadata> = {
+  duidtin_feature_beranda: {
+    name: "duidtin_feature_beranda",
+    entryPath: "/beranda/_next/static/chunks/remoteEntry.js",
+    devOrigin: "http://localhost:3003",
+    routes: ["/"],
+  },
+};
