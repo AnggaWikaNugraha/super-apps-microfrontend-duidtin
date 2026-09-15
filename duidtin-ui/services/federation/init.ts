@@ -4,7 +4,7 @@ import { init } from "@module-federation/runtime";
 import { fallbackPlugin } from "./fallbackPlugin";
 import { dynamicLoadStyles } from "./utils/loader";
 import { getModuleEntry } from "./utils/module-entry";
-import { bacaRemoteLokal, terapkanParamRemoteLokal } from "./utils/remote-lokal";
+import { bacaRemoteLokal, kirimRefererKeRemoteLokal, terapkanParamRemoteLokal } from "./utils/remote-lokal";
 import { getAllFeatures, getGlobalFeatures } from "./utils/registry";
 
 import type { FeatureMetadata } from "@/constants/features/types";
@@ -43,6 +43,8 @@ export const federationInit = async (): Promise<void> => {
 
   if (Object.keys(remoteLokal).length > 0) {
     console.warn("[MFE] remote lokal aktif:", remoteLokal);
+    // harus sebelum init()/loadRemote pertama, supaya request script ke localhost membawa Referer
+    kirimRefererKeRemoteLokal();
   }
 
   init({

@@ -60,6 +60,24 @@ const parseParam = (nilai: string, namaTerdaftar: string[]): RemoteLokal => {
   return hasil;
 };
 
+/**
+ * Halaman https yang memuat script dari http://localhost tidak mengirim Referer:
+ * kebijakan bawaan Chrome (strict-origin-when-cross-origin) membuangnya saat
+ * request turun dari https ke http. Tanpa Referer, dev server Next 16 menolak
+ * request lintas situs dengan 403 walaupun host sudah ada di allowedDevOrigins.
+ *
+ * `origin-when-cross-origin` tetap mengirim ORIGIN saja (tanpa path/query) walau
+ * turun ke http. Dipasang hanya selama ada override, jadi pengunjung biasa tetap
+ * memakai kebijakan bawaan.
+ */
+export const kirimRefererKeRemoteLokal = (): void => {
+  const meta = globalThis.document.createElement("meta");
+
+  meta.name = "referrer";
+  meta.content = "origin-when-cross-origin";
+  globalThis.document.head.appendChild(meta);
+};
+
 /** Dipanggil sekali di awal federationInit(), sebelum URL remote di-resolve. */
 export const terapkanParamRemoteLokal = (namaTerdaftar: string[]): void => {
   const url = new URL(globalThis.window.location.href);
