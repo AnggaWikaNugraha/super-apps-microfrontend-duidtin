@@ -42,11 +42,14 @@ duidtin-api/
       waktu.ts              # sumber waktu tunggal; tes menggesernya
     middleware/
       autentikasi.ts        # butuhLogin: verifikasi Bearer → req.auth
+      batas-laju.ts         # batasLaju: penghitung percobaan per IP di MongoDB
       cors.ts
       database.ts           # pastikanDatabase: koneksi siap sebelum handler
       error.ts              # 404 + handler error terpusat
+      log.ts                # catatRequest: params/payload, method+url, response (disensor)
       validasi.ts           # validasiBody(skema Zod)
     models/
+      pembatas.ts
       pengguna.ts
       perusahaan.ts
       sesi.ts
@@ -97,10 +100,40 @@ Entry-nya sengaja `src/app.ts` saja. Vercel mencari berkas bernama `app`, `index
 | `JWT_REFRESH_SECRET` | acak ≥ 32 byte | kunci HMAC untuk `sesi.tokenHash`; harus beda dari secret access |
 | `ACCESS_TOKEN_TTL` | `5m` | |
 | `REFRESH_TOKEN_TTL` | `1d` | batas umur sesi **sejak login**; tidak diperpanjang oleh refresh |
-| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:3003` | produksi: `https://super-apps-duidtin.vercel.app` |
+| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:3003,http://localhost:3004` | host, beranda, dan nanti remote auth. Produksi: `https://super-apps-duidtin.vercel.app` |
 | `PORT` | `4000` | hanya dipakai `scripts/dev.ts` |
 
 `src/config/env.ts` memvalidasi semuanya saat modul dimuat. Env yang kurang membuat app gagal di awal dengan pesan jelas, bukan error acak saat request pertama.
+
+## Log request
+
+`middleware/log.ts` mencatat **semua** endpoint, termasuk endpoint baru nanti, karena dipasang sekali di `app.ts` sebelum router. Tiap request menghasilkan tiga baris:
+
+```
+======>>[POST] : /auth/login → 200 (84ms)
+params/payload: {
+  "email": "angga@duidtin.test",
+  "password": "***"
+}
+response: {
+  "status": 200,
+  "message": "Login berhasil.",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…",
+    "accessTokenBerlakuSampai": "2026-09-16T08:05:00.000Z",
+    "refreshToken": "q8ZtT3n0b2VnX2Fj…",
+    "pengguna": { … }
+  }
+}
+```
+
+- **Baris pertama** berisi method, URL asli, status, dan lama proses, diawali `======>>` sebagai pemisah antar-request di terminal.
+- **`params/payload`** (baris kedua) menggabungkan query string dan body. Body disalin saat request masuk, karena `validasiBody` menggantinya dengan hasil parse Zod.
+- **`response`** diambil dengan membungkus `res.json`, jadi isinya persis yang dikirim ke client.
+- **Yang disensor** jadi `***`: `password`, `token`, `secret`, `authorization`. Pencocokannya memakai nama kunci **persis**, jadi `accessTokenBerlakuSampai` yang cuma berisi tanggal tetap terbaca.
+- **`accessToken` dan `refreshToken` sengaja TIDAK disensor**, supaya gampang disalin saat menguji endpoint. Konsekuensinya, siapa pun yang bisa membaca log — termasuk log Vercel yang tersimpan dan bisa dilihat semua orang dengan akses dashboard — bisa memakai sesi itu sampai dicabut atau kedaluwarsa. Kalau nanti dipakai data sungguhan, tambahkan lagi keduanya ke `KUNCI_RAHASIA` di `middleware/log.ts`.
+- Objek dicetak multi-baris dengan indentasi 2 spasi; objek kosong tetap `{}`.
+- Isi yang lebih dari 2.000 karakter dipotong, dan objek yang gagal di-`JSON.stringify` dicatat sebagai `(tidak bisa di-serialize)`.
 
 ## Koneksi MongoDB di serverless
 
@@ -113,7 +146,7 @@ Setiap instance function bisa melayani banyak request. Membuka koneksi baru per 
 
 ## Model data (auth)
 
-Tiga koleksi. Nama koleksi ditulis eksplisit, karena secara bawaan Mongoose menjamakkan nama model dengan aturan bahasa Inggris (`Pengguna` → `penggunas`).
+Empat koleksi. Nama koleksi ditulis eksplisit, karena secara bawaan Mongoose menjamakkan nama model dengan aturan bahasa Inggris (`Pengguna` → `penggunas`).
 
 ```
 perusahaan 1 ─────── n pengguna 1 ─────── n sesi
@@ -186,6 +219,19 @@ Contoh satu login (jam 08.00) dengan dua kali refresh:
 
 Dokumen yang dicabut (A, B) **tidak langsung dihapus**: server butuh catatan itu untuk mengenali token lama yang dipakai lagi (tanda pencurian). Semuanya terhapus oleh TTL index setelah `kedaluwarsaPada`.
 
+### `pembatas`
+
+Penghitung percobaan untuk pembatas laju. Bukan data bisnis: isinya sementara dan dihapus sendiri oleh TTL.
+
+| Field | Tipe | Aturan | Keterangan |
+|---|---|---|---|
+| `kunci` | String | wajib, **unik** | `"login:<ip>"` |
+| `hitung` | Number | wajib, default `0` | dinaikkan dengan `$inc` (atomik) |
+| `kedaluwarsaPada` | Date | wajib | akhir jendela; TTL index menghapus dokumennya |
+| `createdAt` | Date | otomatis | |
+
+Disimpan di MongoDB, bukan di memori, karena tiap instance serverless punya memorinya sendiri dan bisa mati kapan saja — penghitung di memori praktis tidak membatasi apa pun di Vercel.
+
 ### Indeks dan query yang dilayaninya
 
 | Operasi | Query | Indeks |
@@ -196,6 +242,7 @@ Dokumen yang dicabut (A, B) **tidak langsung dihapus**: server butuh catatan itu
 | Rotasi atomik | `findOneAndUpdate({ tokenHash, dicabutPada: null, kedaluwarsaPada: { $gt: sekarang } })` | `sesi.tokenHash` unik |
 | Cabut satu login | `updateMany({ idLogin, dicabutPada: null })` | `sesi.idLogin` |
 | Hapus sesi kedaluwarsa | otomatis oleh MongoDB | TTL pada `sesi.kedaluwarsaPada` (`expireAfterSeconds: 0`) |
+| Pembatas laju | `findOneAndUpdate({ kunci, kedaluwarsaPada: { $gt: sekarang } }, { $inc: { hitung: 1 } })` | `pembatas.kunci` unik; TTL pada `pembatas.kedaluwarsaPada` |
 | Seed | upsert `perusahaan` berdasarkan `kode` | `perusahaan.kode` unik |
 
 TTL monitor MongoDB berjalan kira-kira setiap 60 detik, jadi dokumen kedaluwarsa bisa masih ada sebentar. Karena itu kode **tetap memeriksa `kedaluwarsaPada`** sendiri, tidak bergantung pada penghapusan TTL.
@@ -274,6 +321,7 @@ Contoh gagal validasi:
 | `VALIDASI_GAGAL` | 400 | body tidak sesuai skema |
 | `KREDENSIAL_SALAH` | 401 | email tidak ada, password salah, atau akun nonaktif — `message` sengaja sama supaya tidak bisa dipakai menebak email |
 | `AKUN_TERKUNCI` | 423 | 5× gagal login, terkunci 15 menit |
+| `TERLALU_BANYAK_PERCOBAAN` | 429 | lebih dari 20 percobaan login per IP dalam 15 menit |
 | `TOKEN_TIDAK_ADA` | 401 | header `Authorization` kosong |
 | `TOKEN_KEDALUWARSA` | 401 | access token lewat 5 menit — client harus refresh |
 | `TOKEN_TIDAK_VALID` | 401 | tanda tangan salah / format rusak |
@@ -331,6 +379,7 @@ request
   ├─▶ corsMiddleware              origin ada di CORS_ORIGINS → beri header CORS
   │                               preflight OPTIONS → 204, berhenti di sini
   ├─▶ express.json()              body JSON rusak ─────────────────────────▶ 400 VALIDASI_GAGAL
+  ├─▶ catatRequest                mencatat request + respons ke log (lihat Log request)
   │
   ├─▶ router: /health atau /auth
   │     ├─▶ validasiBody(skema)   body tidak sesuai skema ────────────────▶ 400 VALIDASI_GAGAL + detail

@@ -4,6 +4,7 @@ import { geserWaktu } from "../src/lib/waktu.js";
 import { PenggunaModel } from "../src/models/pengguna.js";
 import { SesiModel } from "../src/models/sesi.js";
 import { api, HARI, login, MENIT, siapkanData } from "./bantuan.js";
+import { PASSWORD_DEV } from "../scripts/data-seed.js";
 
 beforeEach(siapkanData);
 
@@ -256,5 +257,65 @@ describe("POST /auth/logout", () => {
     await refresh(pertama.refreshToken);
 
     expect((await refresh(kedua.refreshToken)).status).toBe(200);
+  });
+});
+
+describe("POST /auth/logout-semua", () => {
+  test("mencabut semua sesi pengguna itu, login lain milik orang lain tidak terpengaruh", async () => {
+    const laptop = (await login()).body.data;
+    const hp = (await login()).body.data;
+    const oranglain = (await login("rina@duidtin.test")).body.data;
+
+    const res = await api().post("/auth/logout-semua").set("Authorization", `Bearer ${laptop.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe("Semua sesi dicabut.");
+    expect(res.body.data.dicabut).toBe(2);
+    expect((await refresh(laptop.refreshToken)).status).toBe(401);
+    expect((await refresh(hp.refreshToken)).status).toBe(401);
+    expect((await refresh(oranglain.refreshToken)).status).toBe(200);
+  });
+
+  test("tanpa access token → TOKEN_TIDAK_ADA", async () => {
+    const res = await api().post("/auth/logout-semua");
+
+    expect(res.status).toBe(401);
+    expect(res.body.data.kode).toBe("TOKEN_TIDAK_ADA");
+  });
+});
+
+describe("pembatas laju login per IP", () => {
+  const dariIp = (ip: string, email = "angga@duidtin.test", password = "salah") =>
+    api().post("/auth/login").set("X-Forwarded-For", ip).send({ email, password });
+
+  test("percobaan ke-21 dari satu IP ditolak, IP lain tetap bisa login", async () => {
+    for (let ke = 1; ke <= 20; ke++) {
+      const res = await dariIp("9.9.9.9");
+
+      // 401 untuk 5 percobaan pertama, lalu 423 karena akunnya terkunci
+      expect([401, 423]).toContain(res.status);
+    }
+
+    const kena = await dariIp("9.9.9.9");
+
+    expect(kena.status).toBe(429);
+    expect(kena.body.data.kode).toBe("TERLALU_BANYAK_PERCOBAAN");
+
+    // IP lain tidak ikut kena; pakai akun lain karena akun di atas sudah terkunci
+    const lain = await dariIp("8.8.8.8", "rina@duidtin.test", PASSWORD_DEV);
+
+    expect(lain.status).toBe(200);
+  });
+
+  test("jendela 15 menit habis → boleh mencoba lagi", async () => {
+    for (let ke = 1; ke <= 21; ke++) await dariIp("7.7.7.7");
+
+    expect((await dariIp("7.7.7.7")).status).toBe(429);
+
+    geserWaktu(15 * MENIT + 1_000);
+
+    const sesudah = await dariIp("7.7.7.7", "rina@duidtin.test", PASSWORD_DEV);
+
+    expect(sesudah.status).toBe(200);
   });
 });

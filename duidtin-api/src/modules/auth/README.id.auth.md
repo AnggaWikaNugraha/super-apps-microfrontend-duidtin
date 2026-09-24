@@ -19,6 +19,7 @@ Model yang dipakai: `pengguna`, `perusahaan`, `sesi` — lihat [Model data](../.
 | POST | [`/auth/login`](#post-authlogin) | — | tukar email + password dengan token |
 | POST | [`/auth/refresh`](#post-authrefresh) | — | tukar refresh token dengan pasangan token baru |
 | POST | [`/auth/logout`](#post-authlogout) | — | cabut refresh token |
+| POST | [`/auth/logout-semua`](#post-authlogout-semua) | Bearer | cabut semua sesi pengguna itu |
 | GET | [`/auth/me`](#get-authme) | Bearer | data pengguna yang sedang login |
 
 ## Alur satu sesi dari sisi FE
@@ -129,6 +130,7 @@ interface Pengguna {
 | `VALIDASI_GAGAL` | 400 | Data yang dikirim tidak valid. | email kosong/tidak valid, password kosong/terlalu panjang |
 | `KREDENSIAL_SALAH` | 401 | Email atau password salah. | email tidak terdaftar, password salah, atau akun nonaktif |
 | `AKUN_TERKUNCI` | 423 | Akun terkunci karena terlalu banyak percobaan. Coba lagi dalam 15 menit. | sudah 5× gagal |
+| `TERLALU_BANYAK_PERCOBAAN` | 429 | Terlalu banyak percobaan dari perangkat ini. Coba lagi beberapa menit lagi. | lebih dari 20 percobaan dari satu IP dalam 15 menit |
 
 ```json
 {
@@ -148,6 +150,8 @@ POST /auth/login  { email, password }
   ├─▶ validasiBody(skemaLogin)                email di-trim + huruf kecil
   │     └─ tidak sesuai ─────────────────────────────────────────▶ 400 VALIDASI_GAGAL
   ├─▶ pastikanDatabase
+  ├─▶ batasLaju({ nama: "login", maks: 20, jendelaMs: 15 menit })
+  │     └─ percobaan ke-21 dari IP yang sama ──────────────────▶ 429 TERLALU_BANYAK_PERCOBAAN
   │
   └─▶ login()
         ├─▶ PenggunaModel.findOne({ email }).select("+passwordHash")
@@ -178,6 +182,8 @@ POST /auth/login  { email, password }
 FE setelah 200: simpan `accessToken`, `refreshToken`, dan `pengguna` ke `localStorage`, kirim event `duidtin:sesi-berubah`, lalu buka beranda. Setelah 401/423: tampilkan `message` di form.
 
 Penguncian disimpan di MongoDB, bukan di memori, karena instance serverless tidak berbagi memori dan bisa mati kapan saja.
+
+Pembatas laju per IP melengkapi penguncian per akun: penguncian itu tidak menghalangi penyerang yang mencoba 4 password ke ribuan email berbeda, karena tidak ada satu akun pun yang mencapai 5 kali gagal. IP diambil dari entri pertama header `x-forwarded-for` yang diisi Vercel.
 
 
 ---
@@ -348,6 +354,57 @@ POST /auth/logout  { refreshToken }
 
 FE: hapus `duidtin:access-token`, `duidtin:refresh-token`, dan `duidtin:pengguna` dari storage **walaupun request ini gagal** (misalnya jaringan putus), kirim event `duidtin:sesi-berubah`, lalu buka halaman login.
 
+
+---
+
+## `POST /auth/logout-semua`
+
+Mencabut **semua** sesi aktif milik pengguna yang sedang login, di semua perangkat. Nanti dipakai juga setelah ganti password.
+
+**Params**
+
+| Header | Nilai |
+|---|---|
+| `Authorization` | `Bearer <accessToken>` |
+
+Tanpa body.
+
+**Respons sukses — `200`**
+
+```ts
+interface LogoutSemuaData {
+  dicabut: number; // jumlah sesi yang tadinya masih aktif
+}
+```
+
+```json
+{
+  "status": 200,
+  "message": "Semua sesi dicabut.",
+  "data": { "dicabut": 2 }
+}
+```
+
+**Respons gagal** — sama dengan kegagalan header `Authorization` di atas.
+
+**Alur**
+
+Dipanggil saat: pengguna memilih "keluar dari semua perangkat", atau setelah mengganti password nanti.
+
+```
+POST /auth/logout-semua   Authorization: Bearer <accessToken>
+  │
+  ├─▶ butuhLogin → req.auth
+  ├─▶ pastikanDatabase
+  │
+  └─▶ logoutSemua(req.auth)
+        ├─▶ SesiModel.updateMany(
+        │     { penggunaId, dicabutPada: null },
+        │     { dicabutPada: sekarang, alasanDicabut: "logout" })
+        └───────────────────────────────────────────────────────▶ 200 { dicabut: n }
+```
+
+Access token yang sudah beredar tetap sah sampai habis, paling lama 5 menit. Yang langsung berhenti adalah kemampuan memperpanjang sesi.
 
 ---
 

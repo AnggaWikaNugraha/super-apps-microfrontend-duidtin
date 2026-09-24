@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 
 import { PenggunaModel } from "../src/models/pengguna.js";
 import { PerusahaanModel } from "../src/models/perusahaan.js";
@@ -60,5 +60,52 @@ describe("seed", () => {
     expect(indeksSesi.some((i) => i.key.idLogin)).toBe(true);
     expect(indeksPengguna.find((i) => i.key.email)?.unique).toBe(true);
     expect(indeksPerusahaan.find((i) => i.key.kode)?.unique).toBe(true);
+  });
+});
+
+describe("log request", () => {
+  test("tiga baris per request, objek multi-baris, password dan token disensor", async () => {
+    const dicatat: string[] = [];
+    const mata = spyOn(console, "log").mockImplementation((...bagian: unknown[]) => {
+      dicatat.push(bagian.join(" "));
+    });
+
+    try {
+      await api().post("/auth/login").send({ email: "angga@duidtin.test", password: "Duidtin123!" });
+    } finally {
+      mata.mockRestore();
+    }
+
+    const gabungan = dicatat.join("\n");
+
+    expect(dicatat).toHaveLength(3);
+    expect(dicatat[0]).toMatch(/^======>>\[POST\] : \/auth\/login → 200 \(\d+ms\)$/);
+    expect(dicatat[1]).toStartWith("params/payload: {\n");
+    expect(dicatat[1]).toContain('"email": "angga@duidtin.test"');
+    expect(dicatat[2]).toStartWith("response: {\n");
+    expect(dicatat[2]).toContain('"message": "Login berhasil."');
+    expect(gabungan).toContain('"password": "***"');
+    // accessToken dan refreshToken sengaja tidak disensor; password tetap disensor
+    expect(gabungan).toContain('"accessToken": "eyJ');
+    expect(gabungan).toMatch(/"refreshToken": "[A-Za-z0-9_-]{43}"/);
+    expect(gabungan).not.toContain("Duidtin123!");
+    // tanggal tidak ikut tersensor walau namanya mengandung "Token"
+    expect(dicatat[2]).toMatch(/"accessTokenBerlakuSampai": "20/);
+  });
+
+  test("request tanpa body tercatat sebagai {}", async () => {
+    const dicatat: string[] = [];
+    const mata = spyOn(console, "log").mockImplementation((...bagian: unknown[]) => {
+      dicatat.push(bagian.join(" "));
+    });
+
+    try {
+      await api().get("/health");
+    } finally {
+      mata.mockRestore();
+    }
+
+    expect(dicatat[0]).toContain("======>>[GET] : /health → 200");
+    expect(dicatat[1]).toBe("params/payload: {}");
   });
 });

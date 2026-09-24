@@ -208,6 +208,19 @@ export const refresh = async (params: RefreshParams, userAgent?: string): Promis
   };
 };
 
+/**
+ * Cabut SEMUA sesi aktif milik satu pengguna, di semua perangkat.
+ * Nanti dipakai juga setelah ganti password.
+ */
+export const logoutSemua = async (klaim: KlaimAccess): Promise<{ dicabut: number }> => {
+  const hasil = await SesiModel.updateMany(
+    { penggunaId: klaim.penggunaId, dicabutPada: null },
+    { $set: { dicabutPada: sekarang(), alasanDicabut: "logout" } },
+  );
+
+  return { dicabut: hasil.modifiedCount };
+};
+
 /** Selalu berhasil dari sisi client, termasuk untuk token yang tidak dikenal. */
 export const logout = async (params: LogoutParams): Promise<void> => {
   await SesiModel.updateOne(

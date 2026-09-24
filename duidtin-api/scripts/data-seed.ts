@@ -1,5 +1,6 @@
 import { hashPassword } from "../src/lib/password.js";
 import { PenggunaModel, type Peran } from "../src/models/pengguna.js";
+import { PembatasModel } from "../src/models/pembatas.js";
 import { PerusahaanModel } from "../src/models/perusahaan.js";
 import { SesiModel } from "../src/models/sesi.js";
 
@@ -17,7 +18,12 @@ export const PENGGUNA_SEED: { nama: string; email: string; peran: Peran[] }[] = 
 ];
 
 export const kosongkanKoleksiAuth = async (): Promise<void> => {
-  await Promise.all([PenggunaModel.deleteMany({}), PerusahaanModel.deleteMany({}), SesiModel.deleteMany({})]);
+  await Promise.all([
+    PenggunaModel.deleteMany({}),
+    PerusahaanModel.deleteMany({}),
+    SesiModel.deleteMany({}),
+    PembatasModel.deleteMany({}),
+  ]);
 };
 
 /**
@@ -26,7 +32,12 @@ export const kosongkanKoleksiAuth = async (): Promise<void> => {
  * `sesi` tidak di-seed — sesi hanya lahir dari login.
  */
 export const isiDataSeed = async (): Promise<{ perusahaan: number; pengguna: number }> => {
-  await Promise.all([PenggunaModel.syncIndexes(), PerusahaanModel.syncIndexes(), SesiModel.syncIndexes()]);
+  await Promise.all([
+    PenggunaModel.syncIndexes(),
+    PerusahaanModel.syncIndexes(),
+    SesiModel.syncIndexes(),
+    PembatasModel.syncIndexes(),
+  ]);
 
   const perusahaan = await PerusahaanModel.findOneAndUpdate(
     { kode: PERUSAHAAN_SEED.kode },

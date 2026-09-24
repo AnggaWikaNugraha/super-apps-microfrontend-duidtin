@@ -225,6 +225,30 @@ duidtin.com {
 
 ---
 
+## Feature flag
+
+Belum dipakai. Dicatat di sini karena inilah yang akan dipakai kalau nanti butuh **menyalakan atau mematikan fitur tanpa deploy** — misalnya kill switch saat produksi bermasalah, atau membuka fitur hanya untuk peran tertentu.
+
+Selama belum sampai ke situ, cukup dua cara yang tidak butuh perkakas apa pun:
+
+- **Satu remote utuh** disembunyikan dengan tidak mendaftarkannya di `featureRegistry` host. Ini sudah pernah dipakai: beranda sempat dilepas supaya host bisa di-deploy lebih dulu.
+- **Bagian di dalam satu remote** (misal `search` v1 → v2) dipisah di balik satu custom hook, lalu dipilih dengan `process.env.NEXT_PUBLIC_*`. Karena nilainya ditanam saat build, cabang yang mati dibuang minifier dan kodenya tidak ikut terkirim ke pengguna.
+
+Rancangan kalau nanti dibuat di `duidtin-api`:
+
+1. **Penyimpanan:** satu koleksi `konfigurasi` di MongoDB.
+2. **Endpoint:** `GET /konfigurasi`, cache pendek (30–60 detik), bentuk respons mengikuti `ApiResponse<T>`.
+3. **Pembacaan di client:** diambil sekali saat boot. **Default mati** selama masih dimuat atau saat request gagal — fitur baru harus gagal ke arah aman.
+4. **Cara mengubah:** script CLI di `duidtin-api` (mis. `bun run flag pencarianV2 on`). Halaman admin menyusul kalau memang perlu.
+5. **Per pengguna atau peran:** titipkan di `/auth/me`, yang sudah dipanggil frontend untuk menyegarkan data tampilan.
+
+Dua hal yang khas MFE dan mudah terlewat:
+
+- **Nilai flag datang asinkron**, sedangkan `featureRegistry` dibaca **sinkron** di FASE 1. Jadi pengecekan flag ditaruh di level halaman atau komponen, bukan di registry host.
+- **Umur flag.** Tulis kapan flag harus dihapus. Flag rollout yang lupa dibersihkan menumpuk, dan tiap flag menggandakan jalur kode yang harus diuji.
+
+Flag mengatur tampilan, bukan akses. Fitur yang menyangkut data sensitif tetap harus ditolak backend lewat peran, karena siapa pun bisa memanggil endpoint-nya langsung.
+
 ## Alur Arsitektur
 
 Diagram lima fase. Penjelasan tiap fungsi — parameter, nilai balik, dan contoh datanya — ada di [README `duidtin-ui`](duidtin-ui/README.id.md#alur-arsitektur).

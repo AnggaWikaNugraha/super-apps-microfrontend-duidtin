@@ -229,6 +229,30 @@ duidtin.com {
 
 ---
 
+## Feature flags
+
+Not used yet. Written down here because this is what will be used once **turning a feature on or off without deploying** is needed — a kill switch when production misbehaves, say, or opening a feature to one role only.
+
+Until then, two approaches are enough and need no tooling at all:
+
+- **A whole remote** is hidden by leaving it out of the host's `featureRegistry`. This has already been used: beranda was detached so the host could be deployed first.
+- **A part inside one remote** (e.g. `search` v1 → v2) is split behind a single custom hook, then selected with `process.env.NEXT_PUBLIC_*`. Because the value is inlined at build time, the dead branch is dropped by the minifier and never ships to users.
+
+The design, if it is ever built in `duidtin-api`:
+
+1. **Storage:** one `konfigurasi` collection in MongoDB.
+2. **Endpoint:** `GET /konfigurasi`, short cache (30–60 seconds), response shaped like every other `ApiResponse<T>`.
+3. **Client read:** fetched once at boot. **Default off** while loading or when the request fails — a new feature must fail safe.
+4. **How to change it:** a CLI script in `duidtin-api` (e.g. `bun run flag pencarianV2 on`). An admin page can follow if it is really needed.
+5. **Per user or role:** carry it in `/auth/me`, which the frontend already calls to refresh what it displays.
+
+Two things specific to MFE that are easy to miss:
+
+- **Flag values arrive asynchronously**, while `featureRegistry` is read **synchronously** in PHASE 1. So flag checks belong at the page or component level, not in the host registry.
+- **Flag lifetime.** Write down when a flag must be deleted. Forgotten rollout flags pile up, and every flag doubles the code paths that need testing.
+
+Flags control what is shown, not what is allowed. Features touching sensitive data must still be refused by the backend through roles, because anyone can call the endpoint directly.
+
 ## Architecture flow
 
 Diagrams of the five phases. The explanation of each function — parameters, return values, and example data — lives in the [`duidtin-ui` README](duidtin-ui/README.md#architecture-flow).
