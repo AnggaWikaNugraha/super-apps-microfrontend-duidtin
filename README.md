@@ -217,7 +217,9 @@ browser → super-apps-duidtin.vercel.app/layout/_next/static/chunks/remoteEntry
 push to main
   └─▶ EVERY connected project is triggered
         └─▶ each project's ignoreCommand:
-              git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
+              sha="${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}"
+              git cat-file -e "$sha^{commit}" || exit 1     ← SHA missing from the clone → build
+              git diff --quiet "$sha" HEAD -- . && exit 0 || exit 1
                 ├─ exit 0   folder unchanged  → build SKIPPED
                 └─ exit ≥1  changed / errored → build RUNS
 ```
@@ -227,8 +229,8 @@ push to main
 | Vercel's built-in skipping | does not apply: it requires `workspaces` in a root `package.json`, which this repo has not |
 | `VERCEL_GIT_PREVIOUS_SHA` | that project's last successful deployment. `HEAD^` alone compares only the last commit, so a change in an earlier commit could be missed |
 | Clone `--depth=10` | if the comparison commit falls outside that depth, `git diff` errors and the build runs. It fails safe |
-| Shape in `vercel.json` | `"ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- ."` |
-| Status | set in all four folders. The design system also keeps its build settings there; the other three hold only `ignoreCommand` |
+| Shape in `vercel.json` | `"ignoreCommand": "sha="${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}"; git cat-file -e "$sha^{commit}" 2>/dev/null || exit 1; git diff --quiet "$sha" HEAD -- . && exit 0 || exit 1"` — the host adds `../duidtin-packages/auth` to the path list |
+| Status | set in all five folders (including `duidtin-api`). The design system also keeps its build settings there; the others hold only `ignoreCommand` |
 | Manual redeploy | the same commit is skipped too. Untick **Use project's Ignore Build Step** |
 | Remote → host | a remote need not trigger a host build; the host reads the latest `remoteEntry.js` at runtime |
 
