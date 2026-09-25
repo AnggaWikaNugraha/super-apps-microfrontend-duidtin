@@ -65,7 +65,7 @@ remote ── GET … + Authorization: Bearer ──▶ duidtin-api: verifikasi 
 ### Access token habis (paling lambat tiap 5 menit)
 ```
 remote beranda ─┐
-remote layout  ─┼─▶ authFetch → store auth milik host (satu-satunya di tab ini)
+remote layout  ─┼─▶ http     → store auth milik host (satu-satunya di tab ini)
 tab lain       ─┘      └─▶ navigator.locks "duidtin:refresh" ─▶ satu refresh saja ─▶ POST /auth/refresh ─▶ rotasi di MongoDB
                              └─▶ tab lain membaca token baru lewat event storage
 ```
@@ -83,16 +83,16 @@ tab lain       ─┘      └─▶ navigator.locks "duidtin:refresh" ─▶ sa
 
 duidtin memakai dua lapis supaya masalah itu tidak muncul:
 
-1. **Satu store, dimiliki host.** Host memanggil `pasangStoreAuth()` di `_app.tsx` sebelum `federationInit()`, lalu menaruh store-nya di `window.__DUIDTIN_AUTH__`. Remote memanggil `storeAuth()` yang meminjam objek itu — bukan membuat store sendiri. Store-nya `zustand/vanilla`, jadi isinya cuma objek berisi fungsi: aman lintas framework dan lintas bundler. Kalau global-nya tidak ada (repo dibuka sendiri saat dev), remote membuat store lokal sebagai cadangan.
+1. **Satu store, dimiliki host.** Host memanggil `installAuthStore()` di `_app.tsx` sebelum `federationInit()`, lalu menaruh store-nya di `window.__DUIDTIN_AUTH__`. Remote memanggil `getAuthStore()` yang meminjam objek itu — bukan membuat store sendiri. Store-nya `zustand/vanilla`, jadi isinya cuma objek berisi fungsi: aman lintas framework dan lintas bundler. Kalau global-nya tidak ada (repo dibuka sendiri saat dev), remote membuat store lokal sebagai cadangan.
 2. **`localStorage` untuk bertahan dan untuk antar-tab.** Store menulis ke satu kunci `duidtin:sesi` (JSON berisi `accessToken`, `refreshToken`, `pengguna`). Satu kunci, bukan tiga, supaya penulisannya tidak bisa setengah jadi. Tab lain mendapat event `storage` bawaan browser, lalu store mereka menyesuaikan.
 
 Karena semua remote satu origin, kunci itu terbaca host, layout, beranda, dan auth.
 
-Aturan `authFetch`, yang dipakai semua pemanggil API:
+Aturan `http` (instance axios paket auth), yang dipakai semua pemanggil API:
 
-1. Base URL diisi tiap app lewat `aturKonfigurasi()` saat boot — paketnya sendiri tidak membaca `process.env`, karena nama env berbeda tiap bundler.
-2. Tempel `Authorization: Bearer`. Kalau access token tinggal < 30 detik, refresh dulu.
-3. Respons `TOKEN_KEDALUWARSA` → refresh lalu ulangi request **sekali**.
+1. Base URL diisi tiap app lewat `configureAuth()` saat boot — paketnya sendiri tidak membaca `process.env`, karena nama env berbeda tiap bundler.
+2. Interceptor request menempel `Authorization: Bearer`. Kalau access token tinggal < 30 detik, refresh dulu.
+3. Interceptor response: `TOKEN_KEDALUWARSA` → refresh lalu ulangi request **sekali**. Kegagalan lain dilempar sebagai `AuthError` berisi `status` dan `kode`.
 4. **Refresh dijalankan di dalam `navigator.locks.request("duidtin:refresh")`.** Karena store-nya tunggal, balapan antar-remote di satu tab sudah tidak mungkin; Web Locks menjaga balapan **antar-tab**. Setelah lock didapat, baca ulang refresh token: kalau sudah berubah, tab lain sudah refresh — pakai hasilnya.
 5. Refresh gagal → kosongkan store dan hapus `duidtin:sesi`, lalu arahkan ke halaman login. Guard dan pengalihan itu tugas host, bukan paket.
 6. Perubahan sesi otomatis sampai ke komponen lewat langganan store (`useAuth()` di React, composable di Vue, dan seterusnya).

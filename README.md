@@ -69,25 +69,26 @@ The three most striking differences above are deliberate, not accidental:
 
 ### Shared package: `@duidtin/auth`
 
-**Not built yet.** A package in `duidtin-packages/auth`, not a remote, so it has no Vercel project.
+**Core + React done (15 tests passing), not yet used by any repo.** A package in [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), not a remote, so it has no Vercel project.
 
 ```
 host boot — _app.tsx, before federationInit()
-  └─▶ pasangStoreAuth()   create the store (zustand/vanilla) → hydrate localStorage["duidtin:sesi"]
+  └─▶ installAuthStore()  create the store (zustand/vanilla) → hydrate localStorage["duidtin:sesi"]
                           → window.__DUIDTIN_AUTH__
 
 remote (layout, beranda, auth)
-  └─▶ storeAuth()         borrow the host's store
+  └─▶ getAuthStore()      borrow the host's store
                           no global (repo opened on its own in dev) → create a local store
 
 login — the auth remote
-  └─▶ masuk(email, password) → POST /auth/login → fill the store → store writes localStorage
+  └─▶ login(email, password) → POST /auth/login → fill the store → store writes localStorage
                           → every subscribed component updates
 
 fetching data — any remote
-  └─▶ authFetch("/beranda/rekening")
+  └─▶ http.get("/beranda/rekening")        axios instance, interceptors ship with the package
         ├─ access token has < 30s left   → refresh first
         ├─ 401 TOKEN_KEDALUWARSA         → refresh → retry ONCE
+        ├─ any other failure             → thrown as AuthError
         └─ refresh refused               → store cleared → the host redirects to /login
 
 other tabs
@@ -96,13 +97,13 @@ other tabs
 
 | Export | Functions |
 |---|---|
-| `@duidtin/auth` | `aturKonfigurasi({ baseUrl })`, `pasangStoreAuth()`, `storeAuth()`, `authFetch()`, `masuk()`, `keluar()`, `keluarSemua()`, `segarkan()` |
-| `@duidtin/auth/react` | `useAuth()` → `{ pengguna, status, masuk, keluar, keluarSemua, segarkan }` |
+| `@duidtin/auth` | `configureAuth({ baseUrl })`, `installAuthStore()`, `getAuthStore()`, `http` (instance axios), `login()`, `logout()`, `logoutAll()`, `refreshProfile()` |
+| `@duidtin/auth/react` | `useAuth()` → `{ user, status, isLoggedIn, login, logout, logoutAll, refreshProfile }` |
 | `/vue`, `/svelte`, `/angular` | later; the core is framework-free, so each wrapper is a dozen lines |
 
 - The session store is **created by the host only**; remotes borrow the object (`getState`, `subscribe`, actions) — no classes, no React, so it is safe across frameworks and bundlers.
 - Business stores stay with each remote.
-- The core never reads `process.env`; each app passes the base URL through `aturKonfigurasi()`.
+- The core never reads `process.env`; each app passes the base URL through `configureAuth()`.
 - Full session contract: [README.be.id.md](README.be.id.md).
 
 ### What MUST match

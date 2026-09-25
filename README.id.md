@@ -69,25 +69,26 @@ Tiga perbedaan paling mencolok di atas bukan kebetulan, tapi memang dibiarkan be
 
 ### Paket bersama: `@duidtin/auth`
 
-**Belum dibuat.** Paket di `duidtin-packages/auth`, bukan remote, jadi tidak punya project Vercel.
+**Inti + React selesai (15 tes lolos), belum dipakai repo mana pun.** Paket di [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), bukan remote, jadi tidak punya project Vercel.
 
 ```
 boot host — _app.tsx, sebelum federationInit()
-  └─▶ pasangStoreAuth()   buat store (zustand/vanilla) → hydrate localStorage["duidtin:sesi"]
+  └─▶ installAuthStore()  buat store (zustand/vanilla) → hydrate localStorage["duidtin:sesi"]
                           → window.__DUIDTIN_AUTH__
 
 remote (layout, beranda, auth)
-  └─▶ storeAuth()         pinjam store host
+  └─▶ getAuthStore()      pinjam store host
                           global tidak ada (repo dibuka sendiri saat dev) → buat store lokal
 
 login — remote auth
-  └─▶ masuk(email, password) → POST /auth/login → isi store → store tulis localStorage
+  └─▶ login(email, password) → POST /auth/login → isi store → store tulis localStorage
                           → semua komponen yang berlangganan ikut berubah
 
 ambil data — remote mana pun
-  └─▶ authFetch("/beranda/rekening")
+  └─▶ http.get("/beranda/rekening")        instance axios, interceptor bawaan paket
         ├─ sisa access token < 30 detik  → refresh dulu
         ├─ 401 TOKEN_KEDALUWARSA         → refresh → ulangi SEKALI
+        ├─ gagal lain                    → dilempar sebagai AuthError
         └─ refresh ditolak               → store dikosongkan → host mengarahkan ke /login
 
 tab lain
@@ -96,13 +97,13 @@ tab lain
 
 | Ekspor | Fungsi |
 |---|---|
-| `@duidtin/auth` | `aturKonfigurasi({ baseUrl })`, `pasangStoreAuth()`, `storeAuth()`, `authFetch()`, `masuk()`, `keluar()`, `keluarSemua()`, `segarkan()` |
-| `@duidtin/auth/react` | `useAuth()` → `{ pengguna, status, masuk, keluar, keluarSemua, segarkan }` |
+| `@duidtin/auth` | `configureAuth({ baseUrl })`, `installAuthStore()`, `getAuthStore()`, `http` (instance axios), `login()`, `logout()`, `logoutAll()`, `refreshProfile()` |
+| `@duidtin/auth/react` | `useAuth()` → `{ user, status, isLoggedIn, login, logout, logoutAll, refreshProfile }` |
 | `/vue`, `/svelte`, `/angular` | menyusul; inti tanpa framework, jadi pembungkusnya belasan baris |
 
 - Store sesi **hanya dibuat host**; remote meminjam objeknya (`getState`, `subscribe`, aksi) — tanpa kelas dan tanpa React, jadi aman lintas framework dan bundler.
 - Store bisnis tetap milik tiap remote.
-- Inti tidak membaca `process.env`; base URL diisi tiap app lewat `aturKonfigurasi()`.
+- Inti tidak membaca `process.env`; base URL diisi tiap app lewat `configureAuth()`.
 - Kontrak sesi lengkap: [README.be.id.md](README.be.id.md).
 
 ### Yang WAJIB sama

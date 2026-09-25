@@ -253,7 +253,7 @@ Semua sebab di atas sengaja dijawab dengan kode yang sama. Client menanganinya b
 
 **Alur**
 
-Dipanggil saat: `authFetch` melihat access token tinggal < 30 detik, atau menerima `TOKEN_KEDALUWARSA`. Store auth hanya satu per tab (milik host), jadi balapan antar-remote tidak mungkin; `navigator.locks.request("duidtin:refresh")` menjaga balapan antar-tab.
+Dipanggil saat: `http` melihat access token tinggal < 30 detik, atau menerima `TOKEN_KEDALUWARSA`. Store auth hanya satu per tab (milik host), jadi balapan antar-remote tidak mungkin; `navigator.locks.request("duidtin:refresh")` menjaga balapan antar-tab.
 
 ```
 POST /auth/refresh  { refreshToken }
