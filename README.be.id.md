@@ -54,7 +54,7 @@ UI dimuat lewat satu domain (rewrites host), sedangkan **data** diambil langsung
 ```
 remote auth ── POST /auth/login ──▶ duidtin-api ──▶ MongoDB: cek pengguna, catat sesi baru (idLogin baru)
             ◀── accessToken + refreshToken + pengguna ──
-            └─▶ simpan ke localStorage, kirim event duidtin:sesi-berubah
+            └─▶ isi store auth milik host → store menulis localStorage["duidtin:sesi"]
 ```
 
 ### Request data
@@ -65,8 +65,9 @@ remote ── GET … + Authorization: Bearer ──▶ duidtin-api: verifikasi 
 ### Access token habis (paling lambat tiap 5 menit)
 ```
 remote beranda ─┐
-remote layout  ─┼─▶ navigator.locks "duidtin:refresh" ─▶ hanya satu yang refresh ─▶ POST /auth/refresh ─▶ rotasi di MongoDB
-tab lain       ─┘                                    └─▶ sisanya membaca token baru dari storage
+remote layout  ─┼─▶ authFetch → store auth milik host (satu-satunya di tab ini)
+tab lain       ─┘      └─▶ navigator.locks "duidtin:refresh" ─▶ satu refresh saja ─▶ POST /auth/refresh ─▶ rotasi di MongoDB
+                             └─▶ tab lain membaca token baru lewat event storage
 ```
 
 ### Sesi berakhir
@@ -80,22 +81,21 @@ tab lain       ─┘                                    └─▶ sisanya memba
 
 **Pelajaran dari qcash.** Di `qcash-ui-dashboard-dhe/utils/session-user.ts`, `useAuth()` di dalam remote hanya mengembalikan nilai default: paket auth ter-bundle terpisah di tiap remote, jadi React context milik host tidak pernah sampai. qcash menyiasatinya dengan membaca storage langsung.
 
-duidtin mengambil pelajaran itu sejak awal: **storage adalah satu-satunya sumber kebenaran sesi, bukan React context.** Semua remote satu origin, jadi `localStorage` otomatis terbaca oleh host, layout, beranda, dan auth.
+duidtin memakai dua lapis supaya masalah itu tidak muncul:
 
-| Kunci `localStorage` | Isi |
-|---|---|
-| `duidtin:access-token` | access token |
-| `duidtin:refresh-token` | refresh token |
-| `duidtin:pengguna` | data pengguna untuk tampilan (nama, peran, perusahaan) |
+1. **Satu store, dimiliki host.** Host memanggil `pasangStoreAuth()` di `_app.tsx` sebelum `federationInit()`, lalu menaruh store-nya di `window.__DUIDTIN_AUTH__`. Remote memanggil `storeAuth()` yang meminjam objek itu — bukan membuat store sendiri. Store-nya `zustand/vanilla`, jadi isinya cuma objek berisi fungsi: aman lintas framework dan lintas bundler. Kalau global-nya tidak ada (repo dibuka sendiri saat dev), remote membuat store lokal sebagai cadangan.
+2. **`localStorage` untuk bertahan dan untuk antar-tab.** Store menulis ke satu kunci `duidtin:sesi` (JSON berisi `accessToken`, `refreshToken`, `pengguna`). Satu kunci, bukan tiga, supaya penulisannya tidak bisa setengah jadi. Tab lain mendapat event `storage` bawaan browser, lalu store mereka menyesuaikan.
 
-Aturan helper sesi di setiap remote yang memanggil API:
+Karena semua remote satu origin, kunci itu terbaca host, layout, beranda, dan auth.
 
-1. Base URL dari `NEXT_PUBLIC_API_URL`; kalau kosong, `http://localhost:4000`. Env ini tertanam saat build.
+Aturan `authFetch`, yang dipakai semua pemanggil API:
+
+1. Base URL diisi tiap app lewat `aturKonfigurasi()` saat boot — paketnya sendiri tidak membaca `process.env`, karena nama env berbeda tiap bundler.
 2. Tempel `Authorization: Bearer`. Kalau access token tinggal < 30 detik, refresh dulu.
 3. Respons `TOKEN_KEDALUWARSA` → refresh lalu ulangi request **sekali**.
-4. **Refresh selalu di dalam `navigator.locks.request("duidtin:refresh")`.** Web Locks berlaku lintas bundle dan lintas tab dalam satu origin, jadi walau helper ter-bundle terpisah di tiap remote, hanya satu refresh yang berjalan. Setelah lock didapat, baca ulang refresh token dari storage: kalau sudah berubah, remote lain sudah refresh — pakai hasilnya.
-5. Refresh gagal → hapus ketiga kunci, arahkan ke halaman login.
-6. Setiap perubahan sesi memicu `CustomEvent("duidtin:sesi-berubah")` di tab yang sama; tab lain mendapat event `storage` bawaan browser.
+4. **Refresh dijalankan di dalam `navigator.locks.request("duidtin:refresh")`.** Karena store-nya tunggal, balapan antar-remote di satu tab sudah tidak mungkin; Web Locks menjaga balapan **antar-tab**. Setelah lock didapat, baca ulang refresh token: kalau sudah berubah, tab lain sudah refresh — pakai hasilnya.
+5. Refresh gagal → kosongkan store dan hapus `duidtin:sesi`, lalu arahkan ke halaman login. Guard dan pengalihan itu tugas host, bukan paket.
+6. Perubahan sesi otomatis sampai ke komponen lewat langganan store (`useAuth()` di React, composable di Vue, dan seterusnya).
 
 Server melengkapi poin 4 dengan **jendela toleransi 30 detik**: refresh token yang baru saja diganti dan dipakai lagi dalam 30 detik dianggap balapan wajar, bukan pencurian.
 

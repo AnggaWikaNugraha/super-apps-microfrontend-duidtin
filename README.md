@@ -67,6 +67,44 @@ The three most striking differences above are deliberate, not accidental:
 - **The layout uses Next** because it will eventually bridge application context (auth, role-based menus), not merely render components.
 - **Beranda uses Next 16 + Rspack** because Turbopack (Next 16's default) does not support Module Federation, while `nextjs-mf` does not support Next 15+. Rspack is the middle ground.
 
+### Shared package: `@duidtin/auth`
+
+**Not built yet.** A package in `duidtin-packages/auth`, not a remote, so it has no Vercel project.
+
+```
+host boot — _app.tsx, before federationInit()
+  └─▶ pasangStoreAuth()   create the store (zustand/vanilla) → hydrate localStorage["duidtin:sesi"]
+                          → window.__DUIDTIN_AUTH__
+
+remote (layout, beranda, auth)
+  └─▶ storeAuth()         borrow the host's store
+                          no global (repo opened on its own in dev) → create a local store
+
+login — the auth remote
+  └─▶ masuk(email, password) → POST /auth/login → fill the store → store writes localStorage
+                          → every subscribed component updates
+
+fetching data — any remote
+  └─▶ authFetch("/beranda/rekening")
+        ├─ access token has < 30s left   → refresh first
+        ├─ 401 TOKEN_KEDALUWARSA         → refresh → retry ONCE
+        └─ refresh refused               → store cleared → the host redirects to /login
+
+other tabs
+  └─▶ "storage" event → their store follows
+```
+
+| Export | Functions |
+|---|---|
+| `@duidtin/auth` | `aturKonfigurasi({ baseUrl })`, `pasangStoreAuth()`, `storeAuth()`, `authFetch()`, `masuk()`, `keluar()`, `keluarSemua()`, `segarkan()` |
+| `@duidtin/auth/react` | `useAuth()` → `{ pengguna, status, masuk, keluar, keluarSemua, segarkan }` |
+| `/vue`, `/svelte`, `/angular` | later; the core is framework-free, so each wrapper is a dozen lines |
+
+- The session store is **created by the host only**; remotes borrow the object (`getState`, `subscribe`, actions) — no classes, no React, so it is safe across frameworks and bundlers.
+- Business stores stay with each remote.
+- The core never reads `process.env`; each app passes the base URL through `aturKonfigurasi()`.
+- Full session contract: [README.be.id.md](README.be.id.md).
+
 ### What MUST match
 
 | | Why |
@@ -77,11 +115,30 @@ The three most striking differences above are deliberate, not accidental:
 
 ### What MAY differ
 
-Framework, bundler, MF plugin, TypeScript version, Tailwind prefix, port, `basePath`, even the package manager. The CSS prefixes are deliberately distinct (`app` / `ui` / `lyt` / `fber`) because all four render into a single page — without separate prefixes their Tailwind utility classes would collide.
+| | host | design system | layout | beranda |
+|---|---|---|---|---|
+| Framework | Next 14 | no Next | Next 14 | Next 16 |
+| Bundler | webpack | Rslib + Rsbuild | webpack | Rspack |
+| MF plugin | `nextjs-mf` | `rsbuild-plugin` | `nextjs-mf` | `enhanced` |
+| MF runtime | 0.24.1 | 0.24.1 | 0.24.1 | 2.9.0 |
+| Tailwind prefix | `app` | `ui` | `lyt` | `fber` |
+| Dev port | 3000 | 3001 | 3002 | 3003 |
+| `basePath` | — | `/design-system/static` | `/layout` | `/beranda` |
 
-The colours themselves do **not** differ: the palette, radii and shadows are defined once as `--dtn-*` CSS custom properties in the design system, then cascade to every repo through `:root`. Tailwind in each repo only handles layout.
+The package manager and TypeScript version may differ too; right now they happen to match (bun).
 
-What still differs between repos is **how the CSS reaches the browser**: Next forbids global CSS imports outside `_app.tsx`, while an MF-exposed module is not `_app.tsx`. The layout works around it with a custom webpack rule; beranda compiles the CSS into a string and injects it by hand.
+**Tailwind prefixes must differ**, because all four render into one page. Without them, utility classes and theme variables (`--spacing`, `--color-*`) overwrite each other.
+
+**Colours do not differ.** The palette, radii and shadows are written once as `--dtn-*` in the design system's `tokens.css`, then cascade to every repo through `:root`. Tailwind in each repo only handles layout.
+
+**How the CSS reaches the browser** does differ, because Next forbids global CSS imports outside `_app.tsx` while an MF-exposed module is not `_app.tsx`:
+
+| Repo | How |
+|---|---|
+| host | `import "@/styles/globals.css"` in `_app.tsx` |
+| design system | exposes `./globals`, `loadRemote`d by the host in PHASE 1 |
+| layout | exposes `./globals` + a webpack `style-loader` rule |
+| beranda | CSS compiled into a string, injected by `ensureGlobalsStylesheet()` |
 
 > **Now proven:** `duidtin-feature-beranda` runs MF runtime **2.9.0** while the other three sit on **0.24.1**, and they do talk to each other — in both directions. The host (0.24.1) loads beranda (2.x), then beranda (2.x) loads the design system (0.24.1), all inside one render tree with no errors. Even cross-repo `dts` works: the design system's types are generated into `@mf-types/` on beranda's side automatically.
 
@@ -127,17 +184,16 @@ A single origin is also what keeps the next stage simple: session cookies and `l
 | Mixed MF versions in production | host `0.18.1`, dhe `2.x` | host `0.24.1`, beranda `2.9` |
 | **What unifies the domain** | **the OpenShift router** (infrastructure) | **rewrites in the host** |
 
-The `qcash-ui` host does have `rewrites()`, but they only run in development — its comment reads *"Deployed envs are same-origin, so no rewrite is needed."* Vercel has no OpenShift router, so the host's rewrites take on that role. The browser cannot tell the difference.
+```
+browser → super-apps-duidtin.vercel.app/layout/_next/static/chunks/remoteEntry.js
+            └─▶ host rewrites → super-apps-duidtin-ui-layout.vercel.app/layout/_next/…
+```
 
-A rewrite is **not a redirect**. The address bar never changes, and only JavaScript/CSS chunk files are routed — not pages. Layout, beranda and the design system are still composed inside a single page by Module Federation.
+- **A rewrite is not a redirect.** The address bar does not change; only JS/CSS chunk files are routed, not pages.
+- Composing the layout, beranda and design system still happens inside one page through Module Federation.
+- qcash's host has `rewrites()` too, but only in development — its comment reads *"Deployed envs are same-origin, so no rewrite is needed."* There is no OpenShift router on Vercel, so the host's rewrites take that role.
 
 ### Platform: Vercel Hobby, four projects from one repo
-
-**Why Vercel:** free with no credit card, the repo is already on GitHub, and servers do not sleep when idle — a remote stuck in a *cold start* makes the host render error boxes.
-
-**Why not the Vercel Microfrontends feature:** as of September 2026, the Hobby plan fits only **2 projects** per microfrontends group, and on Pro each extra project is **$250/month**. Duidtin needs 4. The URL shape is the same, so moving later only means swapping the rewrites for `microfrontends.json`, with no application code changes.
-
-**Why not a single project:** one Vercel project builds one application from one root. The four applications use different toolchains, and independent deploys — the whole point of MFE — would disappear.
 
 | Project | Root Directory | Framework | Build Command | Output Directory |
 |---|---|---|---|---|
@@ -146,32 +202,38 @@ A rewrite is **not a redirect**. The address bar never changes, and only JavaScr
 | `duidtin-feature-beranda` | `duidtin-feature-beranda` | Next.js | `bun run build` | *(default)* |
 | `duidtin-ui` | `duidtin-ui` | Next.js | `bun run build` | *(default)* |
 
-The Install Command for all four is `bun install`. The `build` scripts work as they are: `NEXT_PRIVATE_LOCAL_WEBPACK=true` is already in the host and layout scripts, and beranda's `prebuild` compiles Tailwind through the local binary.
+| Item | Notes |
+|---|---|
+| Install Command | `bun install`, all four |
+| Why not a single project | one project builds one application from one root; the different toolchains and independent deploys would be lost |
+| The `build` scripts | usable as they are: `NEXT_PRIVATE_LOCAL_WEBPACK=true` is already in the host and layout scripts, and beranda's `prebuild` compiles Tailwind through the local binary |
+| Design-system settings | in `duidtin-ui-design-system/vercel.json`, overriding the dashboard. `build:vercel` builds the remote and Storybook, served at `/storybook/` |
+| Order of creating projects | design system → layout → host → beranda. The host went first because beranda was still static; `REMOTE_BERANDA_URL` must be set before the host build |
 
-The design system's settings live in `duidtin-ui-design-system/vercel.json` and override the dashboard fields. `build:vercel` builds the remote and Storybook together, and Storybook is served at `/storybook/` on the same domain. See the Storybook section of the design-system README for details.
+**Automatic builds on push**
 
-**Automatic builds on push.** Every push to the repo creates a deployment in **every** connected project, including projects whose folder did not change. Vercel's built-in skipping for monorepos does not apply here: it requires `workspaces` in a root `package.json`, and this repo has no root `package.json`.
-
-So each folder sets `ignoreCommand` in its own `vercel.json`. It overrides the **Ignored Build Step** field in the dashboard and is tracked in git. All four use the same command, because `.` means that project's Root Directory:
-
-```bash
-git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
+```
+push to main
+  └─▶ EVERY connected project is triggered
+        └─▶ each project's ignoreCommand:
+              git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
+                ├─ exit 0   folder unchanged  → build SKIPPED
+                └─ exit ≥1  changed / errored → build RUNS
 ```
 
-- Exit `0` (no changes) skips the build. Exit `1` or higher runs it.
-- `VERCEL_GIT_PREVIOUS_SHA` is the project's last successful deployment, so a push containing several commits is compared as a whole. `HEAD^` alone compares only the last commit, so a layout change in an earlier commit could be missed.
-- Vercel clones with `--depth=10`. If the comparison commit falls outside that depth, `git diff` errors with a non-zero code and the build runs. It fails safe.
-- A remote does not need to trigger a host build. The host reads the latest `remoteEntry.js` at runtime.
-- In `vercel.json` the quotes are escaped: `"ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- ."`.
-- **Status:** set in the `vercel.json` of all four folders. The design system also keeps its build settings there; the other three hold only `ignoreCommand`, and their build settings stay at the Next.js defaults in the dashboard.
-- It takes effect from the commit that adds it, so that push itself still builds every connected project.
-- A manual redeploy of the same commit is skipped too. Untick **Use project's Ignore Build Step** in the Redeploy dialog.
-
-**Order of creating projects:** design-system → layout → host → beranda. The original plan put the host last, but beranda is still static (no API or auth yet), so the host goes first. While beranda was not deployed, the host detached it and showed a static page on `/`. Now that beranda is deployed, the host attaches it again; `REMOTE_BERANDA_URL` must be set before the host build.
+| Item | Notes |
+|---|---|
+| Vercel's built-in skipping | does not apply: it requires `workspaces` in a root `package.json`, which this repo has not |
+| `VERCEL_GIT_PREVIOUS_SHA` | that project's last successful deployment. `HEAD^` alone compares only the last commit, so a change in an earlier commit could be missed |
+| Clone `--depth=10` | if the comparison commit falls outside that depth, `git diff` errors and the build runs. It fails safe |
+| Shape in `vercel.json` | `"ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- ."` |
+| Status | set in all four folders. The design system also keeps its build settings there; the other three hold only `ignoreCommand` |
+| Manual redeploy | the same commit is skipped too. Untick **Use project's Ignore Build Step** |
+| Remote → host | a remote need not trigger a host build; the host reads the latest `remoteEntry.js` at runtime |
 
 ### Host environment variables
 
-| Env var | Value | Rewrite |
+| Env var | Contents | Rewrite |
 |---|---|---|
 | `REMOTE_DESIGN_SYSTEM_URL` | the design system's `*.vercel.app` URL | `/design-system/static/:path*` → `…/:path*` |
 | `REMOTE_LAYOUT_URL` | the layout's `*.vercel.app` URL | `/layout/:path*` → `…/layout/:path*` |
@@ -179,34 +241,53 @@ git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
 | `REMOTE_AUTH_URL` *(later)* | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
 | `BACKEND_URL` *(later)* | the backend | `/api/:path*` → `…/:path*` |
 
-The design system differs from the other two: it is not Next and has no `basePath`, so its files sit at the root of its Vercel domain and its rewrite **strips** the `/design-system/static` prefix. The layout and beranda keep their prefixes.
-
-In local dev these variables are empty, so the rewrites stay off and each remote is still reached directly on its own port.
+- **The design system's prefix is stripped**, because it is not Next and has no `basePath`: its files sit at the root of its Vercel domain. The layout and beranda keep their prefixes.
+- **Local dev:** the variables are empty → no rewrites → remotes are reached through their own ports.
 
 ### Checklist before the first deploy
 
-- ☑ **Env-var-driven host rewrites**, active only when their variable is set. In `duidtin-ui/next.config.mjs`. Verified locally against the design system and layout that are live on Vercel: every request goes through one origin. Changing an env var means redeploying the host with **Use project's Ignore Build Step** unticked.
-- ☑ **`remoteEntry.js` caching — no extra header needed after all.** The concern: `remoteEntry.js` keeps its name across deploys, so if cached, the browser uses a stale table of contents pointing at deleted chunks (`ChunkLoadError`). What the deployed remotes actually send:
-  - Design system: `max-age=0, must-revalidate` (Vercel's default for static files).
-  - Layout: `public,max-age=31536000,immutable`, because Next applies it to everything under `_next/static`, `remoteEntry.js` and `mf-manifest.json` included.
-  - Still safe, because the host never requests the bare URL. The `nextjs-mf` runtime plugin (`runtimePlugin.cjs`, `beforeRequest` hook) always appends `?t=Date.now()` to a remote's entry, in dev and production alike, so every page load uses a fresh cache key. The host never requests `mf-manifest.json` at all.
-  - Still to confirm once the host is live: in the Network tab, the layout's and beranda's `remoteEntry.js` are requested with `?t=`.
-- ☐ **`?gagal` and `?lambat` behind a `NEXT_PUBLIC_API_SIMULASI` flag.** Both are currently live in production too — anyone can take down beranda blocks through the URL.
-- ☐ **Verify beranda's build before the host's.** `next-rspack` is still experimental, and Next 16 + Rspack on Vercel has no precedent — qcash deploys dhe through Docker.
-- ☐ **Never set `MF_PUBLIC_PATH` in production env.** The `build` scripts deliberately leave it empty so asset paths stay relative to the single domain.
+| | Item | Notes |
+|---|---|---|
+| ☑ | Env-var-driven host rewrites | in `duidtin-ui/next.config.mjs`, active only when the variable is set. Verified locally against the live design system and layout: every request goes through one origin. Changing a variable means redeploying the host with Ignore Build Step unticked |
+| ☑ | `remoteEntry.js` caching | no extra header needed after all — see the table below |
+| ☐ | `?gagal` and `?lambat` behind `NEXT_PUBLIC_API_SIMULASI` | both are live in production too; anyone can take down beranda blocks through the URL |
+| ☐ | Verify beranda's build before the host's | `next-rspack` is still experimental, and Next 16 + Rspack on Vercel has no precedent |
+| ☐ | Never set `MF_PUBLIC_PATH` in production env | so asset paths stay relative to the single domain |
+
+The caching concern: `remoteEntry.js` keeps its name across deploys, so a cached copy could point at chunks that no longer exist (`ChunkLoadError`). What the deployed remotes actually send:
+
+| Remote | Header sent | Why it is still safe |
+|---|---|---|
+| design system | `max-age=0, must-revalidate` | Vercel's default for static files |
+| layout, beranda | `public,max-age=31536000,immutable` | Next applies it to everything under `_next/static` |
+| both | — | the host never requests the bare URL: `runtimePlugin.cjs` (the `beforeRequest` hook) appends `?t=Date.now()` on every page load. The host never requests `mf-manifest.json` at all |
+
+Still unconfirmed: that in the production host's Network tab, the layout's and beranda's `remoteEntry.js` really are requested with `?t=`.
 
 ### Rules for the next remotes
 
-**A remote's basePath must never collide with a host route.** Next rewrites run after host pages are checked but before dynamic routes. With a host route `/mutasi/[...slug]` alongside a basePath of `/mutasi`, a request for `/mutasi/_next/…` is captured by the host page and the remote fails to load with no clear message.
+**A remote's basePath must not collide with a host route.** Next runs rewrites after host pages are checked, but before dynamic routes:
+
+```
+host has route /mutasi/[...slug]   +   remote basePath /mutasi
+  └─▶ /mutasi/_next/… is caught by the host page → the remote fails to load, with no clear message
+```
 
 The correct shape for auth later: the **routes** `/login` and `/aktivasi` are host pages, while `duidtin-feature-auth`'s **asset basePath** is `/auth`.
 
-If the `@duidtin/auth` package is published privately to GitHub Packages, every Vercel project needs an `NPM_TOKEN` env var so `bun install` can fetch it.
+Distributing the `@duidtin/auth` package:
+
+| Approach | What it needs | Notes |
+|---|---|---|
+| local path `file:../duidtin-packages/auth` | Vercel's "include files outside the root directory" option on, the package built through `prebuild`, and each `ignoreCommand` also watching the package folder | no token |
+| GitHub Packages | `NPM_TOKEN` in every Vercel project | each repo can pin its own version |
 
 ### Known risks
 
-- **Old chunks disappear on redeploy.** A user whose page is still open requests the previous version's chunks and gets a 404. `RetryPlugin` and `fallbackPlugin` in the host soften the symptom; the real fix is keeping the previous build's assets around for a while.
-- **PR previews do not compose automatically.** The host's rewrites point at production remotes, so a remote's preview is not picked up by the host's preview.
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Old chunks disappear on redeploy | a page left open requests the previous version's chunks → 404 | `RetryPlugin` + `fallbackPlugin` in the host. The real fix is keeping the previous build's assets around for a while |
+| PR previews are not composed automatically | a remote's preview is not used by the host's preview | the host's rewrites point at production remotes |
 
 ### If it later moves to a VPS + Docker + Caddy
 

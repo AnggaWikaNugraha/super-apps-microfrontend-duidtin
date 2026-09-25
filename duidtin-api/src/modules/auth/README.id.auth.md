@@ -179,7 +179,7 @@ POST /auth/login  { email, password }
         └───────────────────────────────────────────────────────▶ 200 "Login berhasil."   LoginData
 ```
 
-FE setelah 200: simpan `accessToken`, `refreshToken`, dan `pengguna` ke `localStorage`, kirim event `duidtin:sesi-berubah`, lalu buka beranda. Setelah 401/423: tampilkan `message` di form.
+FE setelah 200: isi store auth milik host; store yang menulis `duidtin:sesi` ke `localStorage`. Lalu buka beranda. Setelah 401/423: tampilkan `message` di form.
 
 Penguncian disimpan di MongoDB, bukan di memori, karena instance serverless tidak berbagi memori dan bisa mati kapan saja.
 
@@ -253,7 +253,7 @@ Semua sebab di atas sengaja dijawab dengan kode yang sama. Client menanganinya b
 
 **Alur**
 
-Dipanggil saat: helper sesi FE (`authFetch`) melihat access token tinggal < 30 detik, atau menerima `TOKEN_KEDALUWARSA`. Selalu di dalam `navigator.locks.request("duidtin:refresh")`, jadi hanya satu remote/tab yang refresh pada satu waktu.
+Dipanggil saat: `authFetch` melihat access token tinggal < 30 detik, atau menerima `TOKEN_KEDALUWARSA`. Store auth hanya satu per tab (milik host), jadi balapan antar-remote tidak mungkin; `navigator.locks.request("duidtin:refresh")` menjaga balapan antar-tab.
 
 ```
 POST /auth/refresh  { refreshToken }
@@ -352,7 +352,7 @@ POST /auth/logout  { refreshToken }
         └───────────────────────────────────────────────────────▶ 200 "Logout berhasil."   data: null
 ```
 
-FE: hapus `duidtin:access-token`, `duidtin:refresh-token`, dan `duidtin:pengguna` dari storage **walaupun request ini gagal** (misalnya jaringan putus), kirim event `duidtin:sesi-berubah`, lalu buka halaman login.
+FE: kosongkan store auth **walaupun request ini gagal** (misalnya jaringan putus); store yang menghapus `duidtin:sesi`. Lalu buka halaman login.
 
 
 ---
@@ -474,4 +474,4 @@ GET /auth/me   Authorization: Bearer <accessToken>
         └───────────────────────────────────────────────────────▶ 200 "Berhasil mengambil data pengguna."   MeData
 ```
 
-FE setelah 200: perbarui `duidtin:pengguna` di storage dan kirim event `duidtin:sesi-berubah`.
+FE setelah 200: perbarui data pengguna di store auth; store yang menulis ulang `duidtin:sesi`.

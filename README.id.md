@@ -67,6 +67,44 @@ Tiga perbedaan paling mencolok di atas bukan kebetulan, tapi memang dibiarkan be
 - **Layout pakai Next** karena nanti perlu menjembatani context aplikasi (auth, menu per peran), bukan sekadar merender komponen.
 - **Beranda pakai Next 16 + Rspack** karena Turbopack (bawaan Next 16) tidak mendukung Module Federation, sedangkan `nextjs-mf` tidak mendukung Next 15+. Rspack jalan tengahnya.
 
+### Paket bersama: `@duidtin/auth`
+
+**Belum dibuat.** Paket di `duidtin-packages/auth`, bukan remote, jadi tidak punya project Vercel.
+
+```
+boot host — _app.tsx, sebelum federationInit()
+  └─▶ pasangStoreAuth()   buat store (zustand/vanilla) → hydrate localStorage["duidtin:sesi"]
+                          → window.__DUIDTIN_AUTH__
+
+remote (layout, beranda, auth)
+  └─▶ storeAuth()         pinjam store host
+                          global tidak ada (repo dibuka sendiri saat dev) → buat store lokal
+
+login — remote auth
+  └─▶ masuk(email, password) → POST /auth/login → isi store → store tulis localStorage
+                          → semua komponen yang berlangganan ikut berubah
+
+ambil data — remote mana pun
+  └─▶ authFetch("/beranda/rekening")
+        ├─ sisa access token < 30 detik  → refresh dulu
+        ├─ 401 TOKEN_KEDALUWARSA         → refresh → ulangi SEKALI
+        └─ refresh ditolak               → store dikosongkan → host mengarahkan ke /login
+
+tab lain
+  └─▶ event "storage" → store menyesuaikan
+```
+
+| Ekspor | Fungsi |
+|---|---|
+| `@duidtin/auth` | `aturKonfigurasi({ baseUrl })`, `pasangStoreAuth()`, `storeAuth()`, `authFetch()`, `masuk()`, `keluar()`, `keluarSemua()`, `segarkan()` |
+| `@duidtin/auth/react` | `useAuth()` → `{ pengguna, status, masuk, keluar, keluarSemua, segarkan }` |
+| `/vue`, `/svelte`, `/angular` | menyusul; inti tanpa framework, jadi pembungkusnya belasan baris |
+
+- Store sesi **hanya dibuat host**; remote meminjam objeknya (`getState`, `subscribe`, aksi) — tanpa kelas dan tanpa React, jadi aman lintas framework dan bundler.
+- Store bisnis tetap milik tiap remote.
+- Inti tidak membaca `process.env`; base URL diisi tiap app lewat `aturKonfigurasi()`.
+- Kontrak sesi lengkap: [README.be.id.md](README.be.id.md).
+
 ### Yang WAJIB sama
 
 | | Kenapa |
@@ -77,11 +115,30 @@ Tiga perbedaan paling mencolok di atas bukan kebetulan, tapi memang dibiarkan be
 
 ### Yang BOLEH beda
 
-Framework, bundler, plugin MF, versi TypeScript, prefix Tailwind, port, `basePath`, bahkan package manager. Prefix CSS sengaja dibuat berbeda (`app` / `ui` / `lyt` / `fber`) karena keempatnya dirender dalam satu halaman — tanpa prefix berbeda, utility class Tailwind-nya saling tabrakan.
+| | host | design-system | layout | beranda |
+|---|---|---|---|---|
+| Framework | Next 14 | tanpa Next | Next 14 | Next 16 |
+| Bundler | webpack | Rslib + Rsbuild | webpack | Rspack |
+| Plugin MF | `nextjs-mf` | `rsbuild-plugin` | `nextjs-mf` | `enhanced` |
+| MF runtime | 0.24.1 | 0.24.1 | 0.24.1 | 2.9.0 |
+| Prefix Tailwind | `app` | `ui` | `lyt` | `fber` |
+| Port dev | 3000 | 3001 | 3002 | 3003 |
+| `basePath` | — | `/design-system/static` | `/layout` | `/beranda` |
 
-Warnanya sendiri **tidak** berbeda: palet, radius, dan bayangan didefinisikan sekali sebagai CSS custom property `--dtn-*` di design-system, lalu mengalir ke semua repo lewat `:root`. Tailwind di tiap repo cuma mengurus tata letak.
+Package manager dan versi TypeScript juga boleh beda; sekarang kebetulan sama (bun).
 
-Yang tetap berbeda antar repo adalah **cara CSS-nya sampai ke browser**: Next melarang import CSS global di luar `_app.tsx`, sedangkan modul yang di-expose MF bukan `_app.tsx`. Layout menyiasatinya lewat rule webpack custom, beranda lewat kompilasi jadi string yang disuntik manual.
+**Prefix Tailwind wajib beda**, karena keempatnya dirender di satu halaman. Tanpa itu, utility class dan variabel tema (`--spacing`, `--color-*`) saling menimpa.
+
+**Warna tidak ikut beda.** Palet, radius, dan bayangan ditulis sekali sebagai `--dtn-*` di `tokens.css` design-system, lalu mengalir ke semua repo lewat `:root`. Tailwind tiap repo cuma mengurus tata letak.
+
+**Cara CSS sampai ke browser** berbeda, karena Next melarang import CSS global di luar `_app.tsx` sedangkan modul yang di-expose MF bukan `_app.tsx`:
+
+| Repo | Cara |
+|---|---|
+| host | `import "@/styles/globals.css"` di `_app.tsx` |
+| design-system | expose `./globals`, di-`loadRemote` host saat FASE 1 |
+| layout | expose `./globals` + rule webpack `style-loader` |
+| beranda | CSS dikompilasi jadi string, disuntik `ensureGlobalsStylesheet()` |
 
 > **Sudah terbukti:** `duidtin-feature-beranda` jalan di MF runtime **2.9.0**, tiga repo lain di **0.24.1**, dan keduanya bisa saling bicara — dua arah. Host (0.24.1) memuat beranda (2.x), lalu beranda (2.x) memuat design-system (0.24.1), semuanya dalam satu pohon render tanpa error. Bahkan `dts` lintas-repo ikut jalan: tipe design-system ter-generate otomatis ke `@mf-types/` di sisi beranda.
 
@@ -127,13 +184,16 @@ Satu origin juga yang membuat pengembangan berikutnya sederhana: cookie sesi dan
 | Versi MF dicampur di produksi | host `0.18.1`, dhe `2.x` | host `0.24.1`, beranda `2.9` |
 | **Yang menyatukan domain** | **router OpenShift** (infrastruktur) | **rewrites di host** |
 
-Host `qcash-ui` memang punya `rewrites()`, tapi hanya aktif saat development — komentarnya menulis *"Deployed envs are same-origin, so no rewrite is needed."* Di Vercel tidak ada router OpenShift, jadi rewrites host mengambil peran itu. Browser tidak melihat perbedaannya.
+```
+browser → super-apps-duidtin.vercel.app/layout/_next/static/chunks/remoteEntry.js
+            └─▶ rewrites host → super-apps-duidtin-ui-layout.vercel.app/layout/_next/…
+```
 
-Rewrite **bukan redirect**. Alamat di browser tidak berubah, dan yang dirutekan hanya berkas chunk JavaScript/CSS — bukan halaman. Penggabungan layout, beranda, dan design-system tetap terjadi di dalam satu halaman lewat Module Federation.
+- **Rewrite bukan redirect.** Alamat di browser tidak berubah; yang dirutekan hanya berkas chunk JS/CSS, bukan halaman.
+- Penggabungan layout, beranda, dan design-system tetap terjadi di dalam satu halaman lewat Module Federation.
+- `rewrites()` di host qcash hanya aktif saat dev — komentarnya: *"Deployed envs are same-origin, so no rewrite is needed."* Di Vercel tidak ada router OpenShift, jadi rewrites host yang mengambil peran itu.
 
 ### Platform: Vercel Hobby, empat project dari satu repo
-
-**Kenapa bukan satu project:** satu project Vercel membangun satu aplikasi dari satu root. Keempat aplikasi punya toolchain berbeda, dan deploy independen — alasan utama MFE — akan hilang.
 
 | Project | Root Directory | Framework | Build Command | Output Directory |
 |---|---|---|---|---|
@@ -142,28 +202,34 @@ Rewrite **bukan redirect**. Alamat di browser tidak berubah, dan yang dirutekan 
 | `duidtin-feature-beranda` | `duidtin-feature-beranda` | Next.js | `bun run build` | *(bawaan)* |
 | `duidtin-ui` | `duidtin-ui` | Next.js | `bun run build` | *(bawaan)* |
 
-Install Command keempatnya `bun install`. Script `build` bisa dipakai apa adanya: `NEXT_PRIVATE_LOCAL_WEBPACK=true` sudah ada di script host dan layout, dan `prebuild` beranda mengompilasi Tailwind lewat binary lokal.
+| Hal | Keterangan |
+|---|---|
+| Install Command | `bun install`, keempatnya |
+| Kenapa bukan satu project | satu project membangun satu aplikasi dari satu root; toolchain berbeda dan deploy independen akan hilang |
+| Script `build` | dipakai apa adanya: `NEXT_PRIVATE_LOCAL_WEBPACK=true` sudah ada di host dan layout, `prebuild` beranda mengompilasi Tailwind lewat binary lokal |
+| Pengaturan design-system | di `duidtin-ui-design-system/vercel.json`, menimpa isian dashboard. `build:vercel` membangun remote sekaligus Storybook, disajikan di `/storybook/` |
+| Urutan membuat project | design-system → layout → host → beranda. Host didahulukan karena beranda masih statis; `REMOTE_BERANDA_URL` wajib terisi sebelum build host |
 
-Pengaturan design-system tersimpan di `duidtin-ui-design-system/vercel.json` dan menimpa isian dashboard. `build:vercel` membangun remote sekaligus Storybook, lalu Storybook disajikan di `/storybook/` pada domain yang sama. Detailnya ada di README design-system, bagian Storybook.
+**Build otomatis saat push**
 
-**Build otomatis saat push.** Setiap push ke repo membuat deploy di **semua** project yang terhubung, termasuk project yang foldernya tidak berubah. Fitur skip otomatis bawaan Vercel untuk monorepo tidak berlaku di sini, karena fitur itu mensyaratkan `workspaces` di `package.json` root, sedangkan repo ini tidak punya `package.json` root.
-
-Karena itu, tiap folder memasang `ignoreCommand` di `vercel.json`-nya sendiri. Nilai ini menimpa kolom **Ignored Build Step** di dashboard dan ikut tercatat di git. Keempatnya memakai perintah yang sama, karena `.` berarti Root Directory project itu:
-
-```bash
-git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
+```
+push ke main
+  └─▶ SEMUA project yang terhubung ikut ter-trigger
+        └─▶ ignoreCommand tiap project:
+              git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
+                ├─ exit 0   folder tidak berubah → build DILEWATI
+                └─ exit ≥1  ada perubahan / error → build JALAN
 ```
 
-- Exit `0` (tidak ada perubahan) berarti build dilewati. Exit `1` atau lebih berarti build jalan.
-- `VERCEL_GIT_PREVIOUS_SHA` adalah commit deploy sukses terakhir project itu, jadi satu push berisi beberapa commit tetap dibandingkan seluruhnya. `HEAD^` saja hanya membandingkan commit terakhir, sehingga perubahan layout di commit sebelumnya bisa terlewat.
-- Vercel meng-clone dengan `--depth=10`. Kalau commit pembanding sudah di luar kedalaman itu, `git diff` error dan keluar dengan kode bukan `0`, jadi build tetap jalan. Gagalnya ke arah aman.
-- Remote tidak perlu memicu build host. Host membaca `remoteEntry.js` terbaru saat runtime.
-- Di `vercel.json` tanda kutipnya di-escape: `"ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- ."`.
-- **Status:** terpasang di `vercel.json` keempat folder. Design-system juga menyimpan pengaturan build-nya di sana; tiga lainnya hanya berisi `ignoreCommand`, dan pengaturan build tetap bawaan Next.js di dashboard.
-- Berlaku mulai commit yang menambahkannya, jadi push itu sendiri masih membangun semua project yang terhubung.
-- Redeploy manual untuk commit yang sama juga ikut dilewati. Hilangkan centang **Use project's Ignore Build Step** di dialog Redeploy.
-
-**Urutan membuat project:** design-system → layout → host → beranda. Rencana awalnya host paling akhir, tapi beranda masih statis (belum ada API dan auth), jadi host didahulukan. Selama beranda belum di-deploy, host sempat melepasnya dan menampilkan halaman statis di `/`. Setelah beranda di-deploy, host memasangnya kembali; `REMOTE_BERANDA_URL` wajib terisi sebelum build host.
+| Hal | Keterangan |
+|---|---|
+| Skip otomatis bawaan Vercel | tidak berlaku: mensyaratkan `workspaces` di `package.json` root, repo ini tidak punya |
+| `VERCEL_GIT_PREVIOUS_SHA` | commit deploy sukses terakhir project itu. `HEAD^` saja hanya membandingkan commit terakhir, jadi perubahan di commit sebelumnya bisa terlewat |
+| Clone `--depth=10` | commit pembanding di luar kedalaman itu → `git diff` error → build tetap jalan. Gagalnya ke arah aman |
+| Bentuk di `vercel.json` | `"ignoreCommand": "git diff --quiet \"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\" HEAD -- ."` |
+| Status | terpasang di keempat folder. Design-system juga menyimpan pengaturan build-nya di sana; tiga lainnya hanya `ignoreCommand` |
+| Redeploy manual | commit yang sama ikut dilewati. Hilangkan centang **Use project's Ignore Build Step** |
+| Remote → host | remote tidak perlu memicu build host; host membaca `remoteEntry.js` terbaru saat runtime |
 
 ### Env var host
 
@@ -175,34 +241,53 @@ git diff --quiet "${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}" HEAD -- .
 | `REMOTE_AUTH_URL` *(nanti)* | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
 | `BACKEND_URL` *(nanti)* | backend | `/api/:path*` → `…/:path*` |
 
-Design-system berbeda dari dua lainnya: dia bukan Next dan tidak punya `basePath`, jadi berkasnya ada di root domain Vercel-nya dan rewrite-nya **membuang** prefiks `/design-system/static`. Layout dan beranda tetap membawa prefiksnya.
-
-Saat dev lokal env ini kosong, jadi rewrites tidak aktif dan remote tetap diakses langsung lewat port masing-masing.
+- **Design-system membuang prefiksnya**, karena bukan Next dan tanpa `basePath`: berkasnya ada di root domain Vercel-nya. Layout dan beranda tetap membawa prefiks.
+- **Dev lokal:** env kosong → rewrites tidak aktif → remote diakses langsung lewat port masing-masing.
 
 ### Checklist sebelum deploy pertama
 
-- ☑ **Rewrites host berbasis env var**, hanya aktif kalau env-nya terisi. Ada di `duidtin-ui/next.config.mjs`. Diverifikasi lokal dengan design-system dan layout yang live di Vercel: semua request lewat satu origin. Mengganti env berarti redeploy host dengan centang **Use project's Ignore Build Step** dihilangkan.
-- ☑ **Cache `remoteEntry.js` — ternyata tidak perlu header tambahan.** Kekhawatirannya: nama `remoteEntry.js` tetap tiap deploy, jadi kalau di-cache browser memakai daftar isi lama yang menunjuk chunk yang sudah dihapus (`ChunkLoadError`). Hasil cek setelah deploy:
-  - Design-system: `max-age=0, must-revalidate` (bawaan Vercel untuk file statis).
-  - Layout: `public,max-age=31536000,immutable`, karena Next memberi header ini ke semua `_next/static`, termasuk `remoteEntry.js` dan `mf-manifest.json`.
-  - Tetap aman, karena host tidak pernah meminta URL polosnya. Plugin runtime `nextjs-mf` (`runtimePlugin.cjs`, hook `beforeRequest`) selalu menempelkan `?t=Date.now()` ke entry remote, di dev maupun produksi, jadi tiap muat halaman memakai URL cache baru. `mf-manifest.json` tidak diminta host sama sekali.
-  - Yang masih perlu dipastikan saat host live: di tab Network, `remoteEntry.js` layout dan beranda diminta dengan `?t=`.
-- ☐ **`?gagal` dan `?lambat` di balik flag `NEXT_PUBLIC_API_SIMULASI`.** Sekarang keduanya aktif juga di produksi — siapa pun bisa mematikan blok beranda lewat URL.
-- ☐ **Verifikasi build beranda sebelum host.** `next-rspack` masih eksperimental, dan kombinasi Next 16 + Rspack di Vercel belum punya preseden — qcash men-deploy dhe lewat Docker.
-- ☐ **Jangan isi `MF_PUBLIC_PATH` di env produksi.** Script `build` sengaja tidak mengisinya supaya path aset relatif terhadap satu domain.
+| | Item | Keterangan |
+|---|---|---|
+| ☑ | Rewrites host berbasis env var | di `duidtin-ui/next.config.mjs`, hanya aktif kalau env terisi. Diverifikasi lokal dengan design-system dan layout yang live: semua request lewat satu origin. Ganti env → redeploy host tanpa Ignore Build Step |
+| ☑ | Cache `remoteEntry.js` | ternyata tidak perlu header tambahan — lihat tabel di bawah |
+| ☐ | `?gagal` dan `?lambat` di balik `NEXT_PUBLIC_API_SIMULASI` | sekarang aktif juga di produksi; siapa pun bisa mematikan blok beranda lewat URL |
+| ☐ | Verifikasi build beranda sebelum host | `next-rspack` masih eksperimental, dan Next 16 + Rspack di Vercel belum punya preseden |
+| ☐ | Jangan isi `MF_PUBLIC_PATH` di env produksi | supaya path aset relatif terhadap satu domain |
+
+Kekhawatiran cache: nama `remoteEntry.js` tetap sama tiap deploy, jadi kalau di-cache browser bisa memakai daftar isi lama yang menunjuk chunk yang sudah dihapus (`ChunkLoadError`). Hasil cek setelah deploy:
+
+| Remote | Header yang dikirim | Kenapa tetap aman |
+|---|---|---|
+| design-system | `max-age=0, must-revalidate` | bawaan Vercel untuk file statis |
+| layout, beranda | `public,max-age=31536000,immutable` | Next memberi header itu ke semua `_next/static` |
+| keduanya | — | host tidak pernah meminta URL polosnya: `runtimePlugin.cjs` (hook `beforeRequest`) menempelkan `?t=Date.now()` tiap muat halaman. `mf-manifest.json` tidak diminta host sama sekali |
+
+Belum dipastikan: di tab Network host produksi, `remoteEntry.js` layout dan beranda memang diminta dengan `?t=`.
 
 ### Aturan untuk remote berikutnya
 
-**basePath remote tidak boleh bentrok dengan route host.** Rewrites Next dijalankan setelah halaman host dicek tapi sebelum dynamic route. Kalau ada route `/mutasi/[...slug]` di host sekaligus basePath `/mutasi`, request `/mutasi/_next/…` ditangkap halaman host dan remote-nya gagal dimuat tanpa pesan yang jelas.
+**basePath remote tidak boleh bentrok dengan route host.** Rewrites Next dijalankan setelah halaman host dicek, tapi sebelum dynamic route:
 
-Contoh yang benar untuk auth nanti: **route** `/login` dan `/aktivasi` adalah halaman host, sedangkan **basePath aset** `duidtin-feature-auth` adalah `/auth`.
+```
+host punya route /mutasi/[...slug]   +   remote basePath /mutasi
+  └─▶ /mutasi/_next/… ditangkap halaman host → remote gagal dimuat, tanpa pesan jelas
+```
 
-Kalau paket `@duidtin/auth` dipublish privat ke GitHub Packages, tiap project Vercel butuh env `NPM_TOKEN` supaya `bun install` bisa mengunduhnya.
+Bentuk yang benar untuk auth nanti: **route** `/login` dan `/aktivasi` adalah halaman host, **basePath aset** `duidtin-feature-auth` adalah `/auth`.
+
+Distribusi paket `@duidtin/auth`:
+
+| Cara | Yang dibutuhkan | Catatan |
+|---|---|---|
+| path lokal `file:../duidtin-packages/auth` | opsi Vercel "sertakan berkas di luar Root Directory" aktif, paket di-build lewat `prebuild`, `ignoreCommand` ikut memeriksa folder paket | tanpa token |
+| GitHub Packages | `NPM_TOKEN` di tiap project Vercel | tiap repo bisa mengunci versinya sendiri |
 
 ### Risiko yang diketahui
 
-- **Chunk lama hilang saat redeploy.** Pengguna yang halamannya masih terbuka akan meminta chunk versi sebelumnya dan kena 404. `RetryPlugin` dan `fallbackPlugin` di host meredam gejalanya; perbaikan sebenarnya adalah mempertahankan aset build sebelumnya untuk sementara.
-- **Preview PR tidak tersusun otomatis.** Rewrites host menunjuk remote produksi, jadi preview sebuah remote tidak otomatis dipakai preview host.
+| Risiko | Dampak | Peredam |
+|---|---|---|
+| Chunk lama hilang saat redeploy | halaman yang masih terbuka meminta chunk versi sebelumnya → 404 | `RetryPlugin` + `fallbackPlugin` di host. Perbaikan sebenarnya: mempertahankan aset build sebelumnya untuk sementara |
+| Preview PR tidak tersusun otomatis | preview sebuah remote tidak dipakai preview host | rewrites host menunjuk remote produksi |
 
 ### Kalau nanti pindah ke VPS + Docker + Caddy
 
