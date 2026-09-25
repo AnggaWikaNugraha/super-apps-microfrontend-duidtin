@@ -69,7 +69,7 @@ Tiga perbedaan paling mencolok di atas bukan kebetulan, tapi memang dibiarkan be
 
 ### Paket bersama: `@duidtin/auth`
 
-**Inti + React selesai (15 tes lolos), belum dipakai repo mana pun.** Paket di [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), bukan remote, jadi tidak punya project Vercel.
+**Inti + React selesai (15 tes lolos). Dipakai host: store dipasang di `duidtin-ui/pages/_app.tsx`; layout, beranda, dan remote auth belum.** Paket di [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), bukan remote, jadi tidak punya project Vercel.
 
 ```
 boot host — _app.tsx, sebelum federationInit()
@@ -281,7 +281,9 @@ Distribusi paket `@duidtin/auth` — dua tahap, tidak dipakai bersamaan:
 ```
 TAHAP 1 — path lokal (sekarang)
   duidtin-packages/auth ──file:../duidtin-packages/auth──▶ host, layout, beranda, auth
-    ubah paket → simpan → build berikutnya langsung memakainya
+    bun MENYALIN paket saat install, bukan menautkan
+    ubah paket → bun run build di paket → bun install di repo pemakai
+    (saat `bun run build` repo pemakai, `prebuild` melakukan keduanya otomatis)
 
 TAHAP 2 — GitHub Packages (nanti)
   duidtin-packages/auth ──tag──▶ publish ──▶ registry ──"@duidtin/auth": "^0.1.0"──▶ tiap repo

@@ -12,6 +12,8 @@ The host needs both remotes running first. Three terminals:
 2. `../duidtin-ui-layout/` → `bun install` then `bun run dev` — remote at `http://localhost:3002/layout/_next/static/chunks/remoteEntry.js`.
 3. This folder → `bun install` then `bun run dev` — open `http://localhost:3000`.
 
+The host also uses the local `@duidtin/auth` package (`file:../duidtin-packages/auth`). `bun install` here copies it; if the package changes, run `bun install` again — see [Session](#session-duidtinauth).
+
 `bun run build` for a production build, `bun run check-types` for `tsc --noEmit`.
 
 If a remote isn't running the page **still renders** — the failed part is replaced by a red box from `fallbackPlugin` (see PHASE 4). That is the intended behaviour, not a bug.
@@ -32,7 +34,7 @@ Not there yet:
 
 - **A second feature remote and beyond** — there is only one so far (`duidtin_feature_beranda` at route `/`). Payroll, Transfer, Statement and Approvals are still missing.
 - i18n (no equivalent of `qcash-ui`'s `loadLocalesForModule` yet).
-- Auth/context provider — `userName` and `onLogout` are still hardcoded in `pages/index.tsx`, and the layout's menu does not yet adapt to roles (maker vs checker).
+- The `/login` page, the route guard, and a header driven by `useAuth()` — the session store is installed (see [Session](#session-duidtinauth)), but `userName` and `onLogout` are still hardcoded in `pages/index.tsx`, and the layout's menu does not yet adapt to roles (maker vs checker).
 - A browser test of `?remote-lokal` from the **production host**, and of `NEXT_PUBLIC_REMOTE_DARI=publish` mode — see [Dev without running every server](#dev-without-running-every-server).
 
 ## Stack
@@ -146,6 +148,36 @@ REMOTE_BERANDA_URL=https://<beranda-domain>.vercel.app
 - `NEXT_PUBLIC_*` is read when `next dev` starts — restart after changing `.env.local`.
 - Not yet tested in a browser.
 
+## Session (`@duidtin/auth`)
+
+The host is the **only** place that creates the session store. It is installed in [`pages/_app.tsx`](pages/_app.tsx), at the top level, **before** `federationInit()`:
+
+```
+_app.tsx (client-only, before React renders)
+  ├─ configureAuth({ baseUrl })   ← NEXT_PUBLIC_API_URL, defaults to http://localhost:4000
+  ├─ installAuthStore()           ← create the store, hydrate localStorage["duidtin:sesi"],
+  │                                 listen for "storage", park it on window.__DUIDTIN_AUTH__
+  └─ federationInit()             ← only now may remotes load
+```
+
+**That order is mandatory.** A remote calls `getAuthStore()` as soon as it loads; if the global isn't there yet it creates its own fallback store and the session splits in two.
+
+| Thing | Host | Remote |
+|---|---|---|
+| `installAuthStore()` | yes, once | never |
+| `configureAuth({ baseUrl })` | yes | yes — `baseUrl` is module state, each bundle has its own copy |
+| React provider | none | none — the store is read through `useSyncExternalStore`, not Context |
+
+| Env | Meaning |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | base URL of `duidtin-api`. Empty → `http://localhost:4000` |
+
+The package is installed through a local path (`"@duidtin/auth": "file:../duidtin-packages/auth"`). `bun` **copies** it at install time rather than linking, so after changing the package: `bun run build` there, then `bun install` here. The host's `prebuild` does both automatically on `bun run build`.
+
+Verified in a real browser (headless Chrome, `publish` mode): `window.__DUIDTIN_AUTH__` exists, status is `"unauthenticated"` when empty, and after filling `localStorage["duidtin:sesi"]` and reloading → status `"authenticated"` with `pengguna.nama` readable.
+
+Not yet: the `/login` page, the route guard, and a header driven by `useAuth()` — `userName`/`onLogout` in [`pages/index.tsx`](pages/index.tsx) are still hardcoded.
+
 ## Deploy (Vercel)
 
 Live at `https://super-apps-duidtin.vercel.app` (a Vercel project with Root Directory `duidtin-ui`). Verified from outside: `/`, plus the design system's and layout's `remoteEntry.js` and chunks, return 200 through the host domain. `/beranda/*` works once `REMOTE_BERANDA_URL` is set and the host is rebuilt.
@@ -161,6 +193,8 @@ In production the host acts as a single-domain router. `next.config.mjs` builds 
 - A trailing slash on the URL is stripped, so `https://x.vercel.app/` and `https://x.vercel.app` behave the same.
 - In local dev the variables are empty, so there are no rewrites. Remotes are still reached through their own ports.
 - Rewrites are locked in at build time. **Changing an env var means a redeploy**, and in the Redeploy dialog **Use project's Ignore Build Step** must be unticked: the code has not changed, so `ignoreCommand` would skip the build.
+
+**`@duidtin/auth` is built during deploys.** The package lives outside the host's Root Directory, so the host's Vercel project must enable **Include files outside the Root Directory**, and `prebuild` in `package.json` builds the package and re-runs `bun install` before `next build`. `ignoreCommand` also watches the package folder (`-- . ../duidtin-packages/auth`) so package changes trigger a host build. `NEXT_PUBLIC_API_URL` is set in the host's Vercel project.
 
 **Webpack caching is off for production builds** (`if (!dev) config.cache = false` in `next.config.mjs`). Vercel restores the build cache from the previous deployment, and together with `nextjs-mf` that once failed the host build with `RealContentHashPlugin: Some kind of unexpected caching problem occurred` — the chunk hashes in the cache no longer matched the new build. If that message appears again, Redeploy with **Use existing Build Cache** unticked. The cache stays on in dev.
 

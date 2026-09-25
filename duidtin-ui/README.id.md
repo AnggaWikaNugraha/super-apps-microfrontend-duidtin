@@ -12,6 +12,8 @@ Host butuh kedua remote nyala duluan. Tiga terminal:
 2. `../duidtin-ui-layout/` → `bun install` lalu `bun run dev` — remote di `http://localhost:3002/layout/_next/static/chunks/remoteEntry.js`.
 3. Folder ini → `bun install` lalu `bun run dev` — buka `http://localhost:3000`.
 
+Host juga memakai paket lokal `@duidtin/auth` (`file:../duidtin-packages/auth`). `bun install` di sini sudah menyalinnya; kalau paketnya diubah, jalankan `bun install` lagi — lihat [Sesi](#sesi-duidtinauth).
+
 `bun run build` buat production build, `bun run check-types` buat `tsc --noEmit`.
 
 Kalau remote-nya belum nyala, halaman **tetap tampil** — bagian yang gagal diganti kotak merah oleh `fallbackPlugin` (lihat FASE 4). Itu memang perilaku yang diinginkan, bukan bug.
@@ -32,7 +34,7 @@ Belum ada:
 
 - **Feature remote kedua dan seterusnya** — sekarang baru ada satu (`duidtin_feature_beranda` di route `/`). Payroll, Transfer, Mutasi, Persetujuan masih kosong.
 - i18n (`loadLocalesForModule` di host `qcash-ui` belum ada padanannya di sini).
-- Auth/context provider — `userName` & `onLogout` masih hardcode di `pages/index.tsx`, dan menu di layout belum menyesuaikan peran (maker vs checker).
+- Halaman `/login`, guard route, dan header yang memakai `useAuth()` — store sesi sudah terpasang (lihat [Sesi](#sesi-duidtinauth)), tapi `userName` & `onLogout` masih hardcode di `pages/index.tsx`, dan menu di layout belum menyesuaikan peran (maker vs checker).
 - Uji browser untuk `?remote-lokal` dari **host produksi** dan untuk mode `NEXT_PUBLIC_REMOTE_DARI=publish` — lihat [Dev tanpa menyalakan semua server](#dev-tanpa-menyalakan-semua-server).
 
 ## Stack
@@ -146,6 +148,36 @@ REMOTE_BERANDA_URL=https://<domain-beranda>.vercel.app
 - `NEXT_PUBLIC_*` dibaca saat `next dev` mulai — restart setelah mengubah `.env.local`.
 - Belum diuji di browser.
 
+## Sesi (`@duidtin/auth`)
+
+Host adalah **satu-satunya** yang membuat store sesi. Dipasang di [`pages/_app.tsx`](pages/_app.tsx), top-level, **sebelum** `federationInit()`:
+
+```
+_app.tsx (client-only, sebelum React render)
+  ├─ configureAuth({ baseUrl })   ← NEXT_PUBLIC_API_URL, default http://localhost:4000
+  ├─ installAuthStore()           ← buat store, hydrate localStorage["duidtin:sesi"],
+  │                                 dengar event "storage", simpan ke window.__DUIDTIN_AUTH__
+  └─ federationInit()             ← baru remote boleh dimuat
+```
+
+**Urutannya wajib begitu.** Remote memanggil `getAuthStore()` begitu dimuat; kalau global-nya belum ada, remote membuat store cadangan sendiri dan sesinya terbelah.
+
+| Hal | Host | Remote |
+|---|---|---|
+| `installAuthStore()` | ya, sekali | tidak pernah |
+| `configureAuth({ baseUrl })` | ya | ya — `baseUrl` variabel modul, tiap bundle punya salinan sendiri |
+| Provider React | tidak ada | tidak ada — store dibaca lewat `useSyncExternalStore`, bukan Context |
+
+| Env | Isi |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | base URL `duidtin-api`. Kosong → `http://localhost:4000` |
+
+Paket dipasang lewat path lokal (`"@duidtin/auth": "file:../duidtin-packages/auth"`). `bun` **menyalin** isinya saat install, bukan menautkan — jadi setelah mengubah paketnya: `bun run build` di paket, lalu `bun install` di sini. Saat `bun run build` host, `prebuild` sudah melakukan keduanya otomatis.
+
+Terverifikasi di browser (Chrome headless, mode `publish`): `window.__DUIDTIN_AUTH__` ada, status `"unauthenticated"` saat kosong, dan setelah `localStorage["duidtin:sesi"]` diisi lalu reload → status `"authenticated"` dengan `pengguna.nama` terbaca.
+
+Belum: halaman `/login`, guard route, dan header yang memakai `useAuth()` — `userName`/`onLogout` di [`pages/index.tsx`](pages/index.tsx) masih hardcode.
+
 ## Deploy (Vercel)
 
 Live di `https://super-apps-duidtin.vercel.app` (project Vercel dengan Root Directory `duidtin-ui`). Diverifikasi dari luar: `/`, `remoteEntry.js` dan chunk design-system serta layout 200 lewat domain host. `/beranda/*` baru jalan setelah `REMOTE_BERANDA_URL` diisi dan host di-build ulang.
@@ -161,6 +193,8 @@ Di produksi host menjadi router satu domain. `next.config.mjs` membangun `rewrit
 - Garis miring di akhir URL dibuang, jadi `https://x.vercel.app/` dan `https://x.vercel.app` sama saja.
 - Saat dev lokal env kosong, jadi tidak ada rewrite. Remote tetap diakses lewat port masing-masing.
 - Rewrites dikunci saat build. **Mengganti env berarti redeploy**, dan di dialog Redeploy centang **Use project's Ignore Build Step** harus dihilangkan: kodenya tidak berubah, jadi `ignoreCommand` akan melewati build.
+
+**Paket `@duidtin/auth` ikut di-build saat deploy.** Karena paketnya di luar Root Directory host, project Vercel host wajib menyalakan **Include files outside the Root Directory**, dan `prebuild` di `package.json` membangun paket lalu `bun install` ulang sebelum `next build`. `ignoreCommand` juga ikut memeriksa folder paket (`-- . ../duidtin-packages/auth`), supaya perubahan paket memicu build host. Env `NEXT_PUBLIC_API_URL` diisi di project Vercel host.
 
 **Cache webpack dimatikan saat build produksi** (`if (!dev) config.cache = false` di `next.config.mjs`). Vercel memulihkan cache build dari deployment sebelumnya, dan bersama `nextjs-mf` itu pernah menggagalkan build host dengan `RealContentHashPlugin: Some kind of unexpected caching problem occurred` — hash chunk di cache tidak lagi cocok dengan hasil build baru. Kalau pesan itu muncul lagi, Redeploy dengan centang **Use existing Build Cache** dihilangkan. Saat dev cache tetap aktif.
 

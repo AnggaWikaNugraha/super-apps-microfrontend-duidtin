@@ -1,5 +1,14 @@
+import type { AuthStore } from "@duidtin/auth";
+
 declare global {
   interface Window {
+    /**
+     * Store sesi milik host, dipasang installAuthStore() di _app.tsx sebelum
+     * federationInit(). Remote meminjam objek ini lewat getAuthStore() — bukan
+     * React Context, supaya tembus batas bundle antar-remote.
+     */
+    __DUIDTIN_AUTH__?: AuthStore;
+
     /**
      * Flag "MF runtime siap dipakai", di-set di akhir federationInit() (FASE 1).
      * Dipolling waitForFederation() di FASE 2 — provider nggak boleh manggil

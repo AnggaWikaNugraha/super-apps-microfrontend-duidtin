@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "NEXT_PRIVATE_LOCAL_WEBPACK=true next dev -p 3000",
+    "prebuild": "(cd ../duidtin-packages/auth && bun install && bun run build) && bun install",
     "build": "NEXT_PRIVATE_LOCAL_WEBPACK=true next build",
     "start": "next start -p 3000",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@duidtin/auth": "file:../duidtin-packages/auth",
     "@module-federation/nextjs-mf": "8.8.54",
     "@module-federation/retry-plugin": "0.24.1",
     "@module-federation/runtime": "0.24.1",

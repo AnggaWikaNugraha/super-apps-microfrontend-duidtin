@@ -69,7 +69,7 @@ The three most striking differences above are deliberate, not accidental:
 
 ### Shared package: `@duidtin/auth`
 
-**Core + React done (15 tests passing), not yet used by any repo.** A package in [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), not a remote, so it has no Vercel project.
+**Core + React done (15 tests passing). Used by the host: the store is installed in `duidtin-ui/pages/_app.tsx`; layout, beranda and the auth remote are not wired yet.** A package in [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), not a remote, so it has no Vercel project.
 
 ```
 host boot — _app.tsx, before federationInit()

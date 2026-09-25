@@ -1,2 +1,8 @@
 [test]
 preload = ["./tests/setup.ts"]
+
+# React itu peer opsional — cuma dipakai subpath /react, dan yang memakainya
+# (host/remote) selalu punya React sendiri. Kalau bun ikut memasangnya di sini,
+# bundler pemakai bisa me-resolve React KEDUA lewat symlink → "Invalid hook call".
+[install]
+peer = false

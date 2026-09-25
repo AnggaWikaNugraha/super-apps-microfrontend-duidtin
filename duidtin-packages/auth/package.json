@@ -12,7 +12,9 @@
       "default": "./dist/react.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "check-types": "tsc --noEmit",
@@ -34,7 +36,6 @@
     "@happy-dom/global-registrator": "^20.0.0",
     "@types/bun": "^1.4.2",
     "@types/react": "^18.3.27",
-    "react": "^18.3.1",
     "typescript": "^7.0.2"
   }
 }

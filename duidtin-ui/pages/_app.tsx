@@ -1,3 +1,5 @@
+import { configureAuth, installAuthStore } from "@duidtin/auth";
+
 import ModuleFederationProvider from "@/components/federation/provider";
 import PenandaRemoteLokal from "@/components/ui/PenandaRemoteLokal";
 import { federationInit } from "@/services/federation/init";
@@ -19,6 +21,16 @@ import type { ReactElement, ReactNode } from "react";
  * jadi praktis CSS selalu sampai lebih dulu.
  */
 if (globalThis.window) {
+  // Base URL API: paket auth sengaja nggak baca process.env sendiri, karena nama
+  // env beda tiap bundler. Tiap app yang mengisinya — termasuk tiap remote.
+  configureAuth({ baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000" });
+
+  // HOST SAJA. Store dibuat di sini lalu diparkir di window.__DUIDTIN_AUTH__;
+  // remote cuma meminjam lewat getAuthStore(). HARUS sebelum federationInit():
+  // begitu remote pertama dimuat, dia langsung memanggil getAuthStore(), dan kalau
+  // global-nya belum ada dia bikin store cadangan sendiri — sesinya jadi terbelah.
+  installAuthStore();
+
   void federationInit();
 }
 
