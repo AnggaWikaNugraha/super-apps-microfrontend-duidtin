@@ -275,12 +275,42 @@ host has route /mutasi/[...slug]   +   remote basePath /mutasi
 
 The correct shape for auth later: the **routes** `/login` and `/aktivasi` are host pages, while `duidtin-feature-auth`'s **asset basePath** is `/auth`.
 
-Distributing the `@duidtin/auth` package:
+Distributing the `@duidtin/auth` package — two stages, never both at once:
 
-| Approach | What it needs | Notes |
+```
+STAGE 1 — local path (now)
+  duidtin-packages/auth ──file:../duidtin-packages/auth──▶ host, layout, beranda, auth
+    change the package → save → the next build already uses it
+
+STAGE 2 — GitHub Packages (later)
+  duidtin-packages/auth ──tag──▶ publish ──▶ registry ──"@duidtin/auth": "^0.1.0"──▶ each repo
+    change the package → bump → publish → raise the version in each consumer
+```
+
+| | Stage 1 | Stage 2 |
 |---|---|---|
-| local path `file:../duidtin-packages/auth` | Vercel's "include files outside the root directory" option on, the package built through `prebuild`, and each `ignoreCommand` also watching the package folder | no token |
-| GitHub Packages | `NPM_TOKEN` in every Vercel project | each repo can pin its own version |
+| Needs | Vercel's "include files outside the root directory", a package-building `prebuild`, `ignoreCommand` also watching the package folder | a `@duidtin` scope in `bunfig.toml`, an `NPM_TOKEN` env per Vercel project, a publish workflow |
+| Version per repo | always the latest | pinned individually |
+| Trigger to move | — | a remote holds back an older version, another team uses the package, or the package moves to its own repo |
+
+```
+MIGRATION (once)
+  1. publishConfig + repository in duidtin-packages/auth/package.json
+  2. GitHub Actions workflow: publish on tag (GITHUB_TOKEN)
+  3. publish 0.1.0
+  4. each consumer: file:… → ^0.1.0 + the @duidtin scope in bunfig.toml
+  5. each Vercel project: NPM_TOKEN env (a read:packages PAT)
+  6. drop the package-building prebuild + ../duidtin-packages/auth from ignoreCommand
+     └─ repo by repo is fine; don't leave it long, versions drift unnoticed
+```
+
+After stage 2, daily iteration without publishing:
+
+```bash
+cd duidtin-packages/auth && bun link          # once
+cd ../../duidtin-ui      && bun link @duidtin/auth
+# laptop → local copy, Vercel → registry; undo with bun unlink
+```
 
 ### Known risks
 

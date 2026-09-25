@@ -275,12 +275,42 @@ host punya route /mutasi/[...slug]   +   remote basePath /mutasi
 
 Bentuk yang benar untuk auth nanti: **route** `/login` dan `/aktivasi` adalah halaman host, **basePath aset** `duidtin-feature-auth` adalah `/auth`.
 
-Distribusi paket `@duidtin/auth`:
+Distribusi paket `@duidtin/auth` — dua tahap, tidak dipakai bersamaan:
 
-| Cara | Yang dibutuhkan | Catatan |
+```
+TAHAP 1 — path lokal (sekarang)
+  duidtin-packages/auth ──file:../duidtin-packages/auth──▶ host, layout, beranda, auth
+    ubah paket → simpan → build berikutnya langsung memakainya
+
+TAHAP 2 — GitHub Packages (nanti)
+  duidtin-packages/auth ──tag──▶ publish ──▶ registry ──"@duidtin/auth": "^0.1.0"──▶ tiap repo
+    ubah paket → bump versi → publish → naikkan versi di repo pemakai
+```
+
+| | Tahap 1 | Tahap 2 |
 |---|---|---|
-| path lokal `file:../duidtin-packages/auth` | opsi Vercel "sertakan berkas di luar Root Directory" aktif, paket di-build lewat `prebuild`, `ignoreCommand` ikut memeriksa folder paket | tanpa token |
-| GitHub Packages | `NPM_TOKEN` di tiap project Vercel | tiap repo bisa mengunci versinya sendiri |
+| Butuh | opsi Vercel "sertakan berkas di luar Root Directory", `prebuild` pembangun paket, `ignoreCommand` ikut memeriksa folder paket | scope `@duidtin` di `bunfig.toml`, env `NPM_TOKEN` tiap project Vercel, workflow publish |
+| Versi per repo | selalu terbaru | dikunci masing-masing |
+| Pemicu pindah | — | ada remote yang menahan versi lama, tim lain ikut memakai, atau repo paket dipisah |
+
+```
+LANGKAH PINDAH (sekali)
+  1. publishConfig + repository di duidtin-packages/auth/package.json
+  2. workflow GitHub Actions: publish saat ada tag (GITHUB_TOKEN)
+  3. publish 0.1.0
+  4. tiap repo pemakai: file:… → ^0.1.0 + scope @duidtin di bunfig.toml
+  5. tiap project Vercel: env NPM_TOKEN (PAT read:packages)
+  6. hapus prebuild pembangun paket + ../duidtin-packages/auth dari ignoreCommand
+     └─ boleh bertahap per repo; jangan lama-lama, versinya bisa menyimpang diam-diam
+```
+
+Setelah tahap 2, iterasi harian tanpa publish:
+
+```bash
+cd duidtin-packages/auth && bun link          # sekali
+cd ../../duidtin-ui      && bun link @duidtin/auth
+# laptop → versi lokal, Vercel → registry; lepas dengan bun unlink
+```
 
 ### Risiko yang diketahui
 
