@@ -16,4 +16,5 @@ export const componentExposes = {
   "./components/spinner": "./src/components/spinner.ts",
   "./components/table": "./src/components/table.ts",
   "./components/tabs": "./src/components/tabs.ts",
+  "./components/text-field": "./src/components/text-field.ts",
 };

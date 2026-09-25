@@ -28,7 +28,7 @@ Dari root repo ini (`x-duidtin/duidtin-ui-design-system/`):
 ## Status saat ini
 
 Sudah ada:
-- **17 komponen** di `packages/ui`. Tiga belas yang pertama primitif visual: `Button`, `Card`, `Badge`, `Table`, `Select`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart`. Chart pakai dependency `recharts`.
+- **18 komponen** di `packages/ui`. Empat belas yang pertama primitif visual: `Button`, `Card`, `Badge`, `Table`, `Select`, `TextField`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart`. Chart pakai dependency `recharts`.
 - Empat sisanya **pola lintas fitur**, dibuat saat membangun beranda: `Skeleton` (placeholder saat memuat), `EmptyState` (kosong & gagal), `ErrorBoundary` (crash saat render, per blok), dan `DataState` (pembungkus tiga keadaan blok data). Semuanya di sini, bukan di repo feature — kalau dibuat lokal, tiap feature bakal punya salinannya sendiri yang lama-lama saling melenceng.
 - `apps/producer` expose semua komponen di atas + `globals` lewat Module Federation, dengan codegen exposes otomatis dan tipe TypeScript lintas-remote (`dts`) sudah dikonfigurasi.
 - `loadRemote()` sudah kebukti jalan dari **dua konsumen nyata sekaligus**, keduanya diverifikasi di browser:
@@ -55,7 +55,7 @@ Sebelum ada lapisan ini, layout meng-hardcode `blue-600` dan harus **ditebak** c
 
 Gaya **Duitin Business** menggunakan teks navy (`#142b49`), biru aksi (`#175cd3`), permukaan netral, radius kontrol 10px dan card 16px. Kontrol standar memiliki tinggi minimum 44px (compact 36px); tabel mendukung kepadatan `md` dan `sm`. Warna status, grafik, fokus, tipografi, dan gerakan memakai token yang sama.
 
-Preview seluruh 17 komponen tersedia di Storybook → **Foundations / Business Banking / Overview**. Contohnya mencakup transaksi, konfirmasi transfer, filter rekening, grafik, dan pemulihan error. Semua data pada showcase adalah simulasi.
+Preview seluruh 18 komponen tersedia di Storybook → **Foundations / Business Banking / Overview**. Contohnya mencakup transaksi, konfirmasi transfer, filter rekening, grafik, dan pemulihan error. Semua data pada showcase adalah simulasi.
 
 Tema terang menjadi default. Pasang `.dark` atau `data-theme="dark"` pada `<html>` untuk tema gelap, termasuk popover dan modal yang dirender melalui portal. Animasi mengikuti preferensi `prefers-reduced-motion`. Font menggunakan Inter jika tersedia, lalu font sistem; library tidak mengunduh font eksternal.
 
@@ -145,7 +145,7 @@ apps/producer/scripts/generate-components.ts
         │     export { Button } from "@duidtin/ui";
         │     export { Button as default } from "@duidtin/ui";
         └─▶ tulis component-exposes.ts
-              { "./components/button": "./src/components/button.ts", … }   ← 17 entri
+              { "./components/button": "./src/components/button.ts", … }   ← 18 entri
 ```
 
 Shim-nya sengaja mengekspor **named dan `default`** sekaligus, supaya hasil `loadRemote` di konsumen langsung cocok dengan bentuk yang diminta `next/dynamic` (`{ default }`).
@@ -212,11 +212,11 @@ build ui       packages/ui — rslib
    │             └─▶ dist/index.tailwind.css
    │
 codegen        predev / prebuild — generate-components.ts
-   │             └─▶ 17 shim + component-exposes.ts
+   │             └─▶ 18 shim + component-exposes.ts
    │
 build remote   apps/producer — rslib format "mf", target dual
    │             └─▶ dist/mf/remoteEntry.js
-   │                   exposes 17 komponen + ./globals
+   │                   exposes 18 komponen + ./globals
    │                   shared react singleton · tipe ke @mf-types
    │
 sajikan        :3001/design-system/static/

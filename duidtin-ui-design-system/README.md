@@ -28,7 +28,7 @@ From the root of this repo (`x-duidtin/duidtin-ui-design-system/`):
 ## Current status
 
 Done:
-- **17 components** in `packages/ui`. The first thirteen are visual primitives: `Button`, `Card`, `Badge`, `Table`, `Select`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart`. The charts pull in `recharts`.
+- **18 components** in `packages/ui`. The first fourteen are visual primitives: `Button`, `Card`, `Badge`, `Table`, `Select`, `TextField`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart`. The charts pull in `recharts`.
 - The other four are **cross-feature patterns**, added while building beranda: `Skeleton` (loading placeholder), `EmptyState` (empty and error), `ErrorBoundary` (render crashes, per block), and `DataState` (a wrapper for a data block's three states). They live here rather than in a feature repo — built locally, each feature would end up with its own copy and they would drift apart.
 - `apps/producer` exposes all of the above plus `globals` over Module Federation, with automatic exposes codegen and cross-remote TypeScript types (`dts`) configured.
 - `loadRemote()` is proven to work from **two real consumers at once**, both verified in a browser:
@@ -55,7 +55,7 @@ Before this layer existed, the layout hardcoded `blue-600` and had to be **guess
 
 **Duitin Business** uses navy text (`#142b49`), action blue (`#175cd3`), neutral surfaces, 10px control radii and 16px card radii. Standard controls have a 44px minimum height (36px compact); tables support `md` and `sm` density. Status, chart, focus, typography and motion styles share the same runtime tokens.
 
-Preview all 17 components in Storybook → **Foundations / Business Banking / Overview**. The showcase includes transactions, transfer confirmation, account selection, charts and error recovery using simulated data.
+Preview all 18 components in Storybook → **Foundations / Business Banking / Overview**. The showcase includes transactions, transfer confirmation, account selection, charts and error recovery using simulated data.
 
 Light is the default theme. Set `.dark` or `data-theme="dark"` on `<html>` to theme portalled popovers and modals as well. Animations respect `prefers-reduced-motion`. Typography uses Inter when available, then system fonts; the library does not download external fonts.
 
@@ -145,7 +145,7 @@ apps/producer/scripts/generate-components.ts
         │     export { Button } from "@duidtin/ui";
         │     export { Button as default } from "@duidtin/ui";
         └─▶ write component-exposes.ts
-              { "./components/button": "./src/components/button.ts", … }   ← 17 entries
+              { "./components/button": "./src/components/button.ts", … }   ← 18 entries
 ```
 
 The shims deliberately export **both named and `default`**, so a consumer's `loadRemote` result already matches the shape `next/dynamic` demands (`{ default }`).
@@ -212,11 +212,11 @@ build ui       packages/ui — rslib
    │             └─▶ dist/index.tailwind.css
    │
 codegen        predev / prebuild — generate-components.ts
-   │             └─▶ 17 shims + component-exposes.ts
+   │             └─▶ 18 shims + component-exposes.ts
    │
 build remote   apps/producer — rslib format "mf", target dual
    │             └─▶ dist/mf/remoteEntry.js
-   │                   exposes 17 components + ./globals
+   │                   exposes 18 components + ./globals
    │                   shared react singleton · types into @mf-types
    │
 serve          :3001/design-system/static/

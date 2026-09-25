@@ -31,7 +31,7 @@ Module Federation composes applications **at runtime through a contract**, not a
 - **React** — 18.3.1
 - **Tailwind** — v4.1.18, prefix `ui`
 - **Path** — `/design-system/static/`
-- **Role** — 17 UI components + styles, each exposed individually
+- **Role** — 18 UI components + styles, each exposed individually
 - **Note** — `dev: { hmr: false, liveReload: false }` is mandatory; without it the dev client calls `location.reload()` on the **consumer's** page
 
 ### 3. `duidtin-ui-layout` — the shared layout

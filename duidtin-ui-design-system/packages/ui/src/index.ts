@@ -10,6 +10,9 @@ export type { BadgeRootProps, BadgeVariants } from "./components/badge";
 export { Table } from "./components/table";
 export type { TableCellRootProps, TableColumnRootProps, TableRootProps, TableVariants } from "./components/table";
 
+export { TextField } from "./components/text-field";
+export type { TextFieldDescriptionProps, TextFieldErrorProps, TextFieldInputProps, TextFieldLabelProps, TextFieldRootProps } from "./components/text-field";
+
 export { Select } from "./components/select";
 export type { SelectItemProps, SelectLabelProps, SelectPopoverProps, SelectRootProps } from "./components/select";
 
