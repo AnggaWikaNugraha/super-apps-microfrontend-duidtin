@@ -34,7 +34,7 @@ Belum ada:
 
 - **Feature remote kedua dan seterusnya** — sekarang baru ada satu (`duidtin_feature_beranda` di route `/`). Payroll, Transfer, Mutasi, Persetujuan masih kosong.
 - i18n (`loadLocalesForModule` di host `qcash-ui` belum ada padanannya di sini).
-- Halaman `/login`, guard route, dan header yang memakai `useAuth()` — store sesi sudah terpasang (lihat [Sesi](#sesi-duidtinauth)), tapi `userName` & `onLogout` masih hardcode di `pages/index.tsx`, dan menu di layout belum menyesuaikan peran (maker vs checker).
+- Menu di layout belum menyesuaikan peran (maker vs checker). Sesi sendiri sudah jalan penuh: guard, `/login`, dan header memakai `useAuth()`.
 - Uji browser untuk `?remote-lokal` dari **host produksi** dan untuk mode `NEXT_PUBLIC_REMOTE_DARI=publish` — lihat [Dev tanpa menyalakan semua server](#dev-tanpa-menyalakan-semua-server).
 
 ## Stack
@@ -176,7 +176,42 @@ Paket dipasang lewat path lokal (`"@duidtin/auth": "file:../duidtin-packages/aut
 
 Terverifikasi di browser (Chrome headless, mode `publish`): `window.__DUIDTIN_AUTH__` ada, status `"unauthenticated"` saat kosong, dan setelah `localStorage["duidtin:sesi"]` diisi lalu reload → status `"authenticated"` dengan `pengguna.nama` terbaca.
 
-Belum: halaman `/login`, guard route, dan header yang memakai `useAuth()` — `userName`/`onLogout` di [`pages/index.tsx`](pages/index.tsx) masih hardcode.
+Halaman `/login`, guard, dan header sudah memakai sesi — lihat **Alur sesi di host** di bawah.
+
+### Alur sesi di host
+
+```
+/  (atau halaman privat lain)
+  └─ GuardSesi (components/auth/GuardSesi.tsx, dipasang di _app.tsx)
+       ├─ status "loading"          → tahan render, JANGAN redirect (hydrate belum selesai)
+       ├─ status "unauthenticated"  → /login?dari=<halaman yang dituju>
+       └─ status "authenticated"    → halaman dirender
+
+/login
+  └─ pages/login.tsx  loadRemote("duidtin_feature_auth/login")   ← TANPA getLayout
+       ├─ onSuccess  → router.replace(?dari) — pengalihan tugas HOST
+       └─ sudah login → GuardSesi memantulkan balik ke ?dari (atau "/")
+
+tombol Keluar di header
+  └─ pages/index.tsx  logout() → store kosong → GuardSesi melempar ke /login
+```
+
+`?dari` disaring [`utils/rute.ts`](utils/rute.ts): hanya path internal yang diterima, jadi `/login?dari=https://jahat.example` tidak bisa memantulkan pengguna ke situs lain.
+
+| Env | Isi |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | base URL `duidtin-api`. Kosong → `http://localhost:4000` |
+| `REMOTE_AUTH_URL` | URL project Vercel `duidtin-feature-auth`, untuk rewrite `/auth/:path*` (ASET remote; halaman login tetap route host `/login`) |
+
+**React dipaksa satu lewat alias webpack.** `@duidtin/auth` dipasang dari path lokal dan membawa `zustand` di `node_modules`-nya sendiri; tanpa alias di `next.config.mjs`, build mati dengan `Can't resolve 'react' in …/duidtin-packages/auth/node_modules/zustand/esm` (atau, kalau React ikut terpasang di sana, jadi dua instance React → `Invalid hook call`).
+
+Terverifikasi di browser dengan empat server lokal (host, layout, design-system, auth):
+
+| Uji | Hasil |
+|---|---|
+| Buka `/` tanpa sesi | dialihkan ke `/login?dari=%2F`, form login (2 field) dari remote auth tampil |
+| Buka `/login` dengan sesi | dipantulkan ke `/`, header menampilkan `Angga Wika` dari sesi |
+| Klik Keluar di header | sesi & `localStorage` bersih, kembali ke `/login` |
 
 ## Deploy (Vercel)
 

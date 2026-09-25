@@ -1,6 +1,6 @@
 # @duidtin/auth
 
-> **Status: inti + React selesai, 15 tes lolos. Dipakai `duidtin-ui` (store dipasang di `_app.tsx`); layout, beranda, dan remote auth belum.** Arsitektur sesi ada di [README.be.id.md](../../README.be.id.md); distribusi paket di [README root](../../README.id.md).
+> **Status: inti + React selesai, 15 tes lolos. Dipakai `duidtin-ui` (store dipasang di `_app.tsx`) dan `duidtin-feature-auth` (`login()` di form login); layout dan beranda belum.** Arsitektur sesi ada di [README.be.id.md](../../README.be.id.md); distribusi paket di [README root](../../README.id.md).
 
 Logika sesi untuk semua repo duidtin. Bukan remote Module Federation — paket biasa yang di-`import`.
 
@@ -113,4 +113,4 @@ Tes memakai DOM tiruan (`@happy-dom/global-registrator`) dan **adapter axios pal
 ## Belum ada
 
 - Pembungkus `/vue`, `/svelte`, `/angular` — dibuat saat ada remote-nya.
-- Pemakaian di layout, beranda, dan remote auth. Host sudah memasang store-nya, tapi belum ada UI yang membaca sesi.
+- Pemakaian di layout dan beranda. Host memasang store, remote auth menulisnya lewat `login()` — tapi belum ada UI yang MEMBACA sesi (header masih hardcode).

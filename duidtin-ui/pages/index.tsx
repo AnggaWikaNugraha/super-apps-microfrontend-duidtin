@@ -1,9 +1,11 @@
+import { useAuth } from "@duidtin/auth/react";
 import { loadRemote } from "@module-federation/runtime";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/router";
 
 import { DefaultLayout } from "@/components/remote";
 
-import type { ComponentType, ReactElement } from "react";
+import type { ComponentType, ReactElement, ReactNode } from "react";
 
 /**
  * FASE 3 — route "/" dilayani feature remote, bukan konten host.
@@ -27,10 +29,28 @@ const BerandaContainer = dynamic(
 
 const HomePage = () => <BerandaContainer />;
 
-HomePage.getLayout = (page: ReactElement) => (
-  <DefaultLayout activePath="/" onLogout={() => window.alert("logout ditekan")} userName="Angga">
-    {page}
-  </DefaultLayout>
-);
+/**
+ * `getLayout` dijadikan komponen supaya boleh memakai hook — `userName` dan
+ * `onLogout` sekarang datang dari sesi, bukan hardcode.
+ */
+const LayoutBeranda = ({ children }: { children: ReactNode }) => {
+  const { logout, user } = useAuth();
+  const router = useRouter();
+
+  return (
+    <DefaultLayout
+      activePath="/"
+      onLogout={async () => {
+        await logout();
+        void router.replace("/login");
+      }}
+      userName={user?.nama}
+    >
+      {children}
+    </DefaultLayout>
+  );
+};
+
+HomePage.getLayout = (page: ReactElement) => <LayoutBeranda>{page}</LayoutBeranda>;
 
 export default HomePage;

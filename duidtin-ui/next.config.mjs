@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { NextFederationPlugin } from "@module-federation/nextjs-mf";
 
 import { federationConfig } from "./module-federation.config.mjs";
@@ -12,7 +14,7 @@ const tanpaGarisMiringAkhir = (url) => url.replace(/\/+$/, "");
  * Dikunci saat build — mengganti env berarti redeploy.
  */
 const remoteRewrites = () => {
-  const { REMOTE_BERANDA_URL, REMOTE_DESIGN_SYSTEM_URL, REMOTE_LAYOUT_URL } = process.env;
+  const { REMOTE_AUTH_URL, REMOTE_BERANDA_URL, REMOTE_DESIGN_SYSTEM_URL, REMOTE_LAYOUT_URL } = process.env;
 
   return [
     // design-system bukan Next dan tanpa basePath: berkasnya ada di root domainnya,
@@ -29,6 +31,11 @@ const remoteRewrites = () => {
       source: "/beranda/:path*",
       destination: `${tanpaGarisMiringAkhir(REMOTE_BERANDA_URL)}/beranda/:path*`,
     },
+    // /auth = ASET remote auth. Halaman login-nya route host /login — beda hal.
+    REMOTE_AUTH_URL && {
+      source: "/auth/:path*",
+      destination: `${tanpaGarisMiringAkhir(REMOTE_AUTH_URL)}/auth/:path*`,
+    },
   ].filter(Boolean);
 };
 
@@ -42,6 +49,22 @@ const nextConfig = {
     return remoteRewrites();
   },
   webpack: (config, { dev }) => {
+    /**
+     * React SELALU dari node_modules host, siapa pun yang meminta.
+     *
+     * `@duidtin/auth` dipasang lewat path lokal, dan paket itu membawa `zustand`
+     * di node_modules-nya sendiri. Tanpa alias ini ada dua kemungkinan, dua-duanya
+     * buruk: kalau React ikut terpasang di sana → dua instance React →
+     * "Invalid hook call"; kalau tidak terpasang (yang sekarang, `peer = false`)
+     * → webpack gagal resolve dan build mati dengan
+     * "Can't resolve 'react' in …/duidtin-packages/auth/node_modules/zustand/esm".
+     */
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      react: path.resolve("./node_modules/react"),
+      "react-dom": path.resolve("./node_modules/react-dom"),
+    };
+
     // Build produksi tanpa cache webpack. Vercel memulihkan cache dari deployment
     // sebelumnya, dan bersama nextjs-mf itu bisa menggagalkan build dengan
     // "RealContentHashPlugin: Some kind of unexpected caching problem occurred".

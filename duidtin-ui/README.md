@@ -34,7 +34,7 @@ Not there yet:
 
 - **A second feature remote and beyond** — there is only one so far (`duidtin_feature_beranda` at route `/`). Payroll, Transfer, Statement and Approvals are still missing.
 - i18n (no equivalent of `qcash-ui`'s `loadLocalesForModule` yet).
-- The `/login` page, the route guard, and a header driven by `useAuth()` — the session store is installed (see [Session](#session-duidtinauth)), but `userName` and `onLogout` are still hardcoded in `pages/index.tsx`, and the layout's menu does not yet adapt to roles (maker vs checker).
+- The layout's menu does not yet adapt to roles (maker vs checker). The session itself is fully wired: guard, `/login`, and a header driven by `useAuth()`.
 - A browser test of `?remote-lokal` from the **production host**, and of `NEXT_PUBLIC_REMOTE_DARI=publish` mode — see [Dev without running every server](#dev-without-running-every-server).
 
 ## Stack
@@ -176,7 +176,42 @@ The package is installed through a local path (`"@duidtin/auth": "file:../duidti
 
 Verified in a real browser (headless Chrome, `publish` mode): `window.__DUIDTIN_AUTH__` exists, status is `"unauthenticated"` when empty, and after filling `localStorage["duidtin:sesi"]` and reloading → status `"authenticated"` with `pengguna.nama` readable.
 
-Not yet: the `/login` page, the route guard, and a header driven by `useAuth()` — `userName`/`onLogout` in [`pages/index.tsx`](pages/index.tsx) are still hardcoded.
+The `/login` page, the guard and the header now use the session — see **Session flow in the host** below.
+
+### Session flow in the host
+
+```
+/  (or any other private page)
+  └─ GuardSesi (components/auth/GuardSesi.tsx, mounted in _app.tsx)
+       ├─ status "loading"          → hold the render, do NOT redirect (hydration unfinished)
+       ├─ status "unauthenticated"  → /login?dari=<the page that was requested>
+       └─ status "authenticated"    → render the page
+
+/login
+  └─ pages/login.tsx  loadRemote("duidtin_feature_auth/login")   ← NO getLayout
+       ├─ onSuccess  → router.replace(?dari) — redirecting is the HOST's job
+       └─ already signed in → GuardSesi bounces back to ?dari (or "/")
+
+Sign-out button in the header
+  └─ pages/index.tsx  logout() → store cleared → GuardSesi sends you to /login
+```
+
+`?dari` is filtered by [`utils/rute.ts`](utils/rute.ts): only internal paths are accepted, so `/login?dari=https://evil.example` cannot bounce a user to another site.
+
+| Env | Meaning |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | base URL of `duidtin-api`. Empty → `http://localhost:4000` |
+| `REMOTE_AUTH_URL` | the Vercel URL of `duidtin-feature-auth`, for the `/auth/:path*` rewrite (remote ASSETS; the login page itself stays the host route `/login`) |
+
+**React is forced to a single copy through a webpack alias.** `@duidtin/auth` is installed from a local path and carries its own `zustand`; without the alias in `next.config.mjs` the build dies with `Can't resolve 'react' in …/duidtin-packages/auth/node_modules/zustand/esm` (or, if React were installed there, two React instances → `Invalid hook call`).
+
+Verified in a browser with four local servers (host, layout, design system, auth):
+
+| Test | Result |
+|---|---|
+| Open `/` with no session | redirected to `/login?dari=%2F`, the login form (2 fields) from the auth remote renders |
+| Open `/login` with a session | bounced to `/`, the header shows `Angga Wika` from the session |
+| Click sign out in the header | session and `localStorage` cleared, back to `/login` |
 
 ## Deploy (Vercel)
 

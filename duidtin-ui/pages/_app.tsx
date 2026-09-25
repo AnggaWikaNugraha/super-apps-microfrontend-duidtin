@@ -1,5 +1,6 @@
 import { configureAuth, installAuthStore } from "@duidtin/auth";
 
+import GuardSesi from "@/components/auth/GuardSesi";
 import ModuleFederationProvider from "@/components/federation/provider";
 import PenandaRemoteLokal from "@/components/ui/PenandaRemoteLokal";
 import { federationInit } from "@/services/federation/init";
@@ -52,7 +53,7 @@ const App = ({ Component, pageProps }: AppPropsWithLayout) => {
 
   return (
     <ModuleFederationProvider>
-      {getLayout(<Component {...pageProps} />)}
+      <GuardSesi>{getLayout(<Component {...pageProps} />)}</GuardSesi>
       <PenandaRemoteLokal />
     </ModuleFederationProvider>
   );

@@ -59,6 +59,18 @@ Module Federation menyatukan aplikasi **saat runtime lewat kontrak**, bukan saat
 - **Peran** — beranda: ringkasan saldo, antrean persetujuan, pintasan. Feature remote pertama, jadi repo ini yang bikin FASE 2 di host benar-benar jalan
 - **Catatan** — Turbopack (bawaan Next 16) tidak mendukung MF, jadi ditukar Rspack. `shared` harus ditulis manual — `enhanced` tidak otomatis menshare React seperti `nextjs-mf`
 
+### 5. `duidtin-feature-auth` — login
+
+- **Port** — 3004
+- **Framework** — Next.js 16.2.9
+- **Bundler** — **Rspack** (`next-rspack` 16.2.9)
+- **Plugin MF** — `@module-federation/enhanced` 2.x
+- **React** — 18.3.1 (wajib sama dengan host)
+- **Styling** — Tailwind v4, prefix `fath`
+- **Path** — `basePath: "/auth"`
+- **Peran** — halaman login: form email/password, memanggil `login()` dari `@duidtin/auth`, menampilkan `AuthError`
+- **Catatan** — satu-satunya feature remote yang berfungsi penuh saat dibuka sendiri (`:3004`), karena paket auth membuat store cadangan. `pages/index.tsx` wajib memakai `dynamic()` sebagai async boundary — lihat [README repo](duidtin-feature-auth/README.id.md#dua-ganjalan-yang-sudah-kena-dan-solusinya)
+
 > Penamaan: `ui-*` untuk infrastruktur (host, design-system, layout), `feature-*` untuk fitur bisnis.
 
 Tiga perbedaan paling mencolok di atas bukan kebetulan, tapi memang dibiarkan berbeda:
@@ -69,7 +81,7 @@ Tiga perbedaan paling mencolok di atas bukan kebetulan, tapi memang dibiarkan be
 
 ### Paket bersama: `@duidtin/auth`
 
-**Inti + React selesai (15 tes lolos). Dipakai host: store dipasang di `duidtin-ui/pages/_app.tsx`; layout, beranda, dan remote auth belum.** Paket di [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), bukan remote, jadi tidak punya project Vercel.
+**Inti + React selesai (15 tes lolos). Dipakai host (store + guard + header) dan `duidtin-feature-auth` (`login()` di form login); layout dan beranda belum.** Paket di [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), bukan remote, jadi tidak punya project Vercel.
 
 ```
 boot host — _app.tsx, sebelum federationInit()
@@ -116,15 +128,15 @@ tab lain
 
 ### Yang BOLEH beda
 
-| | host | design-system | layout | beranda |
-|---|---|---|---|---|
-| Framework | Next 14 | tanpa Next | Next 14 | Next 16 |
-| Bundler | webpack | Rslib + Rsbuild | webpack | Rspack |
-| Plugin MF | `nextjs-mf` | `rsbuild-plugin` | `nextjs-mf` | `enhanced` |
-| MF runtime | 0.24.1 | 0.24.1 | 0.24.1 | 2.9.0 |
-| Prefix Tailwind | `app` | `ui` | `lyt` | `fber` |
-| Port dev | 3000 | 3001 | 3002 | 3003 |
-| `basePath` | — | `/design-system/static` | `/layout` | `/beranda` |
+| | host | design-system | layout | beranda | auth |
+|---|---|---|---|---|---|
+| Framework | Next 14 | tanpa Next | Next 14 | Next 16 | Next 16 |
+| Bundler | webpack | Rslib + Rsbuild | webpack | Rspack | Rspack |
+| Plugin MF | `nextjs-mf` | `rsbuild-plugin` | `nextjs-mf` | `enhanced` | `enhanced` |
+| MF runtime | 0.24.1 | 0.24.1 | 0.24.1 | 2.9.0 | 2.x |
+| Prefix Tailwind | `app` | `ui` | `lyt` | `fber` | `fath` |
+| Port dev | 3000 | 3001 | 3002 | 3003 | 3004 |
+| `basePath` | — | `/design-system/static` | `/layout` | `/beranda` | `/auth` |
 
 Package manager dan versi TypeScript juga boleh beda; sekarang kebetulan sama (bun).
 
@@ -241,7 +253,7 @@ push ke main
 | `REMOTE_DESIGN_SYSTEM_URL` | URL `*.vercel.app` design-system | `/design-system/static/:path*` → `…/:path*` |
 | `REMOTE_LAYOUT_URL` | URL `*.vercel.app` layout | `/layout/:path*` → `…/layout/:path*` |
 | `REMOTE_BERANDA_URL` | URL `*.vercel.app` beranda | `/beranda/:path*` → `…/beranda/:path*` |
-| `REMOTE_AUTH_URL` *(nanti)* | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
+| `REMOTE_AUTH_URL` | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
 | `BACKEND_URL` *(nanti)* | backend | `/api/:path*` → `…/:path*` |
 
 - **Design-system membuang prefiksnya**, karena bukan Next dan tanpa `basePath`: berkasnya ada di root domain Vercel-nya. Layout dan beranda tetap membawa prefiks.

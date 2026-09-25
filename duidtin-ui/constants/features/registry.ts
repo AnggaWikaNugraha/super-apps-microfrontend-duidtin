@@ -27,6 +27,13 @@ export const globalFeatures: FeatureMetadata[] = [
  * Nambah fitur cukup nambah satu entry di sini.
  */
 export const featureRegistry: Record<string, FeatureMetadata> = {
+  duidtin_feature_auth: {
+    name: "duidtin_feature_auth",
+    entryPath: "/auth/_next/static/chunks/remoteEntry.js",
+    devOrigin: "http://localhost:3004",
+    routes: ["/login"],
+    matchType: "exact",
+  },
   duidtin_feature_beranda: {
     name: "duidtin_feature_beranda",
     entryPath: "/beranda/_next/static/chunks/remoteEntry.js",

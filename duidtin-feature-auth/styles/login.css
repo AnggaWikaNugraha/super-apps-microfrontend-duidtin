@@ -1,0 +1,55 @@
+/* Halaman login. Token --dtn-* datang dari design-system (expose ./globals),
+   jadi warnanya otomatis ikut tema yang sama dengan host dan layout. */
+.fath-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--dtn-canvas, #f3f6fa);
+  font-family: var(--dtn-font, system-ui, sans-serif);
+}
+.fath-login__panel {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px;
+  border: 1px solid var(--dtn-line, #e1e8f0);
+  border-radius: var(--dtn-radius-lg, 16px);
+  background: var(--dtn-surface, #fff);
+  box-shadow: var(--dtn-shadow-raised, 0 8px 24px -12px rgb(20 43 73 / 18%));
+}
+.fath-login__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fath-login__logo {
+  color: var(--dtn-primary, #175cd3);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.fath-login__tagline {
+  color: var(--dtn-ink-subtle, #697b90);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.fath-login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.fath-login__actions {
+  margin-top: 4px;
+}
+.fath-login__hint {
+  color: var(--dtn-ink-subtle, #697b90);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}

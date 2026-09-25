@@ -59,6 +59,18 @@ Module Federation composes applications **at runtime through a contract**, not a
 - **Role** — the home page: balance summary, approval queue, shortcuts. The first feature remote, so this repo is what makes PHASE 2 in the host actually run
 - **Note** — Turbopack (Next 16's default) does not support MF, hence Rspack. `shared` must be written by hand — `enhanced` does not auto-share React the way `nextjs-mf` does
 
+### 5. `duidtin-feature-auth` — login
+
+- **Port** — 3004
+- **Framework** — Next.js 16.2.9
+- **Bundler** — **Rspack** (`next-rspack` 16.2.9)
+- **MF plugin** — `@module-federation/enhanced` 2.x
+- **React** — 18.3.1 (must match the host)
+- **Styling** — Tailwind v4, prefix `fath`
+- **Path** — `basePath: "/auth"`
+- **Role** — the login page: email/password form, calls `login()` from `@duidtin/auth`, renders `AuthError`
+- **Note** — the only feature remote that fully works when opened on its own (`:3004`), because the auth package creates a fallback store. `pages/index.tsx` must use `dynamic()` as an async boundary — see the [repo README](duidtin-feature-auth/README.id.md#dua-ganjalan-yang-sudah-kena-dan-solusinya)
+
 > Naming: `ui-*` for infrastructure (host, design system, layout), `feature-*` for business features.
 
 The three most striking differences above are deliberate, not accidental:
@@ -69,7 +81,7 @@ The three most striking differences above are deliberate, not accidental:
 
 ### Shared package: `@duidtin/auth`
 
-**Core + React done (15 tests passing). Used by the host: the store is installed in `duidtin-ui/pages/_app.tsx`; layout, beranda and the auth remote are not wired yet.** A package in [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), not a remote, so it has no Vercel project.
+**Core + React done (15 tests passing). Used by the host (store + guard + header) and by `duidtin-feature-auth` (`login()` in the login form); layout and beranda are not wired yet.** A package in [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), not a remote, so it has no Vercel project.
 
 ```
 host boot — _app.tsx, before federationInit()
@@ -116,9 +128,9 @@ other tabs
 
 ### What MAY differ
 
-| | host | design system | layout | beranda |
-|---|---|---|---|---|
-| Framework | Next 14 | no Next | Next 14 | Next 16 |
+| | host | design system | layout | beranda | auth |
+|---|---|---|---|---|---|
+| Framework | Next 14 | no Next | Next 14 | Next 16 | Next 16 |
 | Bundler | webpack | Rslib + Rsbuild | webpack | Rspack |
 | MF plugin | `nextjs-mf` | `rsbuild-plugin` | `nextjs-mf` | `enhanced` |
 | MF runtime | 0.24.1 | 0.24.1 | 0.24.1 | 2.9.0 |
@@ -241,7 +253,7 @@ push to main
 | `REMOTE_DESIGN_SYSTEM_URL` | the design system's `*.vercel.app` URL | `/design-system/static/:path*` → `…/:path*` |
 | `REMOTE_LAYOUT_URL` | the layout's `*.vercel.app` URL | `/layout/:path*` → `…/layout/:path*` |
 | `REMOTE_BERANDA_URL` | beranda's `*.vercel.app` URL | `/beranda/:path*` → `…/beranda/:path*` |
-| `REMOTE_AUTH_URL` *(later)* | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
+| `REMOTE_AUTH_URL` | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
 | `BACKEND_URL` *(later)* | the backend | `/api/:path*` → `…/:path*` |
 
 - **The design system's prefix is stripped**, because it is not Next and has no `basePath`: its files sit at the root of its Vercel domain. The layout and beranda keep their prefixes.
