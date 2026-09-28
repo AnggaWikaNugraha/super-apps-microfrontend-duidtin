@@ -31,6 +31,24 @@ Not yet:
 - Vercel deployment + `REMOTE_AUTH_URL` in the host.
 - Forgot-password / activation pages.
 
+## Env
+
+| Env | Meaning | When |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | base URL of `duidtin-api`. Empty → `http://localhost:4000` | set it explicitly in the Vercel project; once the API is public, change the value and **redeploy** |
+| `MF_PUBLIC_PATH` | absolute asset URL, **dev only** (`bun run dev` sets it itself) | never set it on Vercel — the chunk URLs would be baked to localhost |
+
+`NEXT_PUBLIC_*` is inlined at build time, so changing it in the dashboard does nothing until a redeploy. And it must be set **per project**: the host has its own copy of `baseUrl`, this remote has its own, and beranda will too.
+
+## Deploy (Vercel)
+
+| Setting | Value |
+|---|---|
+| Root Directory | `duidtin-feature-auth` |
+| Include files outside the Root Directory | **ON** — the `@duidtin/auth` package lives outside the root |
+| Build Command | default; `prebuild` builds the auth package and compiles Tailwind |
+| After deploying | set `REMOTE_AUTH_URL` in the host project, then redeploy the host (the `/auth/:path*` rewrite is baked at build time) |
+
 ## Coding rules this repo follows
 
 | Rule | Here |

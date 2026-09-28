@@ -31,6 +31,24 @@ Belum:
 - Deploy Vercel + `REMOTE_AUTH_URL` di host.
 - Halaman lupa password / aktivasi.
 
+## Env
+
+| Env | Isi | Kapan |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | base URL `duidtin-api`. Kosong → `http://localhost:4000` | isi eksplisit di project Vercel; begitu API publik, ganti nilainya lalu **redeploy** |
+| `MF_PUBLIC_PATH` | URL aset absolut, **hanya untuk dev** (`bun run dev` mengisinya sendiri) | jangan pernah diisi di Vercel — chunk-nya jadi ke-bake ke localhost |
+
+`NEXT_PUBLIC_*` ditanam saat build, jadi mengganti nilainya di dashboard tidak berpengaruh sampai ada redeploy. Dan harus diisi **per project**: host punya salinan `baseUrl` sendiri, remote ini punya sendiri, nanti beranda juga.
+
+## Deploy (Vercel)
+
+| Setelan | Nilai |
+|---|---|
+| Root Directory | `duidtin-feature-auth` |
+| Include files outside the Root Directory | **ON** — paket `@duidtin/auth` ada di luar root |
+| Build Command | default; `prebuild` membangun paket auth lalu mengompilasi Tailwind |
+| Setelah deploy | isi `REMOTE_AUTH_URL` di project host, lalu redeploy host (rewrite `/auth/:path*` di-bake saat build) |
+
 ## Aturan ngoding yang dipatuhi
 
 | Aturan | Di repo ini |

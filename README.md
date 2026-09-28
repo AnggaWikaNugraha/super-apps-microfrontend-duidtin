@@ -385,6 +385,47 @@ Two things specific to MFE that are easy to miss:
 
 Flags control what is shown, not what is allowed. Features touching sensitive data must still be refused by the backend through roles, because anyone can call the endpoint directly.
 
+## Architecture map
+
+Who loads whom, and on which stack — the repository as it stands today.
+
+```mermaid
+graph TD
+  U["👤 User"] --> H
+
+  H["🏠 duidtin-ui — HOST<br/>Next 14 · webpack · MF 0.24.1<br/>routing · session guard · remote registry"]
+
+  H -- "remoteEntry.js" --> L["🧭 duidtin-ui-layout<br/>Next 14 · webpack<br/>header · sidebar · footer"]
+  H -- "remoteEntry.js" --> B["🏦 duidtin-feature-beranda<br/>Next 16 · Rspack · MF 2.x<br/>balances · approvals · activity"]
+  H -- "remoteEntry.js" --> A["🔐 duidtin-feature-auth<br/>Next 16 · Rspack · MF 2.x<br/>login page · session-expired modal"]
+
+  L -- "loadRemote" --> DS["🎨 duidtin-ui-design-system<br/>Rslib · 18 components + --dtn-* tokens"]
+  B -- "loadRemote" --> DS
+  A -- "loadRemote" --> DS
+
+  H -. "imported at build time" .-> P["🔑 @duidtin/auth<br/>session store · axios · useAuth"]
+  A -. "imported at build time" .-> P
+
+  P == "HTTPS + Bearer" ==> API["🗄️ duidtin-api<br/>Express · Mongoose · MongoDB Atlas"]
+```
+
+Three things the picture cannot show, yet decide everything:
+
+| Thing | What it means |
+|---|---|
+| The host does **not** use the design system | it is a thin shell that renders no UI of its own; the DS is consumed by the layout and by each feature remote |
+| `@duidtin/auth` is not a remote | it is an ordinary package imported at build time, so every bundle carries its own copy of the code. The only singleton is the **store object**, parked on `window.__DUIDTIN_AUTH__` by the host |
+| There is only one arrow to the API | every token-bearing request goes through that package's `http` instance — token, refresh, retry and hold-and-replay all live in one place |
+
+Where each piece stands today:
+
+| Piece | Code | Production |
+|---|---|---|
+| host, layout, design system | ✅ | ✅ live |
+| auth remote | ✅ login + session-expired modal | ⚠️ deployed, but `REMOTE_AUTH_URL` is not in effect on the host → `/auth/*` 404 |
+| beranda | ✅ UI, **data still mocked** | ⚠️ `REMOTE_BERANDA_URL` is wrong → `/beranda/*` 404 |
+| `duidtin-api` | ✅ auth complete, no data endpoints yet | ⬜ still local (`http://localhost:4000`) |
+
 ## Architecture flow
 
 Diagrams of the five phases. The explanation of each function — parameters, return values, and example data — lives in the [`duidtin-ui` README](duidtin-ui/README.md#architecture-flow).

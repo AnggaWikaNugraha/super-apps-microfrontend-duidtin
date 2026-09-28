@@ -387,6 +387,47 @@ Dua hal yang khas MFE dan mudah terlewat:
 
 Flag mengatur tampilan, bukan akses. Fitur yang menyangkut data sensitif tetap harus ditolak backend lewat peran, karena siapa pun bisa memanggil endpoint-nya langsung.
 
+## Peta Arsitektur
+
+Siapa memuat siapa, dan dengan stack apa — keadaan repo saat ini.
+
+```mermaid
+graph TD
+  U["👤 Pengguna"] --> H
+
+  H["🏠 duidtin-ui — HOST<br/>Next 14 · webpack · MF 0.24.1<br/>routing · guard sesi · registry remote"]
+
+  H -- "remoteEntry.js" --> L["🧭 duidtin-ui-layout<br/>Next 14 · webpack<br/>header · sidebar · footer"]
+  H -- "remoteEntry.js" --> B["🏦 duidtin-feature-beranda<br/>Next 16 · Rspack · MF 2.x<br/>saldo · persetujuan · aktivitas"]
+  H -- "remoteEntry.js" --> A["🔐 duidtin-feature-auth<br/>Next 16 · Rspack · MF 2.x<br/>halaman login · modal sesi berakhir"]
+
+  L -- "loadRemote" --> DS["🎨 duidtin-ui-design-system<br/>Rslib · 18 komponen + token --dtn-*"]
+  B -- "loadRemote" --> DS
+  A -- "loadRemote" --> DS
+
+  H -. "import saat build" .-> P["🔑 @duidtin/auth<br/>store sesi · axios · useAuth"]
+  A -. "import saat build" .-> P
+
+  P == "HTTPS + Bearer" ==> API["🗄️ duidtin-api<br/>Express · Mongoose · MongoDB Atlas"]
+```
+
+Tiga hal yang tidak terlihat di gambar tapi menentukan:
+
+| Hal | Isi |
+|---|---|
+| Host **tidak** memakai design-system | shell-nya tipis dan tidak merender komponen UI sendiri; DS dikonsumsi layout dan tiap feature remote |
+| `@duidtin/auth` bukan remote | paket biasa yang di-`import` saat build, jadi tiap bundle punya salinan kodenya. Yang tunggal cuma **objek store**-nya, diparkir di `window.__DUIDTIN_AUTH__` oleh host |
+| Panah ke API cuma satu | semua request bertoken lewat instance `http` di paket itu — token, refresh, retry, dan tahan-ulang saat sesi berakhir ada di satu tempat |
+
+Keadaan tiap bagian sekarang:
+
+| Bagian | Kode | Produksi |
+|---|---|---|
+| host, layout, design-system | ✅ | ✅ live |
+| remote auth | ✅ login + modal sesi berakhir | ⚠️ ter-deploy, tapi `REMOTE_AUTH_URL` di host belum aktif → `/auth/*` 404 |
+| beranda | ✅ tampilan, **data masih mock** | ⚠️ `REMOTE_BERANDA_URL` belum benar → `/beranda/*` 404 |
+| `duidtin-api` | ✅ auth lengkap, endpoint data belum ada | ⬜ masih lokal (`http://localhost:4000`) |
+
 ## Alur Arsitektur
 
 Diagram lima fase. Penjelasan tiap fungsi — parameter, nilai balik, dan contoh datanya — ada di [README `duidtin-ui`](duidtin-ui/README.id.md#alur-arsitektur).
