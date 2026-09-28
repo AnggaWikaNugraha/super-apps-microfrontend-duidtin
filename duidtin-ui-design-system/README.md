@@ -31,6 +31,7 @@ Done:
 - **18 components** in `packages/ui`. The first fourteen are visual primitives: `Button`, `Card`, `Badge`, `Table`, `Select`, `TextField`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart`. The charts pull in `recharts`.
 - The other four are **cross-feature patterns**, added while building beranda: `Skeleton` (loading placeholder), `EmptyState` (empty and error), `ErrorBoundary` (render crashes, per block), and `DataState` (a wrapper for a data block's three states). They live here rather than in a feature repo — built locally, each feature would end up with its own copy and they would drift apart.
 - `apps/producer` exposes all of the above plus `globals` over Module Federation, with automatic exposes codegen and cross-remote TypeScript types (`dts`) configured.
+- **Web Component wrappers** — 11 components are also available as `<dtn-*>` for non-React consumers; the other 7 deliberately are not, and each file states why. See [Web Component wrappers](#web-component-wrappers-dtn-).
 - `loadRemote()` is proven to work from **two real consumers at once**, both verified in a browser:
   - `duidtin-ui-layout` renders this remote's `Button` in its header (the sign-out button). A Badge used to show the user's name, but it was removed in the header revamp;
   - `duidtin-feature-beranda` renders `Card`, `Button`, `Badge` & `Alert` on the home page — and that repo runs **MF 2.x**, while this remote is on 0.24.1.
@@ -99,6 +100,94 @@ Component APIs and export names are unchanged. `Table size="sm"` now cascades to
 
 Every component follows the same pattern described in "Adding a new component" below — separate files under `styles/`, `types/`, `components/`. A few (`DateRangePicker`, `BarChart`/`LineChart`/`PieChart`) are deliberately simplified versions of their full counterparts (segmented calendar + popover, custom tooltip/legend) to keep the build moving without a design token system, which this repo doesn't have yet.
 
+## Web Component wrappers (`<dtn-*>`)
+
+The components above are **React** components. So that non-React consumers — the future Vue/Svelte/Angular remotes — can use them too, each one is also wrapped as a custom element.
+
+```
+<dtn-button color="primary">Masuk</dtn-button>
+   │
+   └─ custom element (browser)  →  one React root inside  →  <button class="ui-button …">
+         HTML attributes → React props
+         React onPress   → CustomEvent("press")
+```
+
+The key point: **nothing is duplicated**. The element runs the very same React component and produces the very same CSS classes, so `styles/` and `tokens.css` are untouched. Only the interface differs.
+
+```html
+<dtn-card variant="elevated">
+  <dtn-card-header>Rekening operasional</dtn-card-header>
+  <dtn-card-body>Saldo tersedia Rp 842.150.000</dtn-card-body>
+</dtn-card>
+
+<dtn-bar-chart category-key="bulan" data='[…]' series='[{"dataKey":"masuk"}]' height="200"></dtn-bar-chart>
+```
+```js
+await loadRemote("duidtin_ui_design_system/component-wrapper/button");  // register one element
+await loadRemote("duidtin_ui_design_system/component-wrapper/semua");   // or all of them at once
+el.addEventListener("press", () => kirim());
+```
+
+### What is wrapped, and what is not
+
+| Wrapped (11) | Compound parts |
+|---|---|
+| `button`, `badge`, `spinner`, `data-state`, `bar-chart`, `line-chart`, `pie-chart` | — |
+| `alert` | `-icon`, `-content`, `-title`, `-description` |
+| `card` | `-header`, `-body`, `-footer` |
+| `empty-state` | `-icon`, `-title`, `-description`, `-action` |
+| `skeleton` | `-lines` |
+
+| Not wrapped (7) | Why |
+|---|---|
+| `select`, `tabs`, `table`, `text-field` | their parts talk to each other through **React Context** (ids, `aria-*`, focus, keyboard). Every custom element owns a separate React root and Context does not cross roots — split into separate elements, their accessibility breaks |
+| `modal`, `date-range-picker` | same, plus a **portal**: the content renders outside the element's DOM tree |
+| `error-boundary` | an error boundary only catches errors inside its own React tree; children slotted through the light DOM are not part of that tree, so the element would *look* like it works while catching nothing |
+
+Those seven still get a `component-wrapper/<name>/index.ts` file containing the reason above, so nothing disappears silently. When they are needed in Vue, the shape is **one element** taking its parts as attributes (`<dtn-text-field label="Email" is-invalid>`), not a split.
+
+### How it works (`component-wrapper/utils/inti.ts`)
+
+No third-party library — the Custom Elements API plus `react-dom/client`:
+
+```
+connectedCallback
+  ├─ wrap the original children in <span data-dtn-anak>   ← never detached from the document
+  ├─ append <span data-dtn-wadah> → createRoot()          ← the ONLY part React owns
+  └─ render(<Component {...props}><span ref=slot/></Component>)
+        └─ move the children wrapper into the slot         ← light DOM slot
+             └─ slot not rendered (e.g. DataState while loading) → children hidden, not removed
+
+attributeChangedCallback → re-render
+disconnectedCallback     → unmount DEFERRED by a tick, so a mere move does not destroy the root
+```
+
+Two traps hit while building it, written down so they are not repeated:
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| The button label vanished, `<button>` rendered empty | `createRoot().render()` overwrites the element's content, and `@r2wc/react-to-web-component` never touches `childNodes` | our own factory, which captures the children first — that library was dropped again |
+| The elements were not registered at all | `sideEffects` in `packages/ui/package.json` — `customElements.define()` is a pure side effect, and a one-level glob (`/*`) does not reach `button/index.ts` | `"sideEffects": ["./src/component-wrapper/**", "./dist/component-wrapper/**"]` |
+
+**Shadow DOM is deliberately avoided.** The design system's CSS is global and class-based (`ui-button`); a shadow boundary would cut it off and every element would have to inject its own CSS. With the light DOM, the existing `./globals` expose keeps working as-is.
+
+**React is still loaded** on any page using these elements — this wrapper is an interface, not a rewrite. A non-React remote only needs `shared: { react, react-dom: { singleton: true } }` to use the host's React rather than shipping a second one.
+
+### Codegen (`packages/ui/scripts/generate-wrappers.ts`)
+
+Runs automatically through `prebuild`, or by hand: `bun run gen:wrapper`.
+
+| Inferred automatically | From |
+|---|---|
+| variant names → string attributes | `src/styles/<n>/<n>.styles.ts`, the keys inside `variants: { … }` |
+| compound parts → `-part` elements | `Object.assign(Root, { … })` in `src/components/<n>/index.ts` |
+
+| Written by hand, once | Where |
+|---|---|
+| non-variant props (`isDisabled`, `data`, `isLoading`), events (`onPress` → `press`), the skip list | `src/component-wrapper/utils/peta.ts` |
+
+Output: `component-wrapper/<n>/index.ts` per component, `component-wrapper/index.ts` (registers everything) and `utils/elemen.d.ts` (JSX declarations). All of it is **generated** — do not edit by hand.
+
 ## The flow in short
 
 ```
@@ -145,7 +234,8 @@ apps/producer/scripts/generate-components.ts
         │     export { Button } from "@duidtin/ui";
         │     export { Button as default } from "@duidtin/ui";
         └─▶ write component-exposes.ts
-              { "./components/button": "./src/components/button.ts", … }   ← 18 entries
+              { "./components/button": "./src/components/button.ts", … }   ← 18 React
+              { "./component-wrapper/button": "./src/component-wrapper/button.ts", … } ← 19 elements
 ```
 
 The shims deliberately export **both named and `default`**, so a consumer's `loadRemote` result already matches the shape `next/dynamic` demands (`{ default }`).
@@ -212,11 +302,11 @@ build ui       packages/ui — rslib
    │             └─▶ dist/index.tailwind.css
    │
 codegen        predev / prebuild — generate-components.ts
-   │             └─▶ 18 shims + component-exposes.ts
+   │             └─▶ 18 React shims + 19 wrapper shims + component-exposes.ts
    │
 build remote   apps/producer — rslib format "mf", target dual
    │             └─▶ dist/mf/remoteEntry.js
-   │                   exposes 18 components + ./globals
+   │                   exposes 18 React components + 19 wrappers + ./globals
    │                   shared react singleton · types into @mf-types
    │
 serve          :3001/design-system/static/

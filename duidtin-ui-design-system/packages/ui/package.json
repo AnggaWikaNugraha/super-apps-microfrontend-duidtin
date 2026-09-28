@@ -2,13 +2,22 @@
   "name": "@duidtin/ui",
   "version": "0.0.0",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/component-wrapper/**",
+    "./dist/component-wrapper/**"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "development": "./src/index.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./component-wrapper/*": {
+      "types": "./dist/component-wrapper/*/index.d.ts",
+      "development": "./src/component-wrapper/*/index.ts",
+      "import": "./dist/component-wrapper/*/index.js",
+      "default": "./dist/component-wrapper/*/index.js"
     },
     "./*": {
       "types": "./dist/*.d.ts",
@@ -19,8 +28,12 @@
     "./css": "./dist/index.tailwind.css"
   },
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "gen:wrapper": "bun run scripts/generate-wrappers.ts",
+    "prebuild": "bun run gen:wrapper",
     "build": "rslib build",
     "dev": "rslib build --watch --no-clean",
     "check-types": "tsc --noEmit",

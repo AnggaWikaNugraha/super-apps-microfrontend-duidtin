@@ -31,7 +31,7 @@ Module Federation menyatukan aplikasi **saat runtime lewat kontrak**, bukan saat
 - **React** — 18.3.1
 - **Tailwind** — v4.1.18, prefix `ui`
 - **Path** — `/design-system/static/`
-- **Peran** — 18 komponen UI + style, di-expose satu per satu
+- **Peran** — 18 komponen UI + style, di-expose satu per satu. 11 di antaranya juga tersedia sebagai Web Component `<dtn-*>` untuk konsumen non-React (Vue/Svelte/Angular), memakai komponen React dan CSS yang sama
 - **Catatan** — `dev: { hmr: false, liveReload: false }` wajib; tanpa itu dev client-nya memanggil `location.reload()` di halaman **konsumen**
 
 ### 3. `duidtin-ui-layout` — layout bersama

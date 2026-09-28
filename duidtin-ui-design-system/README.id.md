@@ -31,6 +31,7 @@ Sudah ada:
 - **18 komponen** di `packages/ui`. Empat belas yang pertama primitif visual: `Button`, `Card`, `Badge`, `Table`, `Select`, `TextField`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart`. Chart pakai dependency `recharts`.
 - Empat sisanya **pola lintas fitur**, dibuat saat membangun beranda: `Skeleton` (placeholder saat memuat), `EmptyState` (kosong & gagal), `ErrorBoundary` (crash saat render, per blok), dan `DataState` (pembungkus tiga keadaan blok data). Semuanya di sini, bukan di repo feature — kalau dibuat lokal, tiap feature bakal punya salinannya sendiri yang lama-lama saling melenceng.
 - `apps/producer` expose semua komponen di atas + `globals` lewat Module Federation, dengan codegen exposes otomatis dan tipe TypeScript lintas-remote (`dts`) sudah dikonfigurasi.
+- **Pembungkus Web Component** — 11 komponen juga tersedia sebagai `<dtn-*>` untuk konsumen non-React; 7 sisanya sengaja belum, alasannya ditulis di berkasnya masing-masing. Lihat [Pembungkus Web Component](#pembungkus-web-component-dtn-).
 - `loadRemote()` sudah kebukti jalan dari **dua konsumen nyata sekaligus**, keduanya diverifikasi di browser:
   - `duidtin-ui-layout` render `Button` dari remote ini di header-nya (tombol Keluar). Badge sempat dipakai untuk nama pengguna, tapi dihapus saat revamp header;
   - `duidtin-feature-beranda` render `Card`, `Button`, `Badge` & `Alert` di halaman beranda — dan repo itu jalan di **MF 2.x**, sedangkan remote ini di 0.24.1.
@@ -99,6 +100,94 @@ API dan nama export komponen tetap sama. `Table size="sm"` kini diteruskan ke ta
 
 Semua komponen ikut pola yang sama di "Alur nambah komponen baru" di bawah — punya file terpisah di `styles/`, `types/`, `components/`. Beberapa (`DateRangePicker`, `BarChart`/`LineChart`/`PieChart`) sengaja disederhanakan dari padanan penuhnya (kalender segmented+popover, custom tooltip/legend) demi kecepatan build tanpa sistem design token yang belum ada di repo ini.
 
+## Pembungkus Web Component (`<dtn-*>`)
+
+Komponen di atas adalah komponen **React**. Supaya bisa dipakai konsumen yang bukan React — remote Vue/Svelte/Angular nanti — tiap komponen juga dibungkus jadi custom element.
+
+```
+<dtn-button color="primary">Masuk</dtn-button>
+   │
+   └─ custom element (browser)  →  satu React root di dalamnya  →  <button class="ui-button …">
+         atribut HTML  → props React
+         onPress React → CustomEvent("press")
+```
+
+Yang penting: **komponennya tidak diduplikasi**. Elemen ini menjalankan komponen React yang sama, menghasilkan kelas CSS yang sama, jadi `styles/` dan `tokens.css` tidak disentuh sama sekali. Yang berbeda cuma antarmukanya.
+
+```html
+<dtn-card variant="elevated">
+  <dtn-card-header>Rekening operasional</dtn-card-header>
+  <dtn-card-body>Saldo tersedia Rp 842.150.000</dtn-card-body>
+</dtn-card>
+
+<dtn-bar-chart category-key="bulan" data='[…]' series='[{"dataKey":"masuk"}]' height="200"></dtn-bar-chart>
+```
+```js
+await loadRemote("duidtin_ui_design_system/component-wrapper/button");  // daftarkan satu elemen
+await loadRemote("duidtin_ui_design_system/component-wrapper/semua");   // atau semuanya sekaligus
+el.addEventListener("press", () => kirim());
+```
+
+### Yang dibungkus dan yang tidak
+
+| Dibungkus (11) | Bagian compound |
+|---|---|
+| `button`, `badge`, `spinner`, `data-state`, `bar-chart`, `line-chart`, `pie-chart` | — |
+| `alert` | `-icon`, `-content`, `-title`, `-description` |
+| `card` | `-header`, `-body`, `-footer` |
+| `empty-state` | `-icon`, `-title`, `-description`, `-action` |
+| `skeleton` | `-lines` |
+
+| Belum dibungkus (7) | Alasan |
+|---|---|
+| `select`, `tabs`, `table`, `text-field` | bagiannya bertukar data lewat **React Context** (id, `aria-*`, fokus, keyboard). Tiap custom element punya React root sendiri dan Context tidak menyeberang antar-root — dipecah jadi elemen terpisah, aksesibilitasnya putus |
+| `modal`, `date-range-picker` | sama, ditambah **portal**: isinya dirender ke luar pohon DOM elemen |
+| `error-boundary` | error boundary hanya menangkap error di pohon React-nya sendiri; anak yang di-slot lewat light DOM bukan bagian pohon itu, jadi elemennya akan *terlihat* bekerja padahal tidak |
+
+Tujuh itu tetap punya berkas di `component-wrapper/<nama>/index.ts` yang isinya alasan di atas — supaya tidak ada yang hilang diam-diam. Kalau nanti dibutuhkan di Vue, bentuknya **satu elemen** yang menerima bagian-bagiannya sebagai atribut (`<dtn-text-field label="Email" is-invalid>`), bukan dipecah.
+
+### Cara kerjanya (`component-wrapper/utils/inti.ts`)
+
+Tanpa pustaka pihak ketiga — Custom Elements API + `react-dom/client`:
+
+```
+connectedCallback
+  ├─ bungkus anak asli dalam <span data-dtn-anak>     ← tidak pernah dilepas dari dokumen
+  ├─ tambah <span data-dtn-wadah> → createRoot()      ← hanya INI milik React
+  └─ render(<Komponen {...props}><span ref=slot/></Komponen>)
+        └─ pindahkan pembungkus anak ke dalam slot     ← light DOM slot
+             └─ slot tidak dirender (mis. DataState saat memuat) → anak disembunyikan, bukan dihapus
+
+attributeChangedCallback → render ulang
+disconnectedCallback     → unmount DITUNDA satu tick; elemen yang cuma dipindah tidak ikut hancur
+```
+
+Dua hal yang sempat menjebak saat membangunnya, dicatat supaya tidak terulang:
+
+| Gejala | Sebab | Perbaikan |
+|---|---|---|
+| Label tombol hilang, `<button>` ter-render kosong | `createRoot().render()` menimpa isi elemen; `@r2wc/react-to-web-component` tidak menyentuh `childNodes` sama sekali | pabrik sendiri yang menyimpan anak lebih dulu — pustaka itu akhirnya dicopot |
+| Elemen tidak terdaftar sama sekali | `sideEffects` di `packages/ui/package.json` — `customElements.define()` itu efek samping murni, dan glob satu tingkat (`/*`) tidak menjangkau `button/index.ts` | `"sideEffects": ["./src/component-wrapper/**", "./dist/component-wrapper/**"]` |
+
+**Shadow DOM sengaja tidak dipakai.** CSS design-system berbasis kelas global (`ui-button`); shadow boundary akan memutusnya dan tiap elemen harus menyuntikkan CSS-nya sendiri. Dengan light DOM, expose `./globals` yang sudah ada tetap berlaku apa adanya.
+
+**React tetap dimuat** di halaman yang memakai elemen ini — wrapper ini antarmuka, bukan penulisan ulang. Remote non-React cukup mendeklarasikan `shared: { react, react-dom: { singleton: true } }` supaya memakai React milik host, bukan membawa React kedua.
+
+### Codegen (`packages/ui/scripts/generate-wrappers.ts`)
+
+Dijalankan otomatis lewat `prebuild`, atau manual: `bun run gen:wrapper`.
+
+| Dibaca otomatis | Dari |
+|---|---|
+| nama varian → atribut string | `src/styles/<n>/<n>.styles.ts`, kunci di dalam `variants: { … }` |
+| bagian compound → elemen `-bagian` | `Object.assign(Root, { … })` di `src/components/<n>/index.ts` |
+
+| Ditulis tangan sekali | Di mana |
+|---|---|
+| props non-varian (`isDisabled`, `data`, `isLoading`), event (`onPress` → `press`), daftar yang dilewati | `src/component-wrapper/utils/peta.ts` |
+
+Keluarannya: `component-wrapper/<n>/index.ts` per komponen, `component-wrapper/index.ts` (mendaftarkan semua), dan `utils/elemen.d.ts` (deklarasi JSX). Semuanya **berkas generate** — jangan diedit tangan.
+
 ## Alur singkatnya
 
 ```
@@ -145,7 +234,8 @@ apps/producer/scripts/generate-components.ts
         │     export { Button } from "@duidtin/ui";
         │     export { Button as default } from "@duidtin/ui";
         └─▶ tulis component-exposes.ts
-              { "./components/button": "./src/components/button.ts", … }   ← 18 entri
+              { "./components/button": "./src/components/button.ts", … }   ← 18 React
+              { "./component-wrapper/button": "./src/component-wrapper/button.ts", … } ← 19 elemen
 ```
 
 Shim-nya sengaja mengekspor **named dan `default`** sekaligus, supaya hasil `loadRemote` di konsumen langsung cocok dengan bentuk yang diminta `next/dynamic` (`{ default }`).
@@ -212,11 +302,11 @@ build ui       packages/ui — rslib
    │             └─▶ dist/index.tailwind.css
    │
 codegen        predev / prebuild — generate-components.ts
-   │             └─▶ 18 shim + component-exposes.ts
+   │             └─▶ 18 shim React + 19 shim wrapper + component-exposes.ts
    │
 build remote   apps/producer — rslib format "mf", target dual
    │             └─▶ dist/mf/remoteEntry.js
-   │                   exposes 18 komponen + ./globals
+   │                   exposes 18 komponen React + 19 pembungkus + ./globals
    │                   shared react singleton · tipe ke @mf-types
    │
 sajikan        :3001/design-system/static/
@@ -244,6 +334,12 @@ Dari nulis komponen sampai bisa di-`loadRemote` dari luar:
 5. packages/ui/src/components/<nama>/index.ts          → barrel lokal: export { Root as <Nama> }
 6. packages/ui/src/index.ts                            → tambah: export { <Nama> } from "./components/<nama>";
         (kalau lupa langkah ini, komponennya ada tapi nggak bisa diimpor dari "@duidtin/ui" langsung)
+
+── pembungkus Web Component: TIDAK ada langkah manual ──
+   `bun run gen:wrapper` (otomatis lewat prebuild) membaca folder baru itu,
+   lalu menulis component-wrapper/<nama>/index.ts + elemen.d.ts sendiri.
+   Kalau komponennya punya props non-varian atau event, tambahkan entri di
+   component-wrapper/utils/peta.ts — selain itu tidak perlu menyentuh apa pun.
 
 ── opsional tapi disarankan sebelum lanjut ──
 7. packages/ui/src/components/<nama>/<nama>.stories.tsx → cek visual di Storybook dulu (bun run storybook)
@@ -290,7 +386,7 @@ Script ini yang menghilangkan langkah manual "bikin shim + daftarin ke `componen
 - `generateTypes: { extractThirdParty: true, typesFolder: "@mf-types" }` — waktu `apps/producer` di-build, otomatis generate deskripsi tipe TypeScript dari semua yang di-`exposes`, ditaruh di folder `@mf-types` (di-`.gitignore`, karena ini output generated, bukan source).
 - `consumeTypes: { typesFolder: "@mf-types" }` — sisi ini yang dipakai kalau `apps/producer` sendiri nanti perlu **konsumsi** tipe dari remote lain (belum relevan sekarang karena belum ada remote lain yang dikonsumsi, tapi disiapkan dari awal biar konsisten).
 - `displayErrorInTerminal: true` — kalau proses generate tipe ini gagal, errornya muncul jelas di terminal build, bukan cuma silent-fail.
-- Efeknya buat konsumen (`duidtin-ui-layout` & `duidtin-ui`): `loadRemote("duidtin_ui_design_system/components/button")` bisa dapat autocomplete & type-check props `Button` beneran, bukan `any` — asal host-nya juga setup fitur `dts` MF yang sama di sisi consume.
+- **Kenyataannya sekarang tipenya masih `any`.** Berkas yang digenerate isinya `export { Button } from "@duidtin/ui"` — nama paket yang tidak ada di sisi konsumen, jadi impornya menggantung dan dengan `skipLibCheck` diam-diam jadi `any`. Dibuktikan di `duidtin-feature-auth`: `loadRemote(...)` menghasilkan `any`. Pembandingnya qcash, yang arsip tipenya ikut membawa `node_modules/@qui/components` sehingga re-export-nya bisa di-resolve. Memperbaikinya pekerjaan tersendiri di sisi producer; sampai itu beres, konsumen mendeklarasikan sendiri props yang dipakainya.
 
 ## Preview komponen (Storybook)
 
