@@ -2,7 +2,7 @@
 
 [English](README.md) · **Bahasa Indonesia**
 
-Halaman login yang di-expose sebagai remote Module Federation. Host `duidtin-ui` sudah mendaftarkannya di registry dan merendernya di route `/login`.
+Halaman login **dan modal "sesi berakhir"**, di-expose sebagai remote Module Federation. Host `duidtin-ui` sudah mendaftarkannya di registry: `./login` dirender di route `/login`, `./sesi-berakhir` ditumpangkan di halaman mana pun saat sesi mati.
 
 Stack-nya sama dengan `duidtin-feature-beranda` — Next 16 + Rspack + MF 2.x — bukan Next 14 + webpack seperti host/layout/design-system. Kombinasi itu sudah dibuktikan beranda, jadi repo ini tinggal mengikuti.
 
@@ -27,7 +27,7 @@ Terverifikasi di browser (`:3004`, design-system dari dev server):
 
 Belum:
 
-- Login sungguhan ke `duidtin-api` (jalur berhasil) belum diuji end-to-end.
+- Login ulang sungguhan ke `duidtin-api` (mengetik password di modal) belum diuji end-to-end; logika tahan-dan-ulangnya sudah tertutup tes di `@duidtin/auth`.
 - Deploy Vercel + `REMOTE_AUTH_URL` di host.
 - Halaman lupa password / aktivasi.
 
@@ -58,6 +58,28 @@ const { fieldEmail, fieldPassword, kirim, pesanGalat, sedangKirim, bisaKirim } =
 mengganti aturan — misalnya field ikut nonaktif saat terkunci — cukup di hook, tanpa
 menyentuh JSX.
 
+## Modal sesi berakhir
+
+Sesi habis (1 hari sejak login) tidak melempar pengguna ke `/login`. Paket auth menandai
+status `kedaluwarsa` sambil **mengingat nama + email**, host menumpangkan modal ini, dan
+request yang tertahan di paket dilanjutkan begitu password benar — halaman di belakangnya
+tidak kehilangan apa pun.
+
+```
+status "kedaluwarsa"
+  └─ host: GuardSesi → loadRemote("duidtin_feature_auth/sesi-berakhir")
+       ├─ nama + email TERISI dari penggunaTerakhir (hanya password yang kosong)
+       ├─ [Masuk]  → login(email, password) → status "authenticated"
+       │              └─ modal hilang sendiri; request tertahan lanjut dengan token baru
+       └─ [Keluar] → logout() → status "unauthenticated" → host ke /login
+```
+
+| Berkas | Isi |
+|---|---|
+| [`containers/sesi-berakhir/index.tsx`](containers/sesi-berakhir/index.tsx) | `Modal` design-system, `isDismissable={false}` — tidak bisa ditutup Esc/klik luar |
+| [`hooks/use-login-ulang.ts`](hooks/use-login-ulang.ts) | email dari store, `login()`, `keluar()`, pemetaan galat |
+| [`stores/login-ulang.ts`](stores/login-ulang.ts) | password + pesan galat + status kirim (terpisah dari form login) |
+
 ## Alur
 
 ```
@@ -81,8 +103,9 @@ SUBMIT
 | Hal | Isi |
 |---|---|
 | Nama container | `duidtin_feature_auth` |
-| Expose | `./login` (komponen), `./globals` (CSS) |
+| Expose | `./login`, `./sesi-berakhir`, `./globals` (CSS) |
 | Props `./login` | `onSuccess?: () => void` |
+| Props `./sesi-berakhir` | tidak ada — semuanya dibaca dari store sesi |
 | basePath | `/auth` — `remoteEntry.js` di `/auth/_next/static/chunks/remoteEntry.js` |
 | Port dev | 3004 |
 
@@ -133,6 +156,7 @@ scripts/build-styles.ts               kompilasi CSS jadi string → styles/globa
 
 | Gejala | Sebab | Solusi |
 |---|---|---|
+| `resolving fallback for shared module react` (dari `zustand/esm/react.mjs`) | `@duidtin/auth` dipasang dari path lokal dan membawa `zustand` sendiri, sementara React sengaja tidak dipasang di `node_modules` paket | alias `react`/`react-dom` ke `node_modules` repo ini di `next.config.ts` — pola yang sama dipakai host |
 | `loadShareSync failed! … whether an async boundary is implemented` saat membuka `:3004` | halaman Next itu modul sinkron; komponen design-system meminta React dari share scope sebelum terisi | `pages/index.tsx` memuat container lewat `dynamic()` — itu async boundary-nya. Saat dirender host tidak muncul, karena host memuat `./login` secara async |
 | Chunk design-system diminta ke `:3004` lalu 404 | build **produksi** design-system memakai `assetPrefix` relatif (`/design-system/static/`), yang hanya benar di balik rewrite host | pakai dev server design-system (`bun run dev:producer`) yang memakai URL absolut `http://localhost:3001/…` |
 

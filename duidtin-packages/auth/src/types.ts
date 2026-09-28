@@ -61,4 +61,15 @@ export class AuthError extends Error {
   }
 }
 
-export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
+/**
+ * "kedaluwarsa" = sesi berakhir TAPI kita masih ingat siapa penggunanya, jadi
+ * yang diminta hanya password (modal login ulang). Beda dari "unauthenticated",
+ * yang berarti benar-benar tidak ada siapa-siapa (belum login / sudah logout).
+ */
+export type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "kedaluwarsa";
+
+/** Cukup untuk mengisi modal login ulang; token tidak ikut disimpan. */
+export interface PenggunaTerakhir {
+  nama: string;
+  email: string;
+}

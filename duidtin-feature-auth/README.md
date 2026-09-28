@@ -2,7 +2,7 @@
 
 **English** · [Bahasa Indonesia](README.id.md)
 
-The login page, exposed as a Module Federation remote. The `duidtin-ui` host already registers it and renders it at route `/login`.
+The login page **and the "session expired" modal**, exposed as Module Federation remotes. The `duidtin-ui` host registers them: `./login` renders at route `/login`, `./sesi-berakhir` is layered over whatever page is open when the session dies.
 
 Its stack matches `duidtin-feature-beranda` — Next 16 + Rspack + MF 2.x — rather than the Next 14 + webpack used by the host, layout and design system. Beranda already proved that combination works, so this repo simply follows it.
 
@@ -27,7 +27,7 @@ Verified in a browser (`:3004`, design system from its dev server):
 
 Not yet:
 
-- A real login against `duidtin-api` (the success path) has not been tested end to end yet.
+- A real re-login against `duidtin-api` (typing the password in the modal) has not been tested end to end; the hold-and-replay logic itself is covered by tests in `@duidtin/auth`.
 - Vercel deployment + `REMOTE_AUTH_URL` in the host.
 - Forgot-password / activation pages.
 
@@ -58,6 +58,28 @@ const { fieldEmail, fieldPassword, kirim, pesanGalat, sedangKirim, bisaKirim } =
 changing a rule — say, disabling fields while the account is locked — happens in the
 hook alone, with no JSX edits.
 
+## Session-expired modal
+
+An expired session (1 day after login) does not throw the user back to `/login`. The auth
+package marks the status `kedaluwarsa` while remembering the name and email, the host layers
+this modal on top, and requests held inside the package resume as soon as the password is
+correct — the page behind loses nothing.
+
+```
+status "kedaluwarsa"
+  └─ host: GuardSesi → loadRemote("duidtin_feature_auth/sesi-berakhir")
+       ├─ name + email PREFILLED from penggunaTerakhir (only the password is empty)
+       ├─ [Masuk]  → login(email, password) → status "authenticated"
+       │              └─ the modal disappears on its own; held requests resume with the new token
+       └─ [Keluar] → logout() → status "unauthenticated" → the host goes to /login
+```
+
+| File | What it holds |
+|---|---|
+| [`containers/sesi-berakhir/index.tsx`](containers/sesi-berakhir/index.tsx) | the design-system `Modal`, `isDismissable={false}` — no Esc, no click-outside |
+| [`hooks/use-login-ulang.ts`](hooks/use-login-ulang.ts) | email from the store, `login()`, `keluar()`, error mapping |
+| [`stores/login-ulang.ts`](stores/login-ulang.ts) | password + error message + submitting flag (separate from the login form) |
+
 ## Flow
 
 ```
@@ -81,8 +103,9 @@ SUBMIT
 | Item | Value |
 |---|---|
 | Container name | `duidtin_feature_auth` |
-| Exposes | `./login` (component), `./globals` (CSS) |
+| Exposes | `./login`, `./sesi-berakhir`, `./globals` (CSS) |
 | `./login` props | `onSuccess?: () => void` |
+| `./sesi-berakhir` props | none — everything comes from the session store |
 | basePath | `/auth` — `remoteEntry.js` at `/auth/_next/static/chunks/remoteEntry.js` |
 | Dev port | 3004 |
 
@@ -133,6 +156,7 @@ scripts/build-styles.ts               compile CSS into a string → styles/globa
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| `resolving fallback for shared module react` (from `zustand/esm/react.mjs`) | `@duidtin/auth` is installed from a local path and carries its own `zustand`, while React is deliberately absent from the package's `node_modules` | alias `react`/`react-dom` to this repo's `node_modules` in `next.config.ts` — the same pattern the host uses |
 | `loadShareSync failed! … whether an async boundary is implemented` when opening `:3004` | a Next page is a synchronous module; design-system components ask for React from the share scope before it is populated | `pages/index.tsx` loads the container through `dynamic()` — that is the async boundary. It never happens under the host, which loads `./login` asynchronously |
 | Design-system chunks requested from `:3004`, then 404 | the design system's **production** build uses a relative `assetPrefix` (`/design-system/static/`), which is only correct behind the host's rewrites | use the design system's dev server (`bun run dev:producer`), which emits absolute `http://localhost:3001/…` URLs |
 

@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { ModuleFederationPlugin } from "@module-federation/enhanced/rspack";
 import withRspack from "next-rspack";
 
@@ -37,6 +39,21 @@ const nextConfig: NextConfig = {
   webpack(config, { isServer }) {
     config.cache = false;
 
+    /**
+     * React SELALU dari node_modules repo ini, siapa pun yang meminta.
+     *
+     * `@duidtin/auth` dipasang lewat path lokal dan membawa `zustand` di
+     * node_modules-nya sendiri. Tanpa alias ini, `zustand/esm/react.mjs` gagal
+     * di-resolve ("resolving fallback for shared module react") begitu repo ini
+     * memakai `@duidtin/auth/react`. Pola yang sama dipakai host.
+     */
+    config.resolve ??= {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      react: path.resolve("./node_modules/react"),
+      "react-dom": path.resolve("./node_modules/react-dom"),
+    };
+
     if (!isServer) {
       config.optimization ??= {};
       config.optimization.runtimeChunk = false;
@@ -52,6 +69,7 @@ const nextConfig: NextConfig = {
           filename: "static/chunks/remoteEntry.js",
           exposes: {
             "./login": "./containers/login/index.tsx",
+            "./sesi-berakhir": "./containers/sesi-berakhir/index.tsx",
             "./globals": "./styles/global.exposes.ts",
           },
           /**

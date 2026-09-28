@@ -5,7 +5,7 @@ import { http } from "../src/axios.js";
 import { configureAuth } from "../src/config.js";
 import { SESSION_KEY } from "../src/storage.js";
 import { getAuthStore, installAuthStore } from "../src/store.js";
-import { fakeSession, fillStorage, MINUTE, mockApi, readRaw, resetAuth, respond } from "./helpers.js";
+import { fakeSession, fillStorage, MINUTE, mockApi, readRaw, readRawPengguna, resetAuth, respond } from "./helpers.js";
 
 const API = "http://localhost:4000";
 
@@ -179,7 +179,58 @@ describe("http", () => {
     expect(palsu.urls.filter((u) => u.endsWith("/auth/refresh"))).toHaveLength(1);
   });
 
-  test("refresh ditolak → sesi dibersihkan", async () => {
+  test("refresh ditolak tanpa catatan pengguna → sesi dibersihkan", async () => {
+    // tanpa `duidtin:pengguna-terakhir`, modal login ulang tidak ada gunanya —
+    // keadaannya harus jatuh ke "unauthenticated" supaya guard ke halaman login
+    fillStorage(fakeSession({ accessTokenBerlakuSampai: new Date(Date.now() + 10_000).toISOString() }));
+    const store = installAuthStore();
+
+    store.setState({ penggunaTerakhir: null });
+
+    mockApi((config) =>
+      config.url?.endsWith("/auth/refresh")
+        ? respond(401, "Sesi berakhir, silakan login ulang.", { kode: "REFRESH_TOKEN_TIDAK_VALID" })
+        : respond(200, "ok", null),
+    );
+
+    await expect(http.get("/beranda/rekening")).rejects.toMatchObject({
+      name: "AuthError",
+      status: 401,
+      kode: "TOKEN_TIDAK_ADA",
+    });
+
+    expect(getAuthStore().getState().session).toBeNull();
+    expect(getAuthStore().getState().status).toBe("unauthenticated");
+    expect(readRaw()).toBeNull();
+  });
+});
+
+describe("sesi berakhir", () => {
+  test("sesi di penyimpanan yang sudah lewat → status kedaluwarsa, pengguna diingat", () => {
+    fillStorage(fakeSession({ sesiBerlakuSampai: new Date(Date.now() - MINUTE).toISOString() }));
+
+    const store = installAuthStore();
+
+    expect(store.getState().status).toBe("kedaluwarsa");
+    expect(store.getState().session).toBeNull();
+    expect(store.getState().penggunaTerakhir).toEqual({ email: "angga@duidtin.test", nama: "Angga Wika" });
+    expect(readRaw()).toBeNull();
+  });
+
+  test("timer memicu kedaluwarsa tanpa request apa pun", async () => {
+    mockApi(() => respond(200, "Login berhasil.", fakeSession({ sesiBerlakuSampai: new Date(Date.now() + 40).toISOString() })));
+
+    await login("angga@duidtin.test", "Duidtin123!");
+
+    expect(getAuthStore().getState().status).toBe("authenticated");
+
+    await Bun.sleep(80);
+
+    expect(getAuthStore().getState().status).toBe("kedaluwarsa");
+    expect(getAuthStore().getState().penggunaTerakhir?.email).toBe("angga@duidtin.test");
+  });
+
+  test("refresh ditolak → kedaluwarsa, bukan unauthenticated", async () => {
     fillStorage(fakeSession({ accessTokenBerlakuSampai: new Date(Date.now() + 10_000).toISOString() }));
     installAuthStore();
 
@@ -189,10 +240,91 @@ describe("http", () => {
         : respond(200, "ok", null),
     );
 
-    await http.get("/beranda/rekening");
+    const permintaan = http.get("/beranda/rekening");
 
-    expect(getAuthStore().getState().session).toBeNull();
+    await Bun.sleep(30);
+
+    expect(getAuthStore().getState().status).toBe("kedaluwarsa");
+
+    // request-nya DITAHAN, belum selesai — dilanjutkan setelah login ulang
+    getAuthStore().getState().setSession(fakeSession({ accessToken: "akses-baru" }));
+
+    const res = await permintaan;
+
+    expect(res.status).toBe(200);
+  });
+
+  test("dua request tertahan, satu login ulang, dua-duanya lanjut", async () => {
+    fillStorage(fakeSession({ accessTokenBerlakuSampai: new Date(Date.now() + 10_000).toISOString() }));
+    installAuthStore();
+
+    const palsu = mockApi((config) =>
+      config.url?.endsWith("/auth/refresh")
+        ? respond(401, "Sesi berakhir, silakan login ulang.", { kode: "REFRESH_TOKEN_TIDAK_VALID" })
+        : respond(200, "ok", null),
+    );
+
+    const permintaan = Promise.all([http.get("/beranda/rekening"), http.get("/beranda/persetujuan")]);
+
+    await Bun.sleep(40);
+
+    expect(getAuthStore().getState().status).toBe("kedaluwarsa");
+
+    getAuthStore().getState().setSession(fakeSession({ accessToken: "akses-baru" }));
+
+    const [satu, dua] = await permintaan;
+
+    expect([satu.status, dua.status]).toEqual([200, 200]);
+    expect(palsu.calls.filter((c) => c.headers.Authorization === "Bearer akses-baru")).not.toHaveLength(0);
+  });
+
+  test("logout saat menunggu → request tertahan ditolak", async () => {
+    fillStorage(fakeSession({ accessTokenBerlakuSampai: new Date(Date.now() + 10_000).toISOString() }));
+    installAuthStore();
+
+    mockApi((config) =>
+      config.url?.endsWith("/auth/refresh")
+        ? respond(401, "Sesi berakhir, silakan login ulang.", { kode: "REFRESH_TOKEN_TIDAK_VALID" })
+        : respond(200, "ok", null),
+    );
+
+    const permintaan = http.get("/beranda/rekening");
+
+    await Bun.sleep(30);
+    getAuthStore().getState().setSession(null);
+
+    await expect(permintaan).rejects.toMatchObject({ name: "AuthError", status: 401 });
+  });
+
+  test("logout membuang catatan pengguna terakhir", async () => {
+    fillStorage(fakeSession());
+    installAuthStore();
+
+    expect(readRawPengguna()).toBeNull();
+
+    mockApi(() => respond(200, "ok", null));
+    getAuthStore().getState().setSession(fakeSession());
+
+    expect(readRawPengguna()).toContain("angga@duidtin.test");
+
+    await logout();
+
+    expect(readRawPengguna()).toBeNull();
     expect(getAuthStore().getState().status).toBe("unauthenticated");
-    expect(readRaw()).toBeNull();
+  });
+});
+
+describe("tanpa sesi", () => {
+  test("request bertoken tanpa sesi ditolak sebelum menyentuh jaringan", async () => {
+    installAuthStore();
+
+    const palsu = mockApi(() => respond(200, "ok", null));
+
+    await expect(http.get("/beranda/rekening")).rejects.toMatchObject({
+      name: "AuthError",
+      status: 401,
+      kode: "TOKEN_TIDAK_ADA",
+    });
+    expect(palsu.calls).toHaveLength(0);
   });
 });

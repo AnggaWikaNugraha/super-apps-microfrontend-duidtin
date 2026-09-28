@@ -100,7 +100,7 @@ Entry-nya sengaja `src/app.ts` saja. Vercel mencari berkas bernama `app`, `index
 | `JWT_REFRESH_SECRET` | acak ≥ 32 byte | kunci HMAC untuk `sesi.tokenHash`; harus beda dari secret access |
 | `ACCESS_TOKEN_TTL` | `5m` | |
 | `REFRESH_TOKEN_TTL` | `1d` | batas umur sesi **sejak login**; tidak diperpanjang oleh refresh |
-| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:3003,http://localhost:3004` | host, beranda, dan nanti remote auth. Produksi: `https://super-apps-duidtin.vercel.app` |
+| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:3003,http://localhost:3004,https://super-apps-duidtin.vercel.app` | host, beranda, remote auth, dan domain host produksi. Yang terakhir membuat halaman produksi bisa menembak API di laptop (pola yang sama dengan `?remote-lokal`) — halaman https boleh memanggil `http://localhost` karena localhost dianggap origin terpercaya. Ditulis sebagai **origin**: tanpa path, tanpa garis miring akhir; dicocokkan sama persis |
 | `PORT` | `4000` | hanya dipakai `scripts/dev.ts` |
 
 `src/config/env.ts` memvalidasi semuanya saat modul dimuat. Env yang kurang membuat app gagal di awal dengan pesan jelas, bukan error acak saat request pertama.

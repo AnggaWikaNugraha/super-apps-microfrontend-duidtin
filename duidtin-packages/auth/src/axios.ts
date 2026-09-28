@@ -9,8 +9,10 @@ declare module "axios" {
   export interface AxiosRequestConfig {
     /** Endpoint auth sendiri: tanpa Bearer, tanpa refresh — kalau tidak, refresh bisa memicu dirinya sendiri. */
     skipAuth?: boolean;
-    /** Penanda internal supaya satu request tidak diulang lebih dari sekali. */
+    /** Penanda internal supaya satu request tidak diulang lebih dari sekali per sebab. */
     retried?: boolean;
+    /** Sudah pernah diulang setelah login ulang — jangan diulang lagi. */
+    retriedAfterRelogin?: boolean;
   }
 }
 
@@ -41,6 +43,39 @@ const withLock = <T>(run: () => Promise<T>): Promise<T> => {
   fallbackLock = result.catch(() => undefined);
 
   return result;
+};
+
+/**
+ * Satu janji bersama untuk SEMUA request yang tertahan menunggu login ulang.
+ *
+ * Kenapa ditahan, bukan ditolak: begitu sesi berakhir, host memunculkan modal
+ * yang cuma meminta password. Kalau request-nya ditolak, pengguna kehilangan
+ * data yang sedang dimuat dan harus memuat ulang sendiri. Dengan ditahan, satu
+ * kali isi password membuat semua request berjalan lagi seolah tidak terjadi apa-apa.
+ */
+let menunggu: Promise<boolean> | null = null;
+
+const tungguLoginUlang = (): Promise<boolean> => {
+  menunggu ??= new Promise<boolean>((selesai) => {
+    const store = getAuthStore();
+
+    const berhenti = store.subscribe((state) => {
+      if (state.status === "authenticated") {
+        berhenti();
+        menunggu = null;
+        selesai(true);
+      }
+
+      // logout dari modal, atau pengguna tidak dikenali → percuma menunggu
+      if (state.status === "unauthenticated") {
+        berhenti();
+        menunggu = null;
+        selesai(false);
+      }
+    });
+  });
+
+  return menunggu;
 };
 
 const isNearlyExpired = (session: Session): boolean =>
@@ -87,8 +122,9 @@ const refreshSession = (requested: Session | null): Promise<Session | null> =>
 
       return next;
     } catch {
-      // refresh ditolak: sesi berakhir. Pengalihan ke halaman login tugas host.
-      store.getState().setSession(null);
+      // Refresh ditolak = sesi benar-benar berakhir. Token dibuang, tapi identitas
+      // penggunanya disimpan supaya host bisa memunculkan modal login ulang.
+      store.getState().tandaiKedaluwarsa();
 
       return null;
     }
@@ -101,9 +137,32 @@ http.interceptors.request.use(async (config) => {
   if (config.skipAuth) return config;
 
   const store = getAuthStore();
+
   let session = store.getState().session;
 
   if (session && isNearlyExpired(session)) session = await refreshSession(session);
+
+  /**
+   * Dua keadaan bertemu di sini, dua-duanya harus DITAHAN, bukan dikirim tanpa token:
+   *   1. request baru berangkat saat modal login ulang masih terbuka;
+   *   2. refresh proaktif di atas baru saja ditolak → sesi jadi "kedaluwarsa".
+   * Tanpa penjaga ini, request-nya lolos tanpa Bearer dan gagal 401 di server —
+   * pengguna melihat blok error padahal modal login ulang sedang terbuka.
+   */
+  if (!session && store.getState().status === "kedaluwarsa") {
+    const pulih = await tungguLoginUlang();
+
+    if (!pulih) throw new AuthError(401, "Sesi berakhir, silakan login ulang.", "REFRESH_TOKEN_TIDAK_VALID");
+
+    session = store.getState().session;
+  }
+
+  // Tidak ada sesi dan tidak ada yang bisa ditunggu: tolak di sini, jangan buang
+  // satu perjalanan ke server yang pasti dijawab 401. Guard host yang mengarahkan
+  // pengguna ke /login.
+  if (!session && store.getState().status !== "loading") {
+    throw new AuthError(401, "Belum login.", "TOKEN_TIDAK_ADA");
+  }
 
   if (session) config.headers.Authorization = `Bearer ${session.accessToken}`;
 
@@ -124,8 +183,21 @@ http.interceptors.response.use(undefined, async (error: unknown) => {
 
   const renewed = await refreshSession(getAuthStore().getState().session);
 
-  if (!renewed) throw toAuthError(error);
+  // Refresh berhasil → ulangi seperti biasa (Bearer dipasang ulang interceptor request).
+  if (renewed) return http.request(config);
 
-  // Bearer-nya dipasang ulang oleh interceptor request di atas
-  return http.request(config);
+  // Refresh gagal. Kalau penggunanya masih diingat, sesi masuk keadaan
+  // "kedaluwarsa" → tunggu modal login ulang, lalu ulangi SEKALI lagi.
+  if (getAuthStore().getState().status === "kedaluwarsa" && !config.retriedAfterRelogin) {
+    const pulih = await tungguLoginUlang();
+
+    if (pulih) {
+      config.retriedAfterRelogin = true;
+      config.retried = false;
+
+      return http.request(config);
+    }
+  }
+
+  throw toAuthError(error);
 });

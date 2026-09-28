@@ -185,7 +185,9 @@ The `/login` page, the guard and the header now use the session — see **Sessio
   └─ GuardSesi (components/auth/GuardSesi.tsx, mounted in _app.tsx)
        ├─ status "loading"          → hold the render, do NOT redirect (hydration unfinished)
        ├─ status "unauthenticated"  → /login?dari=<the page that was requested>
-       └─ status "authenticated"    → render the page
+       ├─ status "authenticated"    → render the page
+       └─ status "kedaluwarsa"      → KEEP the page, layer the re-login modal on top
+                                      (components/auth/ModalSesiBerakhir.tsx → auth remote)
 
 /login
   └─ pages/login.tsx  loadRemote("duidtin_feature_auth/login")   ← NO getLayout
@@ -194,7 +196,18 @@ The `/login` page, the guard and the header now use the session — see **Sessio
 
 Sign-out button in the header
   └─ pages/index.tsx  logout() → store cleared → GuardSesi sends you to /login
+
+the session expires while the page is open (1 day after login)
+  └─ timer in @duidtin/auth → status "kedaluwarsa"
+       ├─ THE PAGE IS NOT DISCARDED and there is no redirect — its content stays on screen
+       ├─ the modal asks for the password (name and email already filled in)
+       └─ held requests resume by themselves once the password is correct
 ```
+
+**Why `kedaluwarsa` is not redirected.** Sending the user to `/login` would throw away the
+page they were working on. The auth package holds the failed requests, so one password entry
+restores everything — the same behaviour as qcash's *Session Expired* modal, except the trigger
+is a status change in the shared store rather than a DOM event.
 
 `?dari` is filtered by [`utils/rute.ts`](utils/rute.ts): only internal paths are accepted, so `/login?dari=https://evil.example` cannot bounce a user to another site.
 
@@ -212,6 +225,8 @@ Verified in a browser with four local servers (host, layout, design system, auth
 | Open `/` with no session | redirected to `/login?dari=%2F`, the login form (2 fields) from the auth remote renders |
 | Open `/login` with a session | bounced to `/`, the header shows `Angga Wika` from the session |
 | Click sign out in the header | session and `localStorage` cleared, back to `/login` |
+| Session expires while the page is open | stays on `/`, the header is still there, the **Sesi berakhir** modal appears with name + email prefilled |
+| The modal's sign-out button | the modal disappears, the last-user record is dropped, and we move to `/login` |
 
 ## Deploy (Vercel)
 

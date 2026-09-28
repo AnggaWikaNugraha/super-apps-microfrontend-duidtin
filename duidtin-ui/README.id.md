@@ -185,7 +185,9 @@ Halaman `/login`, guard, dan header sudah memakai sesi — lihat **Alur sesi di 
   └─ GuardSesi (components/auth/GuardSesi.tsx, dipasang di _app.tsx)
        ├─ status "loading"          → tahan render, JANGAN redirect (hydrate belum selesai)
        ├─ status "unauthenticated"  → /login?dari=<halaman yang dituju>
-       └─ status "authenticated"    → halaman dirender
+       ├─ status "authenticated"    → halaman dirender
+       └─ status "kedaluwarsa"      → halaman TETAP + modal login ulang ditumpangkan
+                                      (components/auth/ModalSesiBerakhir.tsx → remote auth)
 
 /login
   └─ pages/login.tsx  loadRemote("duidtin_feature_auth/login")   ← TANPA getLayout
@@ -194,7 +196,18 @@ Halaman `/login`, guard, dan header sudah memakai sesi — lihat **Alur sesi di 
 
 tombol Keluar di header
   └─ pages/index.tsx  logout() → store kosong → GuardSesi melempar ke /login
+
+sesi berakhir saat halaman terbuka (1 hari sejak login)
+  └─ timer di @duidtin/auth → status "kedaluwarsa"
+       ├─ HALAMAN TIDAK DIBUANG dan tidak ada redirect — isinya masih di layar
+       ├─ modal minta password (nama + email sudah terisi)
+       └─ request yang tertahan lanjut sendiri setelah password benar
 ```
+
+**Kenapa `kedaluwarsa` tidak di-redirect.** Melempar ke `/login` berarti membuang halaman
+yang sedang dikerjakan. Paket auth menahan request yang gagal, jadi satu kali isi password
+memulihkan semuanya — perilaku yang sama dengan modal *Session Expired* di qcash, tapi
+pemicunya perubahan status di store bersama, bukan DOM event.
 
 `?dari` disaring [`utils/rute.ts`](utils/rute.ts): hanya path internal yang diterima, jadi `/login?dari=https://jahat.example` tidak bisa memantulkan pengguna ke situs lain.
 
@@ -212,6 +225,8 @@ Terverifikasi di browser dengan empat server lokal (host, layout, design-system,
 | Buka `/` tanpa sesi | dialihkan ke `/login?dari=%2F`, form login (2 field) dari remote auth tampil |
 | Buka `/login` dengan sesi | dipantulkan ke `/`, header menampilkan `Angga Wika` dari sesi |
 | Klik Keluar di header | sesi & `localStorage` bersih, kembali ke `/login` |
+| Sesi kedaluwarsa saat halaman terbuka | tetap di `/`, header masih tampil, modal **Sesi berakhir** muncul dengan nama + email terisi |
+| Tombol Keluar di modal | modal hilang, catatan pengguna terakhir dibuang, pindah ke `/login` |
 
 ## Deploy (Vercel)
 

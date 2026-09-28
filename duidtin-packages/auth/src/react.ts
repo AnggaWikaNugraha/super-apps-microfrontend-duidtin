@@ -2,13 +2,17 @@ import { useStore } from "zustand";
 
 import { login, logout, logoutAll, refreshProfile } from "./service.js";
 import { getAuthStore, type AuthState } from "./store.js";
-import type { AuthStatus, Session, User } from "./types.js";
+import type { AuthStatus, PenggunaTerakhir, Session, User } from "./types.js";
 
 export interface UseAuthResult {
   /** "loading" sampai hydrate selesai — jangan pakai untuk memutuskan redirect. */
   status: AuthStatus;
   user: User | null;
   isLoggedIn: boolean;
+  /** Sesi berakhir tapi penggunanya masih diingat → tampilkan modal login ulang. */
+  sesiKedaluwarsa: boolean;
+  /** Pengisi otomatis modal login ulang: nama + email pengguna terakhir. */
+  penggunaTerakhir: PenggunaTerakhir | null;
   login: (email: string, password: string) => Promise<Session>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
@@ -19,6 +23,8 @@ const pickSession = (state: AuthState) => state.session;
 
 const pickStatus = (state: AuthState) => state.status;
 
+const pickPenggunaTerakhir = (state: AuthState) => state.penggunaTerakhir;
+
 /**
  * Membaca store milik host. Hook ini boleh ter-bundle berkali-kali di remote yang
  * berbeda — yang penting store-nya satu, dan React-nya satu instance (`shared`
@@ -28,11 +34,14 @@ export const useAuth = (): UseAuthResult => {
   const store = getAuthStore();
   const session = useStore(store, pickSession);
   const status = useStore(store, pickStatus);
+  const penggunaTerakhir = useStore(store, pickPenggunaTerakhir);
 
   return {
     status,
     user: session?.pengguna ?? null,
     isLoggedIn: session !== null,
+    sesiKedaluwarsa: status === "kedaluwarsa",
+    penggunaTerakhir,
     login,
     logout,
     logoutAll,

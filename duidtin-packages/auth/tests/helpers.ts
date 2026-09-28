@@ -1,7 +1,7 @@
 import { AxiosError, type AxiosAdapter, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 
 import { http } from "../src/axios.js";
-import { SESSION_KEY } from "../src/storage.js";
+import { LAST_USER_KEY, SESSION_KEY } from "../src/storage.js";
 import type { Session } from "../src/types.js";
 
 export const MINUTE = 60_000;
@@ -73,6 +73,8 @@ export const fillStorage = (session: Session): void =>
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 
 export const readRaw = (): string | null => localStorage.getItem(SESSION_KEY);
+
+export const readRawPengguna = (): string | null => localStorage.getItem(LAST_USER_KEY);
 
 /** Store di-cache di window, jadi harus dibuang tiap tes supaya tidak bocor antar-kasus. */
 export const resetAuth = (): void => {

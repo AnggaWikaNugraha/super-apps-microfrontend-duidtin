@@ -73,7 +73,7 @@ tab lain       ─┘      └─▶ navigator.locks "duidtin:refresh" ─▶ sa
 ### Sesi berakhir
 | Pemicu | Akibat |
 |---|---|
-| 1 hari sejak login | refresh ditolak → login ulang |
+| 1 hari sejak login | timer di klien memicu status `kedaluwarsa` → modal minta password; refresh apa pun setelah itu juga ditolak server |
 | Logout | catatan sesi dicabut → refresh ditolak |
 | Refresh token lama dipakai lagi > 30 detik setelah diganti | semua token dengan `idLogin` itu dicabut; login lain milik pengguna yang sama tetap jalan |
 
@@ -94,7 +94,7 @@ Aturan `http` (instance axios paket auth), yang dipakai semua pemanggil API:
 2. Interceptor request menempel `Authorization: Bearer`. Kalau access token tinggal < 30 detik, refresh dulu.
 3. Interceptor response: `TOKEN_KEDALUWARSA` → refresh lalu ulangi request **sekali**. Kegagalan lain dilempar sebagai `AuthError` berisi `status` dan `kode`.
 4. **Refresh dijalankan di dalam `navigator.locks.request("duidtin:refresh")`.** Karena store-nya tunggal, balapan antar-remote di satu tab sudah tidak mungkin; Web Locks menjaga balapan **antar-tab**. Setelah lock didapat, baca ulang refresh token: kalau sudah berubah, tab lain sudah refresh — pakai hasilnya.
-5. Refresh gagal → kosongkan store dan hapus `duidtin:sesi`, lalu arahkan ke halaman login. Guard dan pengalihan itu tugas host, bukan paket.
+5. Refresh gagal → buang token, tapi **ingat nama + email** penggunanya: status jadi `kedaluwarsa`, dan request yang gagal maupun yang baru datang **ditahan**. Host menumpangkan modal login ulang; satu kali isi password membuat semua request tertahan berjalan lagi. Kalau catatan penggunanya tidak ada, keadaannya jatuh ke `unauthenticated` dan host mengarahkan ke halaman login.
 6. Perubahan sesi otomatis sampai ke komponen lewat langganan store (`useAuth()` di React, composable di Vue, dan seterusnya).
 
 Server melengkapi poin 4 dengan **jendela toleransi 30 detik**: refresh token yang baru saja diganti dan dipakai lagi dalam 30 detik dianggap balapan wajar, bukan pencurian.

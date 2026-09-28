@@ -68,8 +68,31 @@ export interface TextFieldInputProps {
   placeholder?: string;
 }
 
+export interface ModalContentProps extends WithChildren {
+  isDismissable?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (terbuka: boolean) => void;
+}
+
 export const Button = remoteComponent<ButtonProps>("components/button");
 export const Alert = remoteComponent<AlertProps>("components/alert");
+
+export const ModalContent = remoteComponent<ModalContentProps>(
+  "components/modal",
+  (mod) => (mod.Modal as unknown as Compound).Content as ComponentType<ModalContentProps>,
+);
+export const ModalHeading = remoteComponent<WithChildren>(
+  "components/modal",
+  (mod) => (mod.Modal as unknown as Compound).Heading as ComponentType<WithChildren>,
+);
+export const ModalBody = remoteComponent<WithChildren>(
+  "components/modal",
+  (mod) => (mod.Modal as unknown as Compound).Body as ComponentType<WithChildren>,
+);
+export const ModalFooter = remoteComponent<WithChildren>(
+  "components/modal",
+  (mod) => (mod.Modal as unknown as Compound).Footer as ComponentType<WithChildren>,
+);
 
 export const TextField = remoteComponent<TextFieldProps>("components/text-field");
 export const TextFieldLabel = remoteComponent<WithChildren>(

@@ -68,7 +68,7 @@ Module Federation menyatukan aplikasi **saat runtime lewat kontrak**, bukan saat
 - **React** — 18.3.1 (wajib sama dengan host)
 - **Styling** — Tailwind v4, prefix `fath`
 - **Path** — `basePath: "/auth"`
-- **Peran** — halaman login: form email/password, memanggil `login()` dari `@duidtin/auth`, menampilkan `AuthError`
+- **Peran** — halaman login (`./login`) dan modal sesi berakhir (`./sesi-berakhir`): form email/password, `login()` dari `@duidtin/auth`, menampilkan `AuthError`
 - **Catatan** — satu-satunya feature remote yang berfungsi penuh saat dibuka sendiri (`:3004`), karena paket auth membuat store cadangan. `pages/index.tsx` wajib memakai `dynamic()` sebagai async boundary — lihat [README repo](duidtin-feature-auth/README.id.md#dua-ganjalan-yang-sudah-kena-dan-solusinya)
 
 > Penamaan: `ui-*` untuk infrastruktur (host, design-system, layout), `feature-*` untuk fitur bisnis.
@@ -81,7 +81,7 @@ Tiga perbedaan paling mencolok di atas bukan kebetulan, tapi memang dibiarkan be
 
 ### Paket bersama: `@duidtin/auth`
 
-**Inti + React selesai (15 tes lolos). Dipakai host (store + guard + header) dan `duidtin-feature-auth` (`login()` di form login); layout dan beranda belum.** Paket di [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), bukan remote, jadi tidak punya project Vercel.
+**Inti + React selesai (22 tes lolos). Dipakai host (store, guard, modal sesi berakhir) dan `duidtin-feature-auth` (login + login ulang); layout dan beranda belum.** Paket di [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), bukan remote, jadi tidak punya project Vercel.
 
 ```
 boot host — _app.tsx, sebelum federationInit()
@@ -101,7 +101,13 @@ ambil data — remote mana pun
         ├─ sisa access token < 30 detik  → refresh dulu
         ├─ 401 TOKEN_KEDALUWARSA         → refresh → ulangi SEKALI
         ├─ gagal lain                    → dilempar sebagai AuthError
-        └─ refresh ditolak               → store dikosongkan → host mengarahkan ke /login
+        └─ refresh ditolak               → status "kedaluwarsa" → request DITAHAN
+
+sesi berakhir (1 hari sejak login, atau refresh ditolak)
+  └─▶ status "kedaluwarsa", nama + email pengguna tetap diingat
+        ├─ host menumpangkan modal login ulang (remote auth, expose ./sesi-berakhir)
+        ├─ halaman TIDAK dibuang, tidak ada redirect
+        └─ password benar → request tertahan lanjut dengan token baru
 
 tab lain
   └─▶ event "storage" → store menyesuaikan
@@ -110,7 +116,7 @@ tab lain
 | Ekspor | Fungsi |
 |---|---|
 | `@duidtin/auth` | `configureAuth({ baseUrl })`, `installAuthStore()`, `getAuthStore()`, `http` (instance axios), `login()`, `logout()`, `logoutAll()`, `refreshProfile()` |
-| `@duidtin/auth/react` | `useAuth()` → `{ user, status, isLoggedIn, login, logout, logoutAll, refreshProfile }` |
+| `@duidtin/auth/react` | `useAuth()` → `{ user, status, isLoggedIn, sesiKedaluwarsa, penggunaTerakhir, login, logout, logoutAll, refreshProfile }` |
 | `/vue`, `/svelte`, `/angular` | menyusul; inti tanpa framework, jadi pembungkusnya belasan baris |
 
 - Store sesi **hanya dibuat host**; remote meminjam objeknya (`getState`, `subscribe`, aksi) — tanpa kelas dan tanpa React, jadi aman lintas framework dan bundler.

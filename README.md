@@ -68,7 +68,7 @@ Module Federation composes applications **at runtime through a contract**, not a
 - **React** — 18.3.1 (must match the host)
 - **Styling** — Tailwind v4, prefix `fath`
 - **Path** — `basePath: "/auth"`
-- **Role** — the login page: email/password form, calls `login()` from `@duidtin/auth`, renders `AuthError`
+- **Role** — the login page (`./login`) and the session-expired modal (`./sesi-berakhir`): email/password form, `login()` from `@duidtin/auth`, renders `AuthError`
 - **Note** — the only feature remote that fully works when opened on its own (`:3004`), because the auth package creates a fallback store. `pages/index.tsx` must use `dynamic()` as an async boundary — see the [repo README](duidtin-feature-auth/README.id.md#dua-ganjalan-yang-sudah-kena-dan-solusinya)
 
 > Naming: `ui-*` for infrastructure (host, design system, layout), `feature-*` for business features.
@@ -81,7 +81,7 @@ The three most striking differences above are deliberate, not accidental:
 
 ### Shared package: `@duidtin/auth`
 
-**Core + React done (15 tests passing). Used by the host (store + guard + header) and by `duidtin-feature-auth` (`login()` in the login form); layout and beranda are not wired yet.** A package in [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), not a remote, so it has no Vercel project.
+**Core + React done (22 tests passing). Used by the host (store, guard, session-expired modal) and by `duidtin-feature-auth` (login + re-login); layout and beranda are not wired yet.** A package in [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), not a remote, so it has no Vercel project.
 
 ```
 host boot — _app.tsx, before federationInit()
@@ -101,7 +101,13 @@ fetching data — any remote
         ├─ access token has < 30s left   → refresh first
         ├─ 401 TOKEN_KEDALUWARSA         → refresh → retry ONCE
         ├─ any other failure             → thrown as AuthError
-        └─ refresh refused               → store cleared → the host redirects to /login
+        └─ refresh refused               → status "kedaluwarsa" → requests are HELD
+
+session ends (1 day after login, or refresh refused)
+  └─▶ status "kedaluwarsa", the user's name and email are still remembered
+        ├─ the host layers the re-login modal on top (auth remote, ./sesi-berakhir)
+        ├─ the page is NOT discarded, there is no redirect
+        └─ correct password → held requests resume with the new token
 
 other tabs
   └─▶ "storage" event → their store follows
@@ -110,7 +116,7 @@ other tabs
 | Export | Functions |
 |---|---|
 | `@duidtin/auth` | `configureAuth({ baseUrl })`, `installAuthStore()`, `getAuthStore()`, `http` (instance axios), `login()`, `logout()`, `logoutAll()`, `refreshProfile()` |
-| `@duidtin/auth/react` | `useAuth()` → `{ user, status, isLoggedIn, login, logout, logoutAll, refreshProfile }` |
+| `@duidtin/auth/react` | `useAuth()` → `{ user, status, isLoggedIn, sesiKedaluwarsa, penggunaTerakhir, login, logout, logoutAll, refreshProfile }` |
 | `/vue`, `/svelte`, `/angular` | later; the core is framework-free, so each wrapper is a dozen lines |
 
 - The session store is **created by the host only**; remotes borrow the object (`getState`, `subscribe`, actions) — no classes, no React, so it is safe across frameworks and bundlers.

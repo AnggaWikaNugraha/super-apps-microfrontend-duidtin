@@ -15,6 +15,20 @@ export const hubungkanDatabase = (): Promise<typeof mongoose> => {
       serverSelectionTimeoutMS: 5_000,
       // gagal konek → query langsung error, bukan menggantung sampai timeout
       bufferCommands: false,
+      /**
+       * Paksa IPv4.
+       *
+       * Di jaringan yang menyediakan IPv6 (mis. tethering HP), Bun gagal
+       * menyelesaikan koneksi TLS ke Atlas lewat jalur IPv6 dan crash di dalam
+       * `node:tls` dengan `Cannot destructure property 'subject' from null`.
+       * Driver Mongo lalu melaporkannya sebagai "IP isn't whitelisted" — pesan
+       * yang menyesatkan, karena allowlist-nya tidak ada hubungannya.
+       *
+       * Sudah diuji: Bun tanpa opsi ini GAGAL, dengan opsi ini TERHUBUNG, dan
+       * Node berhasil di dua-duanya. Node host Atlas punya A record, jadi
+       * mengunci ke IPv4 tidak menghilangkan apa pun.
+       */
+      family: 4,
     })
     .catch((error: unknown) => {
       // jangan simpan promise yang gagal, supaya request berikutnya mencoba lagi

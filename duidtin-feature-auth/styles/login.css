@@ -53,3 +53,34 @@
   line-height: 1.5;
   margin: 0;
 }
+
+/* Modal "sesi berakhir" — dirender host di atas halaman yang sedang dibuka. */
+.fath-lagi {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.fath-lagi__keterangan {
+  color: var(--dtn-ink-muted, #52647b);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+}
+.fath-lagi__pengguna {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--dtn-line, #e1e8f0);
+  border-radius: var(--dtn-radius, 10px);
+  background: var(--dtn-surface-muted, #f7f9fc);
+}
+.fath-lagi__nama {
+  color: var(--dtn-ink, #142b49);
+  font-size: 14px;
+  font-weight: 600;
+}
+.fath-lagi__email {
+  color: var(--dtn-ink-subtle, #697b90);
+  font-size: 12px;
+}
