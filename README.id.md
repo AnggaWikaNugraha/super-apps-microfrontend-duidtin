@@ -235,7 +235,8 @@ browser → super-apps-duidtin.vercel.app/layout/_next/static/chunks/remoteEntry
 push ke main
   └─▶ SEMUA project yang terhubung ikut ter-trigger
         └─▶ ignoreCommand tiap project:
-              sha="${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}"
+              sha="${VERCEL_GIT_PREVIOUS_SHA:-}"
+              [ -z "$sha" ] && exit 1                       ← deploy PERTAMA → build
               git cat-file -e "$sha^{commit}" || exit 1     ← SHA tak ada di clone → build
               git diff --quiet "$sha" HEAD -- . && exit 0 || exit 1
                 ├─ exit 0  folder tidak berubah → build DILEWATI
@@ -246,8 +247,9 @@ push ke main
 |---|---|
 | Skip otomatis bawaan Vercel | tidak berlaku: mensyaratkan `workspaces` di `package.json` root, repo ini tidak punya |
 | `VERCEL_GIT_PREVIOUS_SHA` | commit deploy sukses terakhir project itu. `HEAD^` saja hanya membandingkan commit terakhir, jadi perubahan di commit sebelumnya bisa terlewat |
+| Deploy **pertama** sebuah project | `VERCEL_GIT_PREVIOUS_SHA` belum ada. Dulu jatuh ke `HEAD^`, jadi kalau commit terakhir tidak menyentuh folder itu, deploy perdananya **dibatalkan** — persis yang terjadi saat membuat project `duidtin-api`. Sekarang SHA kosong = selalu build |
 | Clone `--depth=10` | commit pembanding bisa di luar kedalaman itu (project yang lama tidak di-deploy). `git diff` lalu keluar **128**, dan Vercel hanya mengenal 0 = lewati / 1 = build — selain itu **deployment ERROR**. Karena itu perintahnya memeriksa SHA dengan `git cat-file -e` dulu, dan semua keluaran non-0 dipaksa jadi 1. Pernah terjadi: deploy design-system gagal saat commit pembandingnya 11 commit di belakang |
-| Bentuk di `vercel.json` | `"ignoreCommand": "sha="${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}"; git cat-file -e "$sha^{commit}" 2>/dev/null || exit 1; git diff --quiet "$sha" HEAD -- . && exit 0 || exit 1"` — host menambah `../duidtin-packages/auth` di daftar path |
+| Bentuk di `vercel.json` | `"ignoreCommand": "sha="${VERCEL_GIT_PREVIOUS_SHA:-}"; [ -z "$sha" ] && exit 1; git cat-file -e "$sha^{commit}" 2>/dev/null || exit 1; git diff --quiet "$sha" HEAD -- . && exit 0 || exit 1"` — host dan remote auth menambah `../duidtin-packages/auth` di daftar path |
 | Status | terpasang di kelima folder (termasuk `duidtin-api`). Design-system juga menyimpan pengaturan build-nya di sana; tiga lainnya hanya `ignoreCommand` |
 | Redeploy manual | commit yang sama ikut dilewati. Hilangkan centang **Use project's Ignore Build Step** |
 | Remote → host | remote tidak perlu memicu build host; host membaca `remoteEntry.js` terbaru saat runtime |
