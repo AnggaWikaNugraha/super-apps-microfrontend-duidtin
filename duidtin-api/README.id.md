@@ -451,6 +451,9 @@ node --env-file=.env dist/scripts/dev.js
 | Install Command | `bun install` |
 | Env | semua dari tabel env, kecuali `PORT` |
 
+- **Vercel mengompilasi HANYA dari berkas entry**, mengikuti impornya — bukan seluruh `include` di `tsconfig.json`. Dua akibatnya, dua-duanya sudah kena dan sudah ditutup:
+  - `src/types/express.d.ts` (augmentasi `req.auth`) tidak ikut karena tidak diimpor siapa pun → `TS2339: Property 'auth' does not exist on type 'Request'`. Perbaikannya `/// <reference path="../types/express.d.ts" />` di `middleware/autentikasi.ts`, berkas yang pasti ikut dari entry.
+  - Cara memeriksanya tanpa menunggu deploy: `bunx tsc --ignoreConfig --noEmit --module nodenext --moduleResolution nodenext --target es2022 --strict --esModuleInterop --skipLibCheck --verbatimModuleSyntax src/app.ts` — ini meniru program yang dibangun Vercel.
 - **`types: ["node"]` sengaja TIDAK dipakai di `tsconfig.json`.** Vercel mengompilasi entry-nya dengan compiler sendiri dari lokasi berbeda, dan entri itu gagal di-resolve di sana: `error TS2688: Cannot find type definition file for 'node'` — padahal `@types/node` jelas ikut terpasang di log install. Tanpa daftar `types`, TypeScript memungut semua `@types` yang ada seperti biasa. `tsconfig.test.json` tetap memakai `types: ["bun"]`, karena itu khusus berkas tes yang tidak pernah ikut ke Vercel.
 - **MongoDB Atlas:** cluster M0; Network Access `0.0.0.0/0` karena IP Vercel dinamis. Keamanan database sepenuhnya bergantung pada kredensial di `MONGODB_URI` — pakai user DB khusus dengan hak baca/tulis ke database `duidtin` saja.
 - `vercel.json` berisi `ignoreCommand` yang sama dengan empat folder lain.
