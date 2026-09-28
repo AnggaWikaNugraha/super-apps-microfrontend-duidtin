@@ -37,11 +37,6 @@ const remoteComponent = <TProps,>(
 
 type Compound = Record<string, ComponentType<never>>;
 
-interface WithChildren {
-  children?: ReactNode;
-  className?: string;
-}
-
 /**
  * Props diambil dari TIPE ASLI design-system (`@mf-types/`, hasil `bun run tipe`),
  * bukan ditulis ulang. Salinan tangan diam-diam melenceng begitu design-system
@@ -58,8 +53,9 @@ export type TextFieldLabelProps = ComponentProps<typeof TextFieldAsli.Label>;
 export type TextFieldInputProps = ComponentProps<typeof TextFieldAsli.Input>;
 
 export type ModalContentProps = ComponentProps<typeof ModalAsli.Content>;
-
-export type ModalSectionProps = ComponentProps<typeof ModalAsli.Heading>;
+export type ModalHeadingProps = ComponentProps<typeof ModalAsli.Heading>;
+export type ModalBodyProps = ComponentProps<typeof ModalAsli.Body>;
+export type ModalFooterProps = ComponentProps<typeof ModalAsli.Footer>;
 
 export const Button = remoteComponent<ButtonProps>("components/button");
 export const Alert = remoteComponent<AlertProps>("components/alert");
@@ -68,23 +64,23 @@ export const ModalContent = remoteComponent<ModalContentProps>(
   "components/modal",
   (mod) => (mod.Modal as unknown as Compound).Content as ComponentType<ModalContentProps>,
 );
-export const ModalHeading = remoteComponent<WithChildren>(
+export const ModalHeading = remoteComponent<ModalHeadingProps>(
   "components/modal",
-  (mod) => (mod.Modal as unknown as Compound).Heading as ComponentType<WithChildren>,
+  (mod) => (mod.Modal as unknown as Compound).Heading as ComponentType<ModalHeadingProps>,
 );
-export const ModalBody = remoteComponent<WithChildren>(
+export const ModalBody = remoteComponent<ModalBodyProps>(
   "components/modal",
-  (mod) => (mod.Modal as unknown as Compound).Body as ComponentType<WithChildren>,
+  (mod) => (mod.Modal as unknown as Compound).Body as ComponentType<ModalBodyProps>,
 );
-export const ModalFooter = remoteComponent<WithChildren>(
+export const ModalFooter = remoteComponent<ModalFooterProps>(
   "components/modal",
-  (mod) => (mod.Modal as unknown as Compound).Footer as ComponentType<WithChildren>,
+  (mod) => (mod.Modal as unknown as Compound).Footer as ComponentType<ModalFooterProps>,
 );
 
 export const TextField = remoteComponent<TextFieldProps>("components/text-field");
-export const TextFieldLabel = remoteComponent<WithChildren>(
+export const TextFieldLabel = remoteComponent<TextFieldLabelProps>(
   "components/text-field",
-  (mod) => (mod.TextField as unknown as Compound).Label as ComponentType<WithChildren>,
+  (mod) => (mod.TextField as unknown as Compound).Label as ComponentType<TextFieldLabelProps>,
 );
 export const TextFieldInput = remoteComponent<TextFieldInputProps>(
   "components/text-field",

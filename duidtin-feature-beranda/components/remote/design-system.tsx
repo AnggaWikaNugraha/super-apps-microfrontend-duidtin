@@ -42,11 +42,6 @@ const remoteComponent = <TProps,>(
     { ssr: false },
   );
 
-interface WithChildren {
-  children?: ReactNode;
-  className?: string;
-}
-
 /**
  * Props diambil dari TIPE ASLI design-system (`@mf-types/`, hasil `bun run tipe`),
  * bukan ditulis ulang. Salinan tangan diam-diam melenceng begitu design-system
@@ -65,13 +60,13 @@ export type AlertProps = ComponentProps<typeof AlertAsli>;
 type Compound = Record<string, ComponentType<never>>;
 
 export const Card = remoteComponent<CardProps>("components/card");
-export const CardHeader = remoteComponent<WithChildren>(
+export const CardHeader = remoteComponent<CardHeaderProps>(
   "components/card",
-  (mod) => (mod.Card as unknown as Compound).Header as ComponentType<WithChildren>,
+  (mod) => (mod.Card as unknown as Compound).Header as ComponentType<CardHeaderProps>,
 );
-export const CardBody = remoteComponent<WithChildren>(
+export const CardBody = remoteComponent<CardBodyProps>(
   "components/card",
-  (mod) => (mod.Card as unknown as Compound).Body as ComponentType<WithChildren>,
+  (mod) => (mod.Card as unknown as Compound).Body as ComponentType<CardBodyProps>,
 );
 
 export const Button = remoteComponent<ButtonProps>("components/button");
@@ -89,23 +84,27 @@ export const SkeletonLines = remoteComponent<SkeletonLinesProps>(
 );
 
 export type EmptyStateProps = ComponentProps<typeof EmptyStateAsli>;
+export type EmptyStateIconProps = ComponentProps<typeof EmptyStateAsli.Icon>;
+export type EmptyStateTitleProps = ComponentProps<typeof EmptyStateAsli.Title>;
+export type EmptyStateDescriptionProps = ComponentProps<typeof EmptyStateAsli.Description>;
+export type EmptyStateActionProps = ComponentProps<typeof EmptyStateAsli.Action>;
 
 export const EmptyState = remoteComponent<EmptyStateProps>("components/empty-state");
-export const EmptyStateIcon = remoteComponent<WithChildren>(
+export const EmptyStateIcon = remoteComponent<EmptyStateIconProps>(
   "components/empty-state",
-  (mod) => (mod.EmptyState as unknown as Compound).Icon as ComponentType<WithChildren>,
+  (mod) => (mod.EmptyState as unknown as Compound).Icon as ComponentType<EmptyStateIconProps>,
 );
-export const EmptyStateTitle = remoteComponent<WithChildren>(
+export const EmptyStateTitle = remoteComponent<EmptyStateTitleProps>(
   "components/empty-state",
-  (mod) => (mod.EmptyState as unknown as Compound).Title as ComponentType<WithChildren>,
+  (mod) => (mod.EmptyState as unknown as Compound).Title as ComponentType<EmptyStateTitleProps>,
 );
-export const EmptyStateDescription = remoteComponent<WithChildren>(
+export const EmptyStateDescription = remoteComponent<EmptyStateDescriptionProps>(
   "components/empty-state",
-  (mod) => (mod.EmptyState as unknown as Compound).Description as ComponentType<WithChildren>,
+  (mod) => (mod.EmptyState as unknown as Compound).Description as ComponentType<EmptyStateDescriptionProps>,
 );
-export const EmptyStateAction = remoteComponent<WithChildren>(
+export const EmptyStateAction = remoteComponent<EmptyStateActionProps>(
   "components/empty-state",
-  (mod) => (mod.EmptyState as unknown as Compound).Action as ComponentType<WithChildren>,
+  (mod) => (mod.EmptyState as unknown as Compound).Action as ComponentType<EmptyStateActionProps>,
 );
 
 export type ErrorBoundaryProps = ComponentProps<typeof ErrorBoundaryAsli>;
