@@ -1,3 +1,9 @@
+/// <reference path="../types/express.d.ts" />
+// Referensi eksplisit, BUKAN sekadar mengandalkan `include` di tsconfig.
+// Vercel mengompilasi hanya dari berkas entry dan mengikuti impornya, jadi
+// deklarasi `.d.ts` yang tidak dirujuk siapa pun tidak ikut ke program-nya —
+// akibatnya `req.auth` "tidak ada" di sana padahal lolos di lokal.
+
 import type { RequestHandler } from "express";
 
 import { GalatApi } from "../lib/galat.js";
