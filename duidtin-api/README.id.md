@@ -451,6 +451,7 @@ node --env-file=.env dist/scripts/dev.js
 | Install Command | `bun install` |
 | Env | semua dari tabel env, kecuali `PORT` |
 
+- **`types: ["node"]` sengaja TIDAK dipakai di `tsconfig.json`.** Vercel mengompilasi entry-nya dengan compiler sendiri dari lokasi berbeda, dan entri itu gagal di-resolve di sana: `error TS2688: Cannot find type definition file for 'node'` — padahal `@types/node` jelas ikut terpasang di log install. Tanpa daftar `types`, TypeScript memungut semua `@types` yang ada seperti biasa. `tsconfig.test.json` tetap memakai `types: ["bun"]`, karena itu khusus berkas tes yang tidak pernah ikut ke Vercel.
 - **MongoDB Atlas:** cluster M0; Network Access `0.0.0.0/0` karena IP Vercel dinamis. Keamanan database sepenuhnya bergantung pada kredensial di `MONGODB_URI` — pakai user DB khusus dengan hak baca/tulis ke database `duidtin` saja.
 - `vercel.json` berisi `ignoreCommand` yang sama dengan empat folder lain.
 - Setelah deploy, README root bagian Deploy diperbarui: baris `BACKEND_URL` dan rewrite `/api` diganti pola akses langsung + CORS.
