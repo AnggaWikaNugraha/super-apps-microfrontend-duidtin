@@ -386,7 +386,30 @@ Script ini yang menghilangkan langkah manual "bikin shim + daftarin ke `componen
 - `generateTypes: { extractThirdParty: true, typesFolder: "@mf-types" }` — waktu `apps/producer` di-build, otomatis generate deskripsi tipe TypeScript dari semua yang di-`exposes`, ditaruh di folder `@mf-types` (di-`.gitignore`, karena ini output generated, bukan source).
 - `consumeTypes: { typesFolder: "@mf-types" }` — sisi ini yang dipakai kalau `apps/producer` sendiri nanti perlu **konsumsi** tipe dari remote lain (belum relevan sekarang karena belum ada remote lain yang dikonsumsi, tapi disiapkan dari awal biar konsisten).
 - `displayErrorInTerminal: true` — kalau proses generate tipe ini gagal, errornya muncul jelas di terminal build, bukan cuma silent-fail.
-- **Kenyataannya sekarang tipenya masih `any`.** Berkas yang digenerate isinya `export { Button } from "@duidtin/ui"` — nama paket yang tidak ada di sisi konsumen, jadi impornya menggantung dan dengan `skipLibCheck` diam-diam jadi `any`. Dibuktikan di `duidtin-feature-auth`: `loadRemote(...)` menghasilkan `any`. Pembandingnya qcash, yang arsip tipenya ikut membawa `node_modules/@qui/components` sehingga re-export-nya bisa di-resolve. Memperbaikinya pekerjaan tersendiri di sisi producer; sampai itu beres, konsumen mendeklarasikan sendiri props yang dipakainya.
+- **Arsipnya harus membawa deklarasi `@duidtin/ui`, dan itu sempat tidak terjadi.** Berkas yang digenerate isinya `export { Button } from "@duidtin/ui"` — kalau paket itu tidak ikut di dalam arsip, impornya menggantung di sisi konsumen dan dengan `skipLibCheck` diam-diam jadi `any`.
+
+### Kenapa arsipnya sempat kosong, dan perbaikannya
+
+```
+extractor (@module-federation/third-party-dts-extractor)
+  └─ baca tiap `from "…"` di d.ts hasil generate
+       └─ require.resolve("@duidtin/ui")        ← TANPA opsi `paths`
+            └─ dijalankan dari folder extractor di node_modules/.bun/…
+                 └─ tata letak node_modules ala bun: paket workspace TIDAK terlihat dari sana
+                      └─ MODULE_NOT_FOUND → ditelan try/catch → paket tidak ikut diarsipkan
+```
+
+Perbaikannya satu baris: `"@duidtin/ui": "*"` di `dependencies` **package.json root**, supaya bun menautkannya juga di `node_modules/` root — folder itu leluhur dari lokasi extractor, jadi resolusinya berhasil.
+
+| | Sebelum | Sesudah |
+|---|---|---|
+| `@mf-types.zip` | 7,6 KB | **64 KB** |
+| Isi | `compiled-types/`, `components/` | + `node_modules/@duidtin/ui/**` |
+| Di konsumen | `loadRemote(...)` → `any` | → `ButtonRootProps`, `color: "primary" \| "default"` |
+
+**Konsumen perlu satu langkah lagi.** Deklarasi `@duidtin/ui` merujuk `react-aria-components`, `tailwind-variants`, dan `react` — ketiganya tidak ikut di arsip (qcash pun begitu). Tanpa paket itu di konsumen, `skipLibCheck` membuat props-nya longgar lagi. Jadi tiap repo konsumen memasang dua paket itu sebagai **devDependency** (dipakai tipe saja, tidak masuk bundle), versinya mengikuti yang dipakai design-system.
+
+Alternatif yang menghapus kebutuhan itu: menulis tipe publik yang berdiri sendiri di `types/*.types.ts` (mis. `color?: "primary" | "default"` eksplisit) alih-alih `extends` tipe react-aria-components. Lebih ramah konsumen, tapi menyentuh 18 berkas tipe.
 
 ## Preview komponen (Storybook)
 

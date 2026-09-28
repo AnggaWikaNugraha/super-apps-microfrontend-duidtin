@@ -417,6 +417,7 @@ Tiga hal yang tidak terlihat di gambar tapi menentukan:
 |---|---|
 | Host **tidak** memakai design-system | shell-nya tipis dan tidak merender komponen UI sendiri; DS dikonsumsi layout dan tiap feature remote |
 | `@duidtin/auth` bukan remote | paket biasa yang di-`import` saat build, jadi tiap bundle punya salinan kodenya. Yang tunggal cuma **objek store**-nya, diparkir di `window.__DUIDTIN_AUTH__` oleh host |
+| Tipe komponen mengalir lewat arsip | design-system membangun `@mf-types.zip`; tiap konsumen mengunduhnya (`bun run tipe`) dan memakai tipe aslinya, bukan menyalin props dengan tangan |
 | Panah ke API cuma satu | semua request bertoken lewat instance `http` di paket itu — token, refresh, retry, dan tahan-ulang saat sesi berakhir ada di satu tempat |
 
 Keadaan tiap bagian sekarang:

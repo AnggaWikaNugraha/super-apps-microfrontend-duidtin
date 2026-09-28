@@ -5,9 +5,10 @@
   "scripts": {
     "paket": "(cd ../duidtin-packages/auth && bun install && bun run build) && bun install",
     "style": "bun run scripts/build-styles.ts",
-    "predev": "bun run style",
+    "tipe": "bun run scripts/ambil-tipe-design-system.ts",
+    "predev": "bun run style && bun run tipe",
     "dev": "MF_PUBLIC_PATH=http://localhost:3004/auth next dev --port 3004",
-    "prebuild": "bun run paket && bun run style",
+    "prebuild": "bun run paket && bun run style && bun run tipe",
     "build": "next build",
     "start": "next start --port 3004",
     "check-types": "tsc --noEmit"
@@ -28,6 +29,9 @@
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "fflate": "^0.8.3",
+    "react-aria-components": "1.18.0",
+    "tailwind-variants": "^3.2.2",
     "tailwindcss": "4.1.18",
     "typescript": "~5.9.3"
   }

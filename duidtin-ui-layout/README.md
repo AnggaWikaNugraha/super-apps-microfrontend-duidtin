@@ -201,6 +201,30 @@ Three distinct moments: `exposes`/`remotes` freeze at **build**, the remote entr
 
 > **Not resolved yet:** the build-time `remotes` and the runtime `remotes` point at a remote with the **same name**, and the build-time one turns out to win — see [Snags](#snags-we-hit-and-why-the-fixes-look-like-that), last item.
 
+## Types from the design system (`@mf-types`)
+
+Remote component props are **not re-declared** here. They come from the design system's type archive:
+
+```
+design-system build → @mf-types.zip  (contains node_modules/@duidtin/ui)
+        │
+bun run tipe                              ← runs automatically via predev & prebuild
+  └─ download + unpack into @mf-types/duidtin_ui_design_system/
+        │
+import type { Button } from "@mf-types/duidtin_ui_design_system/components/button";
+export type ButtonProps = ComponentProps<typeof Button>;
+```
+
+| Item | Detail |
+|---|---|
+| Archive source | `MF_TYPES_URL`, defaults to the design system's production domain |
+| Download failure | **a warning, not an error** — the build continues with the committed copy |
+| `@mf-types/` | **committed** (like qcash), so builds do not depend on the network |
+| devDependencies `react-aria-components` + `tailwind-variants` | types only, never bundled — without them the props loosen back to `any` |
+| Versions of those two | must track the design system's; drift makes the types disagree |
+
+Why bother: hand-written interfaces drift silently. New variants never arrive, removed variants stay "allowed", and callback signatures can be wrong without anyone noticing.
+
 ## Snags we hit (and why the fixes look like that)
 
 None of the nine below were in the original plan. Items 1-7 surfaced once this repo became the design system's first real consumer; item 8 only surfaced once the `duidtin-ui` host made this repo a *consumed* remote for the first time. Item 9 surfaced on a Vercel redeploy. Items 3-6 are fixed in the `duidtin-ui-design-system` repo, not here; item 7 is deliberately left as is.

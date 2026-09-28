@@ -201,6 +201,30 @@ Tiga waktu yang beda: `exposes`/`remotes` beku pas **build**, entry remote didaf
 
 > **Belum beres:** `remotes` build-time dan `remotes` runtime menunjuk remote dengan **nama sama**, dan yang menang ternyata yang build-time — lihat [Ganjalan](#ganjalan-yang-ketemu-dan-kenapa-fix-nya-begitu) poin terakhir.
 
+## Tipe dari design-system (`@mf-types`)
+
+Props komponen remote **tidak ditulis ulang** di repo ini. Tipenya diambil dari arsip tipe milik design-system:
+
+```
+design-system build → @mf-types.zip  (berisi node_modules/@duidtin/ui)
+        │
+bun run tipe                              ← otomatis lewat predev & prebuild
+  └─ unduh + buka ke @mf-types/duidtin_ui_design_system/
+        │
+import type { Button } from "@mf-types/duidtin_ui_design_system/components/button";
+export type ButtonProps = ComponentProps<typeof Button>;
+```
+
+| Hal | Keterangan |
+|---|---|
+| Sumber arsip | `MF_TYPES_URL`, default domain design-system produksi |
+| Gagal unduh | **peringatan, bukan error** — build lanjut memakai salinan yang sudah ter-commit |
+| `@mf-types/` | **ikut di-commit** (seperti qcash), supaya build tidak bergantung jaringan |
+| devDependency `react-aria-components` + `tailwind-variants` | dipakai TIPE saja, tidak masuk bundle — tanpa itu props-nya longgar jadi `any` |
+| Versi kedua paket itu | ikut versi design-system; kalau melenceng, tipenya bisa tidak cocok |
+
+Kenapa repot: interface tulisan tangan diam-diam melenceng. Varian baru di design-system tidak ikut, varian yang dihapus tetap "boleh", dan tanda tangan callback bisa salah tanpa ketahuan.
+
 ## Ganjalan yang ketemu (dan kenapa fix-nya begitu)
 
 > Rincian lengkap poin 1-7 ada di [versi Inggris](README.md#snags-we-hit-and-why-the-fixes-look-like-that) — belum diterjemahkan. Ringkasannya:

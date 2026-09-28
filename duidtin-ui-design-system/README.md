@@ -380,7 +380,30 @@ This script is what removed the manual "write a shim + register it in `component
 - `generateTypes: { extractThirdParty: true, typesFolder: "@mf-types" }` — when `apps/producer` builds, TypeScript type descriptions for everything in `exposes` are generated into the `@mf-types` folder (which is `.gitignore`d, since it is generated output, not source).
 - `consumeTypes: { typesFolder: "@mf-types" }` — the other side, used if `apps/producer` itself ever needs to **consume** types from another remote (not relevant yet, since it consumes none, but wired up from the start for consistency).
 - `displayErrorInTerminal: true` — if type generation fails, the error shows up clearly in the build terminal instead of failing silently.
-- What this buys consumers (`duidtin-ui-layout` & `duidtin-ui`): `loadRemote("duidtin_ui_design_system/components/button")` gets real autocomplete and prop type-checking for `Button` rather than `any` — as long as the host sets up the same MF `dts` feature on its consume side.
+- **The archive has to carry `@duidtin/ui`'s declarations, and for a while it did not.** The generated files say `export { Button } from "@duidtin/ui"` — if that package is not inside the archive, the import dangles on the consumer side and `skipLibCheck` quietly turns it into `any`.
+
+### Why the archive was empty, and the fix
+
+```
+extractor (@module-federation/third-party-dts-extractor)
+  └─ scans every `from "…"` in the generated d.ts
+       └─ require.resolve("@duidtin/ui")        ← WITHOUT a `paths` option
+            └─ executed from the extractor's folder under node_modules/.bun/…
+                 └─ bun's node_modules layout: workspace packages are not visible from there
+                      └─ MODULE_NOT_FOUND → swallowed by try/catch → the package is never archived
+```
+
+The fix is one line: `"@duidtin/ui": "*"` in the **root package.json** `dependencies`, so bun also links it at the root `node_modules/` — an ancestor of the extractor's location, which makes resolution succeed.
+
+| | Before | After |
+|---|---|---|
+| `@mf-types.zip` | 7.6 KB | **64 KB** |
+| Contents | `compiled-types/`, `components/` | + `node_modules/@duidtin/ui/**` |
+| On the consumer | `loadRemote(...)` → `any` | → `ButtonRootProps`, `color: "primary" \| "default"` |
+
+**Consumers need one more step.** `@duidtin/ui`'s declarations reference `react-aria-components`, `tailwind-variants` and `react`, none of which ship inside the archive (qcash has the same gap). Without them installed, `skipLibCheck` loosens the props again. So every consumer repo installs those two as **devDependencies** (types only, never bundled), matching the versions the design system uses.
+
+The alternative that removes that need: writing self-contained public types in `types/*.types.ts` (e.g. an explicit `color?: "primary" | "default"`) instead of extending react-aria-components types. Friendlier for consumers, but it touches 18 type files.
 
 ## Component preview (Storybook)
 

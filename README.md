@@ -415,6 +415,7 @@ Three things the picture cannot show, yet decide everything:
 |---|---|
 | The host does **not** use the design system | it is a thin shell that renders no UI of its own; the DS is consumed by the layout and by each feature remote |
 | `@duidtin/auth` is not a remote | it is an ordinary package imported at build time, so every bundle carries its own copy of the code. The only singleton is the **store object**, parked on `window.__DUIDTIN_AUTH__` by the host |
+| Component types travel in an archive | the design system builds `@mf-types.zip`; each consumer downloads it (`bun run tipe`) and uses the real types instead of hand-copying props |
 | There is only one arrow to the API | every token-bearing request goes through that package's `http` instance — token, refresh, retry and hold-and-replay all live in one place |
 
 Where each piece stands today:

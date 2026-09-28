@@ -116,6 +116,30 @@ SUBMIT
          └─ failure → AuthError → pesanGalat → <Alert variant="danger">
 ```
 
+## Types from the design system (`@mf-types`)
+
+Remote component props are **not re-declared** here. They come from the design system's type archive:
+
+```
+design-system build → @mf-types.zip  (contains node_modules/@duidtin/ui)
+        │
+bun run tipe                              ← runs automatically via predev & prebuild
+  └─ download + unpack into @mf-types/duidtin_ui_design_system/
+        │
+import type { Button } from "@mf-types/duidtin_ui_design_system/components/button";
+export type ButtonProps = ComponentProps<typeof Button>;
+```
+
+| Item | Detail |
+|---|---|
+| Archive source | `MF_TYPES_URL`, defaults to the design system's production domain |
+| Download failure | **a warning, not an error** — the build continues with the committed copy |
+| `@mf-types/` | **committed** (like qcash), so builds do not depend on the network |
+| devDependencies `react-aria-components` + `tailwind-variants` | types only, never bundled — without them the props loosen back to `any` |
+| Versions of those two | must track the design system's; drift makes the types disagree |
+
+Why bother: hand-written interfaces drift silently. New variants never arrive, removed variants stay "allowed", and callback signatures can be wrong without anyone noticing.
+
 ## Contract with the host
 
 | Item | Value |
@@ -174,6 +198,7 @@ scripts/build-styles.ts               compile CSS into a string → styles/globa
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| The modal's **Masuk** button threw a `TypeError` on click | `onPress={kirim}` — React Aria passes a `PressEvent`, while `kirim` expects a `FormEvent` and calls `preventDefault()`. It passed while the props were hand-written (`onPress?: () => void`) | `onPress={() => void kirim()}`. Found the moment the props were switched to the real types from `@mf-types` |
 | `resolving fallback for shared module react` (from `zustand/esm/react.mjs`) | `@duidtin/auth` is installed from a local path and carries its own `zustand`, while React is deliberately absent from the package's `node_modules` | alias `react`/`react-dom` to this repo's `node_modules` in `next.config.ts` — the same pattern the host uses |
 | `loadShareSync failed! … whether an async boundary is implemented` when opening `:3004` | a Next page is a synchronous module; design-system components ask for React from the share scope before it is populated | `pages/index.tsx` loads the container through `dynamic()` — that is the async boundary. It never happens under the host, which loads `./login` asynchronously |
 | Design-system chunks requested from `:3004`, then 404 | the design system's **production** build uses a relative `assetPrefix` (`/design-system/static/`), which is only correct behind the host's rewrites | use the design system's dev server (`bun run dev:producer`), which emits absolute `http://localhost:3001/…` URLs |

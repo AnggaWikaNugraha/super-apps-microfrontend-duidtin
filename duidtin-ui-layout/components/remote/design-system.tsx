@@ -3,7 +3,9 @@ import dynamic from "next/dynamic";
 
 import { DESIGN_SYSTEM_REMOTE } from "@/constants/federation";
 
-import type { ComponentType, ReactNode } from "react";
+import type { Badge as BadgeAsli } from "@mf-types/duidtin_ui_design_system/components/badge";
+import type { Button as ButtonAsli } from "@mf-types/duidtin_ui_design_system/components/button";
+import type { ComponentProps, ComponentType } from "react";
 
 type RemoteModule<TProps> = { default: ComponentType<TProps> };
 
@@ -15,22 +17,17 @@ type RemoteModule<TProps> = { default: ComponentType<TProps> };
 const loadDesignSystemComponent = <TProps,>(name: string) =>
   loadRemote(`${DESIGN_SYSTEM_REMOTE}/components/${name}`) as Promise<RemoteModule<TProps>>;
 
-export interface RemoteButtonProps {
-  children?: ReactNode;
-  className?: string;
-  color?: "primary" | "default";
-  isDisabled?: boolean;
-  onPress?: () => void;
-  size?: "sm" | "md";
-  variant?: "solid" | "outline";
-}
+/**
+ * Props diambil dari TIPE ASLI design-system, bukan ditulis ulang.
+ *
+ * `@mf-types/` itu hasil unduhan arsip tipe milik remote (`bun run tipe`, otomatis
+ * lewat `predev`/`prebuild`). Sebelumnya props di sini disalin tangan, dan salinan
+ * seperti itu diam-diam melenceng begitu design-system berubah — mis. varian baru
+ * ditambah, di sini tidak ikut.
+ */
+export type RemoteButtonProps = ComponentProps<typeof ButtonAsli>;
 
-export interface RemoteBadgeProps {
-  children?: ReactNode;
-  className?: string;
-  color?: "default" | "primary" | "success" | "danger" | "warning" | "info";
-  variant?: "solid" | "soft" | "outlined";
-}
+export type RemoteBadgeProps = ComponentProps<typeof BadgeAsli>;
 
 export const Button = dynamic<RemoteButtonProps>(
   () => loadDesignSystemComponent<RemoteButtonProps>("button"),

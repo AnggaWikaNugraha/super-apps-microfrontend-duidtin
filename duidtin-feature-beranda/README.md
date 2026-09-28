@@ -248,6 +248,30 @@ styles/globals.css                        @import tailwindcss prefix(fber)
 
 `styles/global.exposes.ts` is a **generated file** — never edit it by hand, and it is not committed. If the CSS looks stale, run `bun run style`.
 
+## Types from the design system (`@mf-types`)
+
+Remote component props are **not re-declared** here. They come from the design system's type archive:
+
+```
+design-system build → @mf-types.zip  (contains node_modules/@duidtin/ui)
+        │
+bun run tipe                              ← runs automatically via predev & prebuild
+  └─ download + unpack into @mf-types/duidtin_ui_design_system/
+        │
+import type { Button } from "@mf-types/duidtin_ui_design_system/components/button";
+export type ButtonProps = ComponentProps<typeof Button>;
+```
+
+| Item | Detail |
+|---|---|
+| Archive source | `MF_TYPES_URL`, defaults to the design system's production domain |
+| Download failure | **a warning, not an error** — the build continues with the committed copy |
+| `@mf-types/` | **committed** (like qcash), so builds do not depend on the network |
+| devDependencies `react-aria-components` + `tailwind-variants` | types only, never bundled — without them the props loosen back to `any` |
+| Versions of those two | must track the design system's; drift makes the types disagree |
+
+Why bother: hand-written interfaces drift silently. New variants never arrive, removed variants stay "allowed", and callback signatures can be wrong without anyone noticing.
+
 ## Application & data flow
 
 Four flows, all traced from the code: how beranda reaches the screen, how a single query turns into a figure on screen, what happens when the user presses something, and what happens when the API fails. The reasoning behind each decision lives in [Data](#data-tanstack-query--a-fake-api) and [Three layers of error handling](#three-layers-of-error-handling).

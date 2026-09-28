@@ -248,6 +248,30 @@ styles/globals.css                        @import tailwindcss prefix(fber)
 
 `styles/global.exposes.ts` **berkas hasil generate** — jangan diedit tangan, dan tidak masuk git. Kalau CSS-nya terlihat basi, jalankan `bun run style`.
 
+## Tipe dari design-system (`@mf-types`)
+
+Props komponen remote **tidak ditulis ulang** di repo ini. Tipenya diambil dari arsip tipe milik design-system:
+
+```
+design-system build → @mf-types.zip  (berisi node_modules/@duidtin/ui)
+        │
+bun run tipe                              ← otomatis lewat predev & prebuild
+  └─ unduh + buka ke @mf-types/duidtin_ui_design_system/
+        │
+import type { Button } from "@mf-types/duidtin_ui_design_system/components/button";
+export type ButtonProps = ComponentProps<typeof Button>;
+```
+
+| Hal | Keterangan |
+|---|---|
+| Sumber arsip | `MF_TYPES_URL`, default domain design-system produksi |
+| Gagal unduh | **peringatan, bukan error** — build lanjut memakai salinan yang sudah ter-commit |
+| `@mf-types/` | **ikut di-commit** (seperti qcash), supaya build tidak bergantung jaringan |
+| devDependency `react-aria-components` + `tailwind-variants` | dipakai TIPE saja, tidak masuk bundle — tanpa itu props-nya longgar jadi `any` |
+| Versi kedua paket itu | ikut versi design-system; kalau melenceng, tipenya bisa tidak cocok |
+
+Kenapa repot: interface tulisan tangan diam-diam melenceng. Varian baru di design-system tidak ikut, varian yang dihapus tetap "boleh", dan tanda tangan callback bisa salah tanpa ketahuan.
+
 ## Flow aplikasi & data
 
 Empat alur, semuanya ditelusuri dari kode: bagaimana beranda sampai ke layar, bagaimana satu query berubah jadi angka di layar, apa yang terjadi saat pengguna menekan sesuatu, dan apa yang terjadi saat API gagal. Alasan di balik tiap keputusan ada di bagian [Data](#data-tanstack-query--api-palsu) dan [Tiga lapis penanganan error](#tiga-lapis-penanganan-error).

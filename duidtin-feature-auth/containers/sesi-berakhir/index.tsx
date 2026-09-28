@@ -53,7 +53,10 @@ const SesiBerakhirContainer = () => {
         <Button isDisabled={sedangKirim} onPress={keluar} variant="outline">
           Keluar
         </Button>
-        <Button color="primary" isDisabled={!bisaKirim} onPress={kirim} type="submit">
+        {/* Bukan `onPress={kirim}`: React Aria memberi PressEvent, sedangkan `kirim`
+            mengharapkan FormEvent dan memanggil preventDefault() — PressEvent tidak
+            punya itu, jadi klik "Masuk" akan melempar TypeError. */}
+        <Button color="primary" isDisabled={!bisaKirim} onPress={() => void kirim()} type="submit">
           {sedangKirim ? "Memproses…" : "Masuk"}
         </Button>
       </ModalFooter>

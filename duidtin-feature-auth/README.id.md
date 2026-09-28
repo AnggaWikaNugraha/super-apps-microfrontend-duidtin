@@ -116,6 +116,30 @@ SUBMIT
          └─ gagal  → AuthError → pesanGalat → <Alert variant="danger">
 ```
 
+## Tipe dari design-system (`@mf-types`)
+
+Props komponen remote **tidak ditulis ulang** di repo ini. Tipenya diambil dari arsip tipe milik design-system:
+
+```
+design-system build → @mf-types.zip  (berisi node_modules/@duidtin/ui)
+        │
+bun run tipe                              ← otomatis lewat predev & prebuild
+  └─ unduh + buka ke @mf-types/duidtin_ui_design_system/
+        │
+import type { Button } from "@mf-types/duidtin_ui_design_system/components/button";
+export type ButtonProps = ComponentProps<typeof Button>;
+```
+
+| Hal | Keterangan |
+|---|---|
+| Sumber arsip | `MF_TYPES_URL`, default domain design-system produksi |
+| Gagal unduh | **peringatan, bukan error** — build lanjut memakai salinan yang sudah ter-commit |
+| `@mf-types/` | **ikut di-commit** (seperti qcash), supaya build tidak bergantung jaringan |
+| devDependency `react-aria-components` + `tailwind-variants` | dipakai TIPE saja, tidak masuk bundle — tanpa itu props-nya longgar jadi `any` |
+| Versi kedua paket itu | ikut versi design-system; kalau melenceng, tipenya bisa tidak cocok |
+
+Kenapa repot: interface tulisan tangan diam-diam melenceng. Varian baru di design-system tidak ikut, varian yang dihapus tetap "boleh", dan tanda tangan callback bisa salah tanpa ketahuan.
+
 ## Kontrak dengan host
 
 | Hal | Isi |
@@ -174,6 +198,7 @@ scripts/build-styles.ts               kompilasi CSS jadi string → styles/globa
 
 | Gejala | Sebab | Solusi |
 |---|---|---|
+| Tombol **Masuk** di modal melempar `TypeError` saat diklik | `onPress={kirim}` — React Aria memberi `PressEvent`, sedangkan `kirim` mengharapkan `FormEvent` dan memanggil `preventDefault()`. Lolos selama props-nya ditulis tangan (`onPress?: () => void`) | `onPress={() => void kirim()}`. Ditemukan begitu props-nya diganti tipe asli dari `@mf-types` |
 | `resolving fallback for shared module react` (dari `zustand/esm/react.mjs`) | `@duidtin/auth` dipasang dari path lokal dan membawa `zustand` sendiri, sementara React sengaja tidak dipasang di `node_modules` paket | alias `react`/`react-dom` ke `node_modules` repo ini di `next.config.ts` — pola yang sama dipakai host |
 | `loadShareSync failed! … whether an async boundary is implemented` saat membuka `:3004` | halaman Next itu modul sinkron; komponen design-system meminta React dari share scope sebelum terisi | `pages/index.tsx` memuat container lewat `dynamic()` — itu async boundary-nya. Saat dirender host tidak muncul, karena host memuat `./login` secara async |
 | Chunk design-system diminta ke `:3004` lalu 404 | build **produksi** design-system memakai `assetPrefix` relatif (`/design-system/static/`), yang hanya benar di balik rewrite host | pakai dev server design-system (`bun run dev:producer`) yang memakai URL absolut `http://localhost:3001/…` |

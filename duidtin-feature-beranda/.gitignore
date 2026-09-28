@@ -2,6 +2,6 @@ node_modules
 .next
 next-env.d.ts
 *.tsbuildinfo
-@mf-types
 styles/global.exposes.ts
 .DS_Store
+.mf

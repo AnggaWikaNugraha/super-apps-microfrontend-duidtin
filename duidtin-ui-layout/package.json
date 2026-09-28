@@ -3,7 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "tipe": "bun run scripts/ambil-tipe-design-system.ts",
+    "predev": "bun run tipe",
     "dev": "NEXT_PRIVATE_LOCAL_WEBPACK=true MF_PUBLIC_PATH=http://localhost:3002/layout next dev -p 3002",
+    "prebuild": "bun run tipe",
     "build": "NEXT_PRIVATE_LOCAL_WEBPACK=true next build",
     "start": "next start -p 3002",
     "check-types": "tsc --noEmit"
@@ -21,9 +24,12 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "css-loader": "^7.1.2",
+    "fflate": "^0.8.3",
     "postcss": "^8.5.6",
     "postcss-loader": "^8.1.1",
+    "react-aria-components": "1.18.0",
     "style-loader": "^4.0.0",
+    "tailwind-variants": "^3.2.2",
     "tailwindcss": "4.1.18",
     "typescript": "~5.9.3",
     "webpack": "5.105.0"

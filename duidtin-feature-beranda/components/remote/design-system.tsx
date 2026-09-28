@@ -4,7 +4,15 @@ import dynamic from "next/dynamic";
 import { DESIGN_SYSTEM_REMOTE } from "@/constants/federation";
 import { ensureDesignSystemRegistered } from "@/services/federation";
 
-import type { ComponentType, CSSProperties, ReactNode } from "react";
+import type { Alert as AlertAsli } from "@mf-types/duidtin_ui_design_system/components/alert";
+import type { Badge as BadgeAsli } from "@mf-types/duidtin_ui_design_system/components/badge";
+import type { Button as ButtonAsli } from "@mf-types/duidtin_ui_design_system/components/button";
+import type { Card as CardAsli } from "@mf-types/duidtin_ui_design_system/components/card";
+import type { DataState as DataStateAsli } from "@mf-types/duidtin_ui_design_system/components/data-state";
+import type { EmptyState as EmptyStateAsli } from "@mf-types/duidtin_ui_design_system/components/empty-state";
+import type { ErrorBoundary as ErrorBoundaryAsli } from "@mf-types/duidtin_ui_design_system/components/error-boundary";
+import type { Skeleton as SkeletonAsli } from "@mf-types/duidtin_ui_design_system/components/skeleton";
+import type { ComponentProps, ComponentType, ReactNode } from "react";
 
 /**
  * Jembatan ke komponen `duidtin-ui-design-system`.
@@ -39,28 +47,20 @@ interface WithChildren {
   className?: string;
 }
 
-export interface CardProps extends WithChildren {
-  size?: "sm" | "md";
-  style?: CSSProperties;
-  variant?: "elevated" | "outlined" | "soft";
-}
+/**
+ * Props diambil dari TIPE ASLI design-system (`@mf-types/`, hasil `bun run tipe`),
+ * bukan ditulis ulang. Salinan tangan diam-diam melenceng begitu design-system
+ * berubah — varian baru tidak ikut, varian yang dihapus tetap "boleh".
+ */
+export type CardProps = ComponentProps<typeof CardAsli>;
+export type CardHeaderProps = ComponentProps<typeof CardAsli.Header>;
+export type CardBodyProps = ComponentProps<typeof CardAsli.Body>;
 
-export interface ButtonProps extends WithChildren {
-  color?: "primary" | "default";
-  isDisabled?: boolean;
-  onPress?: () => void;
-  size?: "sm" | "md";
-  variant?: "solid" | "outline";
-}
+export type ButtonProps = ComponentProps<typeof ButtonAsli>;
 
-export interface BadgeProps extends WithChildren {
-  color?: "default" | "primary" | "success" | "danger" | "warning" | "info";
-  variant?: "solid" | "soft" | "outlined";
-}
+export type BadgeProps = ComponentProps<typeof BadgeAsli>;
 
-export interface AlertProps extends WithChildren {
-  variant?: "default" | "primary" | "success" | "warning" | "danger" | "info";
-}
+export type AlertProps = ComponentProps<typeof AlertAsli>;
 
 type Compound = Record<string, ComponentType<never>>;
 
@@ -78,16 +78,9 @@ export const Button = remoteComponent<ButtonProps>("components/button");
 export const Badge = remoteComponent<BadgeProps>("components/badge");
 export const Alert = remoteComponent<AlertProps>("components/alert");
 
-export interface SkeletonProps {
-  className?: string;
-  style?: CSSProperties;
-  variant?: "text" | "heading" | "block" | "circle";
-}
+export type SkeletonProps = ComponentProps<typeof SkeletonAsli>;
 
-export interface SkeletonLinesProps {
-  className?: string;
-  lines?: number;
-}
+export type SkeletonLinesProps = ComponentProps<typeof SkeletonAsli.Lines>;
 
 export const Skeleton = remoteComponent<SkeletonProps>("components/skeleton");
 export const SkeletonLines = remoteComponent<SkeletonLinesProps>(
@@ -95,10 +88,7 @@ export const SkeletonLines = remoteComponent<SkeletonLinesProps>(
   (mod) => (mod.Skeleton as unknown as Compound).Lines as ComponentType<SkeletonLinesProps>,
 );
 
-export interface EmptyStateProps extends WithChildren {
-  size?: "md" | "compact";
-  variant?: "default" | "danger";
-}
+export type EmptyStateProps = ComponentProps<typeof EmptyStateAsli>;
 
 export const EmptyState = remoteComponent<EmptyStateProps>("components/empty-state");
 export const EmptyStateIcon = remoteComponent<WithChildren>(
@@ -118,27 +108,10 @@ export const EmptyStateAction = remoteComponent<WithChildren>(
   (mod) => (mod.EmptyState as unknown as Compound).Action as ComponentType<WithChildren>,
 );
 
-export interface ErrorBoundaryProps {
-  children?: ReactNode;
-  fallback?: (props: { error: Error; reset: () => void }) => ReactNode;
-  onError?: (error: Error) => void;
-  resetKeys?: unknown[];
-  title?: string;
-}
+export type ErrorBoundaryProps = ComponentProps<typeof ErrorBoundaryAsli>;
 
 export const ErrorBoundary = remoteComponent<ErrorBoundaryProps>("components/error-boundary");
 
-export interface DataStateProps {
-  children: ReactNode;
-  emptyMessage?: string;
-  errorDescription?: string;
-  errorTitle?: string;
-  isEmpty?: boolean;
-  isError?: boolean;
-  isLoading?: boolean;
-  loadingFallback?: ReactNode;
-  onRetry?: () => void;
-  retryLabel?: string;
-}
+export type DataStateProps = ComponentProps<typeof DataStateAsli>;
 
 export const DataState = remoteComponent<DataStateProps>("components/data-state");

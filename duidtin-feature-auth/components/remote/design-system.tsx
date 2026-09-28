@@ -4,7 +4,11 @@ import dynamic from "next/dynamic";
 import { DESIGN_SYSTEM_REMOTE } from "@/constants/federation";
 import { ensureDesignSystemRegistered } from "@/services/federation";
 
-import type { ComponentType, FormEvent, ReactNode } from "react";
+import type { Alert as AlertAsli } from "@mf-types/duidtin_ui_design_system/components/alert";
+import type { Button as ButtonAsli } from "@mf-types/duidtin_ui_design_system/components/button";
+import type { Modal as ModalAsli } from "@mf-types/duidtin_ui_design_system/components/modal";
+import type { TextField as TextFieldAsli } from "@mf-types/duidtin_ui_design_system/components/text-field";
+import type { ComponentProps, ComponentType, FormEvent, ReactNode } from "react";
 
 /**
  * Jembatan ke komponen `duidtin-ui-design-system` — sama polanya dengan
@@ -38,41 +42,24 @@ interface WithChildren {
   className?: string;
 }
 
-export interface ButtonProps extends WithChildren {
-  color?: "primary" | "default";
-  isDisabled?: boolean;
-  onPress?: () => void;
-  size?: "sm" | "md";
-  type?: "button" | "submit";
-  variant?: "solid" | "outline";
-}
+/**
+ * Props diambil dari TIPE ASLI design-system (`@mf-types/`, hasil `bun run tipe`),
+ * bukan ditulis ulang. Salinan tangan diam-diam melenceng begitu design-system
+ * berubah — varian baru tidak ikut, varian yang dihapus tetap "boleh".
+ */
+export type ButtonProps = ComponentProps<typeof ButtonAsli>;
 
-export interface AlertProps extends WithChildren {
-  variant?: "default" | "primary" | "success" | "warning" | "danger" | "info";
-}
+export type AlertProps = ComponentProps<typeof AlertAsli>;
 
-export interface TextFieldProps extends WithChildren {
-  autoComplete?: string;
-  isDisabled?: boolean;
-  isInvalid?: boolean;
-  isRequired?: boolean;
-  name?: string;
-  onChange?: (value: string) => void;
-  type?: "text" | "email" | "password";
-  value?: string;
-}
+export type TextFieldProps = ComponentProps<typeof TextFieldAsli>;
 
-export interface TextFieldInputProps {
-  autoComplete?: string;
-  className?: string;
-  placeholder?: string;
-}
+export type TextFieldLabelProps = ComponentProps<typeof TextFieldAsli.Label>;
 
-export interface ModalContentProps extends WithChildren {
-  isDismissable?: boolean;
-  isOpen?: boolean;
-  onOpenChange?: (terbuka: boolean) => void;
-}
+export type TextFieldInputProps = ComponentProps<typeof TextFieldAsli.Input>;
+
+export type ModalContentProps = ComponentProps<typeof ModalAsli.Content>;
+
+export type ModalSectionProps = ComponentProps<typeof ModalAsli.Heading>;
 
 export const Button = remoteComponent<ButtonProps>("components/button");
 export const Alert = remoteComponent<AlertProps>("components/alert");

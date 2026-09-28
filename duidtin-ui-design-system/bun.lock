@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "duidtin-ui-design-system",
+      "dependencies": {
+        "@duidtin/ui": "*",
+      },
       "devDependencies": {
         "turbo": "^2.9.6",
         "typescript": "~5.9.3",
