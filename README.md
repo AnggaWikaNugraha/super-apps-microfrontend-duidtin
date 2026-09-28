@@ -393,20 +393,20 @@ Who loads whom, and on which stack — the repository as it stands today.
 graph TD
   U["👤 User"] --> H
 
-  H["🏠 duidtin-ui — HOST<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1<br/>routing · session guard · remote registry · single-domain rewrites"]
+  H["🏠 duidtin-ui — HOST<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1"]
 
-  H -- "remoteEntry.js" --> L["🧭 duidtin-ui-layout<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1<br/>header · sidebar · footer · lyt prefix"]
-  H -- "remoteEntry.js" --> B["🏦 duidtin-feature-beranda<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x<br/>balances · approvals · activity · fber prefix"]
-  H -- "remoteEntry.js" --> A["🔐 duidtin-feature-auth<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x<br/>login page · session-expired modal · fath prefix"]
+  H -- "remoteEntry.js" --> L["🧭 duidtin-ui-layout<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1"]
+  H -- "remoteEntry.js" --> B["🏦 duidtin-feature-beranda<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x"]
+  H -- "remoteEntry.js" --> A["🔐 duidtin-feature-auth<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x"]
 
-  L -- "loadRemote" --> DS["🎨 duidtin-ui-design-system<br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · @module-federation/rsbuild-plugin 0.24.1 · MF 0.24.1<br/>React Aria · Tailwind ui prefix · 18 components + --dtn-* tokens"]
+  L -- "loadRemote" --> DS["🎨 duidtin-ui-design-system<br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · @module-federation/rsbuild-plugin 0.24.1 · MF 0.24.1"]
   B -- "loadRemote" --> DS
   A -- "loadRemote" --> DS
 
-  H -. "imported at build time (file:../duidtin-packages/auth)" .-> P["🔑 @duidtin/auth · a package, NOT a remote<br/>tsc only, no bundler · zustand 5 (vanilla) + axios 1<br/>session store · http instance · useAuth · 22 tests"]
+  H -. "imported at build time (file:../duidtin-packages/auth)" .-> P["🔑 @duidtin/auth · a package, NOT a remote<br/>tsc only, no bundler · zustand 5 (vanilla) + axios 1"]
   A -. "imported at build time (file:../duidtin-packages/auth)" .-> P
 
-  P == "HTTPS + Bearer" ==> API["🗄️ duidtin-api<br/>Express 5 · Mongoose 8.24.4 (pinned) · Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas · run on Bun"]
+  P == "HTTPS + Bearer" ==> API["🗄️ duidtin-api<br/>Express 5 · Mongoose 8.24.4 (pinned) · Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas"]
 ```
 
 Three things the picture cannot show, yet decide everything:
