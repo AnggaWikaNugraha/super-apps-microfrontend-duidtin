@@ -395,20 +395,20 @@ Siapa memuat siapa, dan dengan stack apa — keadaan repo saat ini.
 graph TD
   U["👤 Pengguna"] --> H
 
-  H["🏠 duidtin-ui — HOST · :3000<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1<br/>routing · guard sesi · registry remote · rewrites satu domain"]
+  H["🏠 duidtin-ui — HOST<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1<br/>routing · guard sesi · registry remote · rewrites satu domain"]
 
-  H -- "remoteEntry.js" --> L["🧭 duidtin-ui-layout · :3002 · /layout<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1<br/>header · sidebar · footer · prefix lyt"]
-  H -- "remoteEntry.js" --> B["🏦 duidtin-feature-beranda · :3003 · /beranda<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x<br/>saldo · persetujuan · aktivitas · prefix fber"]
-  H -- "remoteEntry.js" --> A["🔐 duidtin-feature-auth · :3004 · /auth<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x<br/>halaman login · modal sesi berakhir · prefix fath"]
+  H -- "remoteEntry.js" --> L["🧭 duidtin-ui-layout<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1<br/>header · sidebar · footer · prefix lyt"]
+  H -- "remoteEntry.js" --> B["🏦 duidtin-feature-beranda<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x<br/>saldo · persetujuan · aktivitas · prefix fber"]
+  H -- "remoteEntry.js" --> A["🔐 duidtin-feature-auth<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x<br/>halaman login · modal sesi berakhir · prefix fath"]
 
-  L -- "loadRemote" --> DS["🎨 duidtin-ui-design-system · :3001 · /design-system/static<br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · @module-federation/rsbuild-plugin 0.24.1 · MF 0.24.1<br/>React Aria · Tailwind prefix ui · 18 komponen + token --dtn-*"]
+  L -- "loadRemote" --> DS["🎨 duidtin-ui-design-system<br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · @module-federation/rsbuild-plugin 0.24.1 · MF 0.24.1<br/>React Aria · Tailwind prefix ui · 18 komponen + token --dtn-*"]
   B -- "loadRemote" --> DS
   A -- "loadRemote" --> DS
 
   H -. "import saat build (file:../duidtin-packages/auth)" .-> P["🔑 @duidtin/auth · paket, BUKAN remote<br/>tsc saja, tanpa bundler · zustand 5 (vanilla) + axios 1<br/>store sesi · instance http · useAuth · 22 tes"]
   A -. "import saat build (file:../duidtin-packages/auth)" .-> P
 
-  P == "HTTPS + Bearer" ==> API["🗄️ duidtin-api · :4000<br/>Express 5 · Mongoose 8.24.4 (dikunci) · Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas · dijalankan Bun"]
+  P == "HTTPS + Bearer" ==> API["🗄️ duidtin-api<br/>Express 5 · Mongoose 8.24.4 (dikunci) · Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas · dijalankan Bun"]
 ```
 
 Tiga hal yang tidak terlihat di gambar tapi menentukan:
