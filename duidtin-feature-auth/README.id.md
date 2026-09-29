@@ -17,19 +17,14 @@ Beda dari beranda: **repo ini bisa dicoba sendirian.** Form-nya benar-benar berf
 
 Rangkaian lengkap seperti di produksi: tambah `../duidtin-ui-layout` (`:3002`) dan `../duidtin-ui` (`:3000`), lalu buka `http://localhost:3000/login`.
 
-## Status saat ini
-
-Terverifikasi di browser (`:3004`, design-system dari dev server):
-
-- Form render lengkap: 2 `TextField` (email + password) dan `Button` dari design-system.
-- Tombol mati sampai kedua field terisi, lalu hidup.
-- Submit tanpa API nyala → `Alert` merah *"Tidak bisa menghubungi server…"*, kedua field ikut merah.
-
-Belum:
-
-- Login ulang sungguhan ke `duidtin-api` (mengetik password di modal) belum diuji end-to-end; logika tahan-dan-ulangnya sudah tertutup tes di `@duidtin/auth`.
-- Deploy Vercel + `REMOTE_AUTH_URL` di host.
-- Halaman lupa password / aktivasi.
+| Perintah | Fungsi |
+|---|---|
+| `bun run dev` | dev server `:3004` |
+| `bun run build` | build produksi (`prebuild` menjalankan `paket` + `style` + `tipe` dulu) |
+| `bun run style` | kompilasi Tailwind → `styles/global.exposes.ts` |
+| `bun run tipe` | unduh tipe design-system → `@mf-types/` |
+| `bun run paket` | build `@duidtin/auth` lalu `bun install` ulang di sini |
+| `bun run check-types` | `tsc --noEmit` |
 
 ## Env
 
@@ -39,42 +34,6 @@ Belum:
 | `MF_PUBLIC_PATH` | URL aset absolut, **hanya untuk dev** (`bun run dev` mengisinya sendiri) | jangan pernah diisi di Vercel — chunk-nya jadi ke-bake ke localhost |
 
 `NEXT_PUBLIC_*` ditanam saat build, jadi mengganti nilainya di dashboard tidak berpengaruh sampai ada redeploy. Dan harus diisi **per project**: host punya salinan `baseUrl` sendiri, remote ini punya sendiri, nanti beranda juga.
-
-## Deploy (Vercel)
-
-| Setelan | Nilai |
-|---|---|
-| Root Directory | `duidtin-feature-auth` |
-| Include files outside the Root Directory | **ON** — paket `@duidtin/auth` ada di luar root |
-| Build Command | default; `prebuild` membangun paket auth lalu mengompilasi Tailwind |
-| Setelah deploy | isi `REMOTE_AUTH_URL` di project host, lalu redeploy host (rewrite `/auth/:path*` di-bake saat build) |
-
-## Aturan ngoding yang dipatuhi
-
-| Aturan | Di repo ini |
-|---|---|
-| Semua aksi & logika lewat custom hook | [`hooks/use-login.ts`](hooks/use-login.ts) — submit, pemetaan galat, penjaga `bisaKirim`, **dan perangkaian field** |
-| State ke Zustand, bukan `useState` | [`stores/form-login.ts`](stores/form-login.ts) — email, password, pesan galat, status kirim |
-| UI dari design-system | `TextField`, `Button`, `Alert` ditarik runtime; **tidak ada komponen reusable lokal** |
-
-## Komponen tidak merangkai field
-
-Hook memulangkan properti `TextField` yang sudah jadi, jadi komponen tidak
-menyentuh `value`/`onChange` sama sekali:
-
-```tsx
-const { fieldEmail, fieldPassword, kirim, pesanGalat, sedangKirim, bisaKirim } = useLogin({ onSuccess });
-
-<TextField {...fieldEmail}>
-  <TextFieldLabel>Email</TextFieldLabel>
-  <TextFieldInput placeholder="nama@perusahaan.co.id" />
-</TextField>
-```
-
-`FieldTeks` berisi `value`, `onChange`, `name`, `type`, `autoComplete`, `isRequired`,
-`isDisabled` (saat mengirim), dan `isInvalid` (saat ada galat). Konsekuensinya:
-mengganti aturan — misalnya field ikut nonaktif saat terkunci — cukup di hook, tanpa
-menyentuh JSX.
 
 ## Modal sesi berakhir
 
@@ -123,7 +82,7 @@ Props komponen remote **tidak ditulis ulang** di repo ini. Tipenya diambil dari 
 ```
 design-system build → @mf-types.zip  (berisi node_modules/@duidtin/ui)
         │
-bun run tipe                              ← otomatis lewat predev & prebuild
+bun run tipe   (scripts/ambil-tipe-design-system.ts)   ← otomatis lewat predev & prebuild
   └─ unduh + buka ke @mf-types/duidtin_ui_design_system/
         │
 import type { Button } from "@mf-types/duidtin_ui_design_system/components/button";
@@ -153,70 +112,53 @@ Kenapa repot: interface tulisan tangan diam-diam melenceng. Varian baru di desig
 
 **Pengalihan halaman bukan tugas remote ini.** Route `/login` dan `/` milik host; remote hanya memanggil `onSuccess`. Polanya sama dengan `onLogout` di `duidtin-ui-layout`.
 
-## Sesi: apa yang dimiliki siapa
-
-```
-window.__DUIDTIN_AUTH__   satu store sesi, dibuat HOST      ← dipinjam repo ini
-stores/form-login.ts      state form, milik repo ini saja
-services/auth.ts          configureAuth({ baseUrl })        ← WAJIB diulang di tiap remote
-```
-
-`baseUrl` itu variabel modul, dan tiap remote mem-bundle salinan `@duidtin/auth` sendiri — jadi `configureAuth()` milik host **tidak** sampai ke sini. Yang benar-benar dibagi cuma objek store-nya.
-
-`configureAuth()` dipanggil di modul ([`services/auth.ts`](services/auth.ts)), bukan di `pages/_app.tsx`: saat remote ini dimuat host, `_app.tsx` tidak pernah dieksekusi — host cuma mengambil modul `./login`. Alasan yang sama berlaku untuk pendaftaran design-system di [`services/federation.ts`](services/federation.ts).
-
-## Pesan galat
-
-Kalimatnya datang dari `duidtin-api` (`AuthError.message`) dan ditampilkan apa adanya — kalau backend memperbaiki kalimatnya, FE ikut tanpa deploy.
-
-| Keadaan | Kode | Yang tampil |
-|---|---|---|
-| Email/password salah | `KREDENSIAL_SALAH` | pesan server |
-| Akun terkunci 15 menit | `AKUN_TERKUNCI` | pesan server |
-| Terlalu sering mencoba | `TERLALU_BANYAK_PERCOBAAN` | pesan server |
-| Server mati / jaringan putus | — (`status` 0) | *"Tidak bisa menghubungi server…"* (ditulis di FE, karena server tidak sempat menjawab) |
-
-Pesannya muncul **satu tempat** saja, di `Alert`. Kedua field cuma ditandai merah lewat `isInvalid`.
-
 ## Struktur folder
 
 ```
-components/remote/design-system.tsx   jembatan ke komponen design-system (TextField/Button/Alert)
+components/remote/design-system.tsx   jembatan ke komponen design-system (TextField/Button/Alert/Modal)
 constants/federation.ts               nama & path remoteEntry design-system
-containers/login/index.tsx            ← yang di-expose sebagai ./login
-hooks/use-login.ts                    seluruh logika submit + pemetaan galat
-pages/_app.tsx                        sengaja kosong
-pages/index.tsx                       halaman dev :3004 — pakai dynamic(), lihat catatan di bawah
+containers/login/index.tsx            ← di-expose sebagai ./login
+containers/sesi-berakhir/index.tsx    ← di-expose sebagai ./sesi-berakhir
+hooks/use-login.ts                    logika form login: submit, field, pemetaan galat
+hooks/use-login-ulang.ts              logika modal: password saja, email dari sesi terakhir
+stores/form-login.ts                  state form login (zustand)
+stores/login-ulang.ts                 state modal login ulang (zustand)
 services/auth.ts                      configureAuth() untuk bundle repo ini
 services/federation.ts                daftarkan design-system ke MF runtime repo ini
-stores/form-login.ts                  state form (zustand)
-styles/globals.css                    Tailwind prefix `fath` + login.css
+utils/index.ts                        getBaseFederationUrl() — environment detection
+types/global.d.ts                     window.__DUIDTIN_REMOTE_ENTRY__ + __DUIDTIN_AUTH__
+pages/_app.tsx                        sengaja kosong
+pages/index.tsx                       halaman dev :3004 — wajib dynamic(), lihat Config di bawah
 scripts/build-styles.ts               kompilasi CSS jadi string → styles/global.exposes.ts (generate)
+scripts/ambil-tipe-design-system.ts   unduh @mf-types.zip design-system
+styles/globals.css + login.css        Tailwind prefix `fath` + kelas halaman login & modal
+@mf-types/                            tipe design-system, ikut di-commit
+next.config.ts                        basePath /auth, exposes, shared, alias react
 ```
-
-## Dua ganjalan yang sudah kena dan solusinya
-
-| Gejala | Sebab | Solusi |
-|---|---|---|
-| Tombol **Masuk** di modal melempar `TypeError` saat diklik | `onPress={kirim}` — React Aria memberi `PressEvent`, sedangkan `kirim` mengharapkan `FormEvent` dan memanggil `preventDefault()`. Lolos selama props-nya ditulis tangan (`onPress?: () => void`) | `onPress={() => void kirim()}`. Ditemukan begitu props-nya diganti tipe asli dari `@mf-types` |
-| `resolving fallback for shared module react` (dari `zustand/esm/react.mjs`) | `@duidtin/auth` dipasang dari path lokal dan membawa `zustand` sendiri, sementara React sengaja tidak dipasang di `node_modules` paket | alias `react`/`react-dom` ke `node_modules` repo ini di `next.config.ts` — pola yang sama dipakai host |
-| `loadShareSync failed! … whether an async boundary is implemented` saat membuka `:3004` | halaman Next itu modul sinkron; komponen design-system meminta React dari share scope sebelum terisi | `pages/index.tsx` memuat container lewat `dynamic()` — itu async boundary-nya. Saat dirender host tidak muncul, karena host memuat `./login` secara async |
-| Chunk design-system diminta ke `:3004` lalu 404 | build **produksi** design-system memakai `assetPrefix` relatif (`/design-system/static/`), yang hanya benar di balik rewrite host | pakai dev server design-system (`bun run dev:producer`) yang memakai URL absolut `http://localhost:3001/…` |
 
 ## Config Module Federation
 
 ```ts
+// next.config.ts
+basePath: "/auth"
+assetPrefix: process.env.MF_PUBLIC_PATH          // absolut saat dev, kosong di produksi
+allowedDevOrigins: ["super-apps-duidtin.vercel.app"]
 name: "duidtin_feature_auth"
-exposes: { "./login": "./containers/login/index.tsx", "./globals": "./styles/global.exposes.ts" }
-shared: { react, react-dom → singleton, eager }
+exposes: {
+  "./login":         "./containers/login/index.tsx",
+  "./sesi-berakhir": "./containers/sesi-berakhir/index.tsx",
+  "./globals":       "./styles/global.exposes.ts",
+}
+shared: { react, react-dom → singleton + eager }
+resolve.alias: { react, react-dom → node_modules repo ini }
 ```
 
-- `shared` **wajib ditulis manual**: `@module-federation/enhanced` tidak otomatis nge-share React seperti `nextjs-mf` di host. Tanpa itu → `Invalid hook call`.
-- `eager: true` dipakai supaya React sudah ada di share scope saat design-system memintanya sinkron.
-- `@duidtin/auth` **tidak** di-share: store sesinya sudah tunggal lewat `window.__DUIDTIN_AUTH__`, jadi salinan kode paketnya boleh berbeda antar-remote.
-
-## Styling
-
-Sama persis dengan beranda: Tailwind dikompilasi jadi **string** oleh `scripts/build-styles.ts`, ditulis ke `styles/global.exposes.ts` (berkas generate, tidak masuk git), lalu disuntik sebagai `<style>` saat `./globals` dimuat. Next melarang import CSS global dari berkas selain `pages/_app.tsx`, dan modul yang di-expose jelas bukan itu.
-
-Prefix Tailwind repo ini `fath` (beranda `fber`, layout `lyt`, design-system `ui`). Token `--dtn-*` datang dari design-system, jadi warnanya otomatis sama dengan halaman lain.
+| Isian | Kenapa |
+|---|---|
+| `shared` ditulis manual | `@module-federation/enhanced` tidak otomatis nge-share React seperti `nextjs-mf` di host. Tanpa itu → `Invalid hook call` |
+| `eager: true` | React harus sudah ada di share scope saat design-system memintanya **sinkron** (`loadShareSync`) |
+| `resolve.alias` react | `@duidtin/auth` dipasang dari path lokal dan membawa `zustand` sendiri; tanpa alias, `zustand/esm/react.mjs` gagal di-resolve (`resolving fallback for shared module react`) |
+| `assetPrefix` absolut saat dev | tanpa itu host di `:3000` meminta chunk remote ini ke dirinya sendiri lalu 404. **Jangan isi `MF_PUBLIC_PATH` di Vercel** — nilainya ikut ter-bake |
+| `allowedDevOrigins` | Next 16 menjawab 403 untuk request script lintas situs, kecuali hostname Referer terdaftar. Ini yang membuat `?remote-lokal=duidtin_feature_auth@3004` dari host produksi bisa jalan |
+| `pages/index.tsx` pakai `dynamic()` | halaman Next itu modul sinkron; tanpa async boundary, komponen design-system memanggil `loadShareSync("react")` sebelum share scope terisi dan gagal. Saat dirender host tidak muncul, karena host memuat `./login` secara async |
+| `@duidtin/auth` **tidak** di-share | store sesinya sudah tunggal lewat `window.__DUIDTIN_AUTH__`, jadi salinan kode paketnya boleh berbeda antar-remote |

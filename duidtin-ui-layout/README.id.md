@@ -12,31 +12,18 @@ Repo ini konsumen `duidtin-ui-design-system`, jadi dev server-nya harus nyala ba
 2. Di folder ini: `bun install` lalu `bun run dev` — Next.js di `http://localhost:3002/layout`.
 3. `bun run build` — hasilkan `remoteEntry.js` di `.next/static/chunks/`.
 4. `bun run check-types` — `tsc --noEmit`.
+5. `bun run tipe` — segarkan tipe design-system di `@mf-types/`. Jalan otomatis lewat `predev` dan `prebuild`, jadi jarang perlu dipanggil sendiri.
 
 Buka `http://localhost:3002/layout` cuma nampilin halaman guard (lihat bagian "pages/index.tsx" di bawah), bukan preview layout.
-
-## Status saat ini
-
-Sudah ada dan sudah diverifikasi jalan:
-- `layouts/default/` — Sidebar + Header + `{children}` + Footer, di-expose sebagai `./default`.
-- Header konsumsi `Button` dari `duidtin_ui_design_system` lewat `loadRemote()` — pola "remote manggil remote lain" sudah kebukti kerender beneran di browser (bukan cuma build sukses), lengkap dengan style-nya.
-- `styles/globals.css` di-expose sebagai `./globals`.
-- `pages/index.tsx` halaman guard, `exposePages: false` — nggak ikut ke-expose.
-- Menu sidebar berisi navigasi bisnis (Beranda, Payroll, Transfer, Mutasi, Persetujuan). Yang route-nya belum ada dirender `<span>` bertanda `disabled`, bukan `<a>` — jadi nggak ada tautan yang 404.
-- **Sudah dipasang host beneran.** `duidtin-ui` render layout ini lewat `loadRemote("duidtin_ui_layout/default")`, diverifikasi di browser. Pemasangan pertama itu yang membongkar ganjalan poin 8 di bawah.
-
-Belum ada:
-- Bridging auth/context beneran — `onLogout` & `userName` masih props biasa, belum nyantol ke provider apapun.
-- Menu per peran. `navItems` sudah jadi prop, tapi host belum mengirimnya — jadi masih pakai `DEFAULT_NAV_ITEMS` di repo ini. Begitu auth ada, maker dan checker semestinya lihat menu berbeda.
-- i18n dan config container (Docker). Untuk Vercel, `vercel.json` hanya berisi `ignoreCommand`; build memakai bawaan Next.js di dashboard.
 
 ## Stack
 
 - **Next.js 14.2.35** — Pages Router, Webpack (bukan Turbopack, yang jadi syarat plugin MF ini bisa jalan).
 - **`@module-federation/nextjs-mf` 8.8.54** — versi ini **sengaja dipin**: dia yang bawa `@module-federation/enhanced` **0.24.1**, sama persis dengan versi yang dipakai `duidtin-ui-design-system`. Versi terbaru (8.8.56+) sudah loncat ke MF `2.x`, beda garis versi dari design-system.
 - **`@module-federation/runtime` 0.24.1** — dipakai langsung di `pages/_app.tsx` (`init`) dan `components/remote/design-system.tsx` (`loadRemote`), disamain dengan versi di atas.
-- **`webpack` 5.105.0 + `NEXT_PRIVATE_LOCAL_WEBPACK=true`** — `nextjs-mf` nolak jalan sama webpack bawaan Next yang ke-bundle; dua-duanya wajib (lihat "Ganjalan yang ketemu").
+- **`webpack` 5.105.0 + `NEXT_PRIVATE_LOCAL_WEBPACK=true`** — `nextjs-mf` nolak jalan sama webpack bawaan Next yang ke-bundle, jadi webpack dipasang sebagai dependency sendiri dan flag itu wajib ikut.
 - **React 18.3.1** — sama kayak `duidtin-ui-design-system`, biar shared singleton konsisten.
+- **`react-aria-components` 1.18.0 + `tailwind-variants` + `fflate`** — **devDependency, bukan runtime**. Dua yang pertama dipakai TIPE komponen design-system supaya props-nya presisi; `fflate` dipakai script pengunduh tipe. Tidak satu pun ikut ke bundle.
 - **Tailwind CSS v4** (prefix `lyt`) — pola BEM + `@apply` sama persis kayak design-system, cuma beda prefix biar nggak tabrakan sama `ui:` punya design-system atau punya host. **Warnanya sendiri nggak di-hardcode** — diambil dari token `var(--dtn-*)` milik design-system, yang mengalir lewat `:root` waktu CSS-nya dimuat. Sebelumnya di sini tertulis `blue-600` yang harus ditebak cocok.
 
 ## Struktur folder
@@ -62,6 +49,9 @@ duidtin-ui-layout/
       layout.css
       header.css
       footer.css
+  scripts/
+    ambil-tipe-design-system.ts   # unduh @mf-types.zip design-system
+  @mf-types/             # tipe hasil unduhan, IKUT di-commit
   pages/
     _app.tsx             # init() + loadRemote globals, client-only
     index.tsx            # halaman guard
@@ -111,7 +101,7 @@ void loadRemote(`${DESIGN_SYSTEM_REMOTE}/globals`);
 
 `getBaseFederationUrl()` ([utils/index.ts](utils/index.ts)) itu fungsi environment-detection (baca `window.location.hostname` **saat itu juga**, bukan pas build) — **wajib fungsi, bukan hardcode**, karena ini yang jalan di browser user sungguhan. Kalau di-hardcode, `duidtin-ui-layout` bakal selalu manggil URL dev meskipun lagi diakses dari production.
 
-> **Catatan:** niatnya `init()` di sini nimpa `remotes` build-time di A. Kenyataannya belum — lihat [Ganjalan](#ganjalan-yang-ketemu-dan-kenapa-fix-nya-begitu) poin 7.
+> **Catatan:** niatnya `init()` di sini menimpa `remotes` build-time di A. Kenyataannya **tidak** — untuk nama remote yang sama, entry build-time yang menang. Entry statis `localhost:3001` di config itu sengaja dibiarkan: host sudah mendaftarkan design-system lebih dulu, jadi yang dipakai di produksi tetap URL milik host.
 
 Dev lokal dia balikin `http://localhost:3001` (design-system beda port), selain itu balikin origin yang lagi dibuka — di production semua remote satu domain, dibedain lewat `basePath` masing-masing (`/layout` buat repo ini, `/design-system` buat design-system).
 
@@ -123,6 +113,17 @@ Host produksi bisa memuat layout dari dev server lokal lewat `?remote-lokal=duid
 - Kalau diisi, Next 14.2 pindah ke mode **block**, dan di mode itu request script lintas situs **selalu** dijawab 403 — daftar origin tidak diperiksa untuk request `no-cors`. Berbeda dengan Next 16 di beranda, yang memeriksa Referer.
 
 Diuji dengan request bertanda lintas situs ke dev server layout: 200.
+
+### D. `assetPrefix` — URL absolut saat dev
+
+`next.config.mjs` mengisi `assetPrefix: process.env.MF_PUBLIC_PATH`, dan script `dev` menyetelnya ke `http://localhost:3002/layout`.
+
+| Kondisi | Nilai | Akibat |
+|---|---|---|
+| `bun run dev` | `http://localhost:3002/layout` | chunk layout diminta ke port ini, bukan ke origin halaman host |
+| `bun run build` (produksi) | **kosong** | chunk diminta relatif ke domain yang sedang dibuka, lalu diteruskan rewrite host `/layout/:path*` |
+
+Tanpa URL absolut saat dev, host di `:3000` akan meminta chunk layout ke dirinya sendiri dan 404 — ganjalan yang sama pernah kena di beranda. **Jangan isi `MF_PUBLIC_PATH` di Vercel**: nilainya ikut ter-bake dan produksi akan menunjuk localhost.
 
 ## Alur Arsitektur
 
@@ -199,7 +200,7 @@ dipakai host  duidtin-ui → loadRemote("duidtin_ui_layout/default")
 
 Tiga waktu yang beda: `exposes`/`remotes` beku pas **build**, entry remote didaftarkan pas **boot**, chunk komponen di-fetch pas **render**. Yang gampang ketuker: `loadRemote(".../globals")` di boot itu sudah fetch container-nya, jadi pas render tinggal ambil chunk komponen — bukan mulai dari nol.
 
-> **Belum beres:** `remotes` build-time dan `remotes` runtime menunjuk remote dengan **nama sama**, dan yang menang ternyata yang build-time — lihat [Ganjalan](#ganjalan-yang-ketemu-dan-kenapa-fix-nya-begitu) poin terakhir.
+> **Catatan:** `remotes` build-time dan `remotes` runtime menunjuk remote dengan **nama sama**, dan yang menang adalah yang build-time. Dibiarkan begitu — lihat catatan di bagian B.
 
 ## Tipe dari design-system (`@mf-types`)
 
@@ -208,7 +209,7 @@ Props komponen remote **tidak ditulis ulang** di repo ini. Tipenya diambil dari 
 ```
 design-system build → @mf-types.zip  (berisi node_modules/@duidtin/ui)
         │
-bun run tipe                              ← otomatis lewat predev & prebuild
+bun run tipe   (scripts/ambil-tipe-design-system.ts)   ← otomatis lewat predev & prebuild
   └─ unduh + buka ke @mf-types/duidtin_ui_design_system/
         │
 import type { Button } from "@mf-types/duidtin_ui_design_system/components/button";
@@ -224,45 +225,3 @@ export type ButtonProps = ComponentProps<typeof Button>;
 | Versi kedua paket itu | ikut versi design-system; kalau melenceng, tipenya bisa tidak cocok |
 
 Kenapa repot: interface tulisan tangan diam-diam melenceng. Varian baru di design-system tidak ikut, varian yang dihapus tetap "boleh", dan tanda tangan callback bisa salah tanpa ketahuan.
-
-## Ganjalan yang ketemu (dan kenapa fix-nya begitu)
-
-> Rincian lengkap poin 1-7 ada di [versi Inggris](README.md#snags-we-hit-and-why-the-fixes-look-like-that) — belum diterjemahkan. Ringkasannya:
->
-> 1. `nextjs-mf` butuh webpack lokal (`NEXT_PRIVATE_LOCAL_WEBPACK=true` + install `webpack`, dua-duanya).
-> 2. `enhanced-resolve` ≥5.19 bikin build Next 14 crash — dipin `5.18.3` lewat `overrides`.
-> 3. `rslib build --watch` nggak nyalain HTTP server — diganti `rslib mf-dev` (fix di design-system).
-> 4. `assetPrefix` relatif bikin chunk design-system diminta ke origin konsumen (fix di design-system).
-> 5. Dev client rsbuild ke-bundle ke `remoteEntry.js` dan manggil `location.reload()` di halaman konsumen (fix di design-system).
-> 6. Tailwind nggak ke-compile pas `rslib build`, ketutup Storybook yang compile sendiri (fix di design-system).
-> 7. `remotes` runtime **nggak** nimpa yang build-time. Aman selama host mendaftarkan design-system lebih dulu (terbukti di simulasi produksi: 0 request ke `localhost:3001`), jadi **sengaja dibiarkan**.
-
-8. **Chunk repo ini sendiri diminta ke origin host — kebalikan persis dari poin 4.** Begitu `duidtin-ui` manggil `loadRemote("duidtin_ui_layout/default")`, `remoteEntry.js` sukses dimuat tapi semua isinya mati dengan:
-
-   ```
-   ChunkLoadError: Loading chunk __federation_expose_default failed.
-   (error: http://localhost:3000/layout/_next/static/chunks/__federation_expose_default.js)
-                           ^^^^ port HOST, bukan port repo ini
-   ```
-
-   Penyebabnya: tanpa `assetPrefix`, `publicPath` webpack jadi `auto`, yang di-resolve relatif terhadap **halaman yang lagi dibuka** — dan halaman itu punya host (`:3000`), bukan punya repo ini (`:3002`). Ini kegagalan yang **kelasnya sama persis** dengan poin 4 yang sudah diperbaiki di design-system; repo ini sebenarnya kena sejak awal, cuma nggak kelihatan karena sampai saat itu repo ini cuma pernah jadi **konsumen**, belum pernah jadi remote yang **dikonsumsi**. Nggak ada yang narik chunk-nya lintas origin sebelum host ada.
-
-   Fix: `assetPrefix: process.env.MF_PUBLIC_PATH` di `next.config.mjs`, plus `MF_PUBLIC_PATH=http://localhost:3002/layout` di depan script `dev` — bentuknya sama dengan fix design-system. Production nggak kena: di sana semua remote satu domain dan `basePath` sudah cukup.
-
-   Mendiagnosisnya lebih susah dari seharusnya: `nextjs-mf` nyuntik plugin internal yang `errorLoadRemote`-nya cuma nge-log `"duidtin_ui_layout/default offline"` dan menelan objek error-nya. `ChunkLoadError` aslinya baru kelihatan setelah `fallbackPlugin` di host diubah supaya ikut nge-log `error`.
-
-9. **Build Vercel gagal karena cache webpack yang dipulihkan.** Host — yang config webpack-nya sama dengan repo ini — gagal di-deploy dengan `RealContentHashPlugin: Some kind of unexpected caching problem occurred`: Vercel memulihkan cache build dari deployment sebelumnya, dan hash chunk di cache itu tidak lagi cocok dengan hasil build baru. Fix: `if (!dev) config.cache = false` di `next.config.mjs`, sama seperti beranda yang sejak awal mematikan cache. Repo ini ikut diubah sebelum sempat kena; saat dev cache tetap aktif.
-
-## Langkah berikutnya
-
-Host `duidtin-ui` sudah ada dan sudah render layout ini beneran, jadi lingkarannya nutup. Yang tersisa di repo ini:
-
-- **Poin 7 di atas sengaja dibiarkan.** Host mendaftarkan `duidtin_ui_design_system` lebih dulu, jadi URL build-time `localhost:3001` di repo ini tidak pernah dipakai. Perlu dibuka lagi hanya kalau registrasi di host dibuat lazy.
-- Bridging auth/context beneran — `onLogout` & `userName` masih props kosong, belum nyantol ke apapun.
-- i18n dan config container (Docker).
-
-## Layout Business Banking
-
-Sidebar 248px ditampilkan mulai lebar 1024px. Pada layar lebih kecil, tombol menu di header membuka navigasi di atas konten. Escape menutup menu dan mengembalikan fokus ke tombolnya. Tautan “Langsung ke konten” membantu navigasi keyboard.
-
-Layout memakai token `--dtn-*` dari design system. Prop `activePath`, `navItems`, `userName`, `onLogout`, dan `children` tetap didukung; rute turunan menandai menu induknya aktif. Tombol Keluar ditampilkan jika callback `onLogout` diberikan.

@@ -25,43 +25,6 @@ Dari root repo ini (`x-duidtin/duidtin-ui-design-system/`):
 3. `bun run storybook` — buka preview komponen di `localhost:6006`. Keluar dari server-nya pakai `q` atau Ctrl+C dua kali (karena `turbo.json` pakai `"ui": "tui"`).
 4. `bun run dev:producer` — nyalain dev server `apps/producer` (`--filter=@duidtin/producer --filter=@duidtin/ui`, biar `packages/ui` ikut ke-watch juga), serve `remoteEntry.js` live di `http://localhost:3001/design-system/static/remoteEntry.js` — ini yang dipakai `duidtin-ui-layout` dan host `duidtin-ui` waktu dev lokal.
 
-## Status saat ini
-
-Sudah ada:
-- **18 komponen** di `packages/ui`. Empat belas yang pertama primitif visual: `Button`, `Card`, `Badge`, `Table`, `Select`, `TextField`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart`. Chart pakai dependency `recharts`.
-- Empat sisanya **pola lintas fitur**, dibuat saat membangun beranda: `Skeleton` (placeholder saat memuat), `EmptyState` (kosong & gagal), `ErrorBoundary` (crash saat render, per blok), dan `DataState` (pembungkus tiga keadaan blok data). Semuanya di sini, bukan di repo feature — kalau dibuat lokal, tiap feature bakal punya salinannya sendiri yang lama-lama saling melenceng.
-- `apps/producer` expose semua komponen di atas + `globals` lewat Module Federation, dengan codegen exposes otomatis dan tipe TypeScript lintas-remote (`dts`) sudah dikonfigurasi.
-- **Pembungkus Web Component** — 11 komponen juga tersedia sebagai `<dtn-*>` untuk konsumen non-React; 7 sisanya sengaja belum, alasannya ditulis di berkasnya masing-masing. Lihat [Pembungkus Web Component](#pembungkus-web-component-dtn-).
-- `loadRemote()` sudah kebukti jalan dari **dua konsumen nyata sekaligus**, keduanya diverifikasi di browser:
-  - `duidtin-ui-layout` render `Button` dari remote ini di header-nya (tombol Keluar). Badge sempat dipakai untuk nama pengguna, tapi dihapus saat revamp header;
-  - `duidtin-feature-beranda` render `Card`, `Button`, `Badge` & `Alert` di halaman beranda — dan repo itu jalan di **MF 2.x**, sedangkan remote ini di 0.24.1.
-- React tetap **satu instance** lintas keempat repo, bahkan lintas versi MF. Buktinya: tombol yang dimuat lewat layout (MF 0.24.1) dan tombol yang dimuat lewat beranda (MF 2.x) berbagi prefix ID React Aria yang sama — kalau React kedobelan, prefiksnya bakal beda.
-
-Belum ada:
-- Config container (Docker). Deploy Vercel sudah jalan: remote dan Storybook di satu project (lihat bagian Storybook di Vercel).
-
-## Token desain (`packages/ui/src/styles/tokens.css`)
-
-Palet, radius, dan bayangan didefinisikan sebagai **CSS custom properties** berprefix `--dtn-`, bukan token Tailwind. Alasannya lintas repo: tiap repo punya build Tailwind sendiri dengan prefix sendiri (`ui`, `lyt`, `fber`), jadi token Tailwind tidak bisa dibagi. Custom properties mengalir di runtime lewat `:root` — begitu CSS remote ini dimuat, layout dan feature remote ikut kebagian nilai yang sama.
-
-Dipakai dari repo lain lewat arbitrary value:
-
-```css
-.lyt-header__brand-mark {
-  @apply lyt:bg-[var(--dtn-primary)];
-}
-```
-
-Sebelum ada lapisan ini, layout meng-hardcode `blue-600` dan harus **ditebak** cocok dengan design-system — begitu salah satu berubah, keduanya melenceng diam-diam.
-
-Gaya **Duitin Business** menggunakan teks navy (`#142b49`), biru aksi (`#175cd3`), permukaan netral, radius kontrol 10px dan card 16px. Kontrol standar memiliki tinggi minimum 44px (compact 36px); tabel mendukung kepadatan `md` dan `sm`. Warna status, grafik, fokus, tipografi, dan gerakan memakai token yang sama.
-
-Preview seluruh 18 komponen tersedia di Storybook → **Foundations / Business Banking / Overview**. Contohnya mencakup transaksi, konfirmasi transfer, filter rekening, grafik, dan pemulihan error. Semua data pada showcase adalah simulasi.
-
-Tema terang menjadi default. Pasang `.dark` atau `data-theme="dark"` pada `<html>` untuk tema gelap, termasuk popover dan modal yang dirender melalui portal. Animasi mengikuti preferensi `prefers-reduced-motion`. Font menggunakan Inter jika tersedia, lalu font sistem; library tidak mengunduh font eksternal.
-
-API dan nama export komponen tetap sama. `Table size="sm"` kini diteruskan ke tampilan sel dan kolom; `size` eksplisit pada sel/kolom dapat menimpanya. Untuk nominal rata kanan, gunakan `data-align="right"` pada `Table.Column` dan `Table.Cell`. Container tabel pada layar sempit sebaiknya memakai `overflow-x: auto`.
-
 ## Stack
 
 - **Bun** — package manager & workspace runner (`bun install`, `bun run <script>`).
@@ -73,36 +36,11 @@ API dan nama export komponen tetap sama. `Table size="sm"` kini diteruskan ke ta
 - **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — mekanisme expose komponen ke konsumen luar (`duidtin-ui-layout` dan host `duidtin-ui`), termasuk generate tipe TypeScript lintas-remote.
 - **Storybook** (builder Vite) — preview & dokumentasi visual komponen, terpisah dari alur Module Federation saat runtime. Versi statisnya ikut dipublish di `/storybook/`.
 
-## Daftar Komponen
-
-**Data & tampilan**
-- `Button` — wrap primitif `react-aria-components` Button. Varian `variant` (solid/outline) × `color` (primary/default) × `size` (sm/md).
-- `Card` — compound (`Card`, `Card.Header`, `Card.Body`, `Card.Footer`). Varian `size` (sm/md/lg) × `variant` (elevated/outlined/soft).
-- `Badge` — varian `variant` (solid/soft/outlined) × `color` (default/primary/success/danger/warning/info).
-- `Table` — compound (`Table`, `Table.Header`, `Table.Column`, `Table.Body`, `Table.Row`, `Table.Cell`). Mode statis pakai primitif Table `react-aria-components` (bukan `<table>` HTML biasa) — dapat ARIA grid + keyboard nav gratis.
-
-**Filter & input**
-- `Select` — compound (`Select`, `Select.Label`, `Select.Trigger`, `Select.Popover`, `Select.Item`), dropdown pakai primitif Select `react-aria-components`.
-- `DateRangePicker` — 2 `<input type="date">` native (Dari/Sampai), bukan kalender custom — keputusan simplifikasi (lihat catatan di bawah).
-
-**Feedback & state**
-- `Spinner` — SVG custom (gradient `currentColor`), animasi `animate-spin`. Varian `color` (6 warna) × `size` (sm/md/lg/xl).
-- `Alert` — compound (`Alert`, `Alert.Icon`, `Alert.Content`, `Alert.Title`, `Alert.Description`). Varian `variant` (6 warna), warna icon ngikut otomatis lewat CSS descendant selector.
-
-**Overlay & navigasi**
-- `Modal` — compound (`Modal.Root`, `Modal.Content`, `Modal.Heading`, `Modal.Body`, `Modal.Footer`), pakai `DialogTrigger` + `ModalOverlay` + `Modal` + `Dialog` dari `react-aria-components` — animasi enter/exit, focus-trap, esc-to-close otomatis dari primitifnya.
-- `Tabs` — compound (`Tabs`, `Tabs.List`, `Tabs.Tab`, `Tabs.Panel`), primitif Tabs native `react-aria-components`.
-
-**Chart** (satu-satunya kategori yang butuh dependency tambahan: `recharts`)
-- `BarChart` — bar chart multi-series. Props: `data`, `categoryKey`, `series` (array `{ dataKey, name?, color? }`).
-- `LineChart` — line chart multi-series, pola props sama dengan `BarChart`.
-- `PieChart` — pie/donut chart (`innerRadius` buat mode donut). Props: `data` (array `{ name, value, color? }`).
-
-Semua komponen ikut pola yang sama di "Alur nambah komponen baru" di bawah — punya file terpisah di `styles/`, `types/`, `components/`. Beberapa (`DateRangePicker`, `BarChart`/`LineChart`/`PieChart`) sengaja disederhanakan dari padanan penuhnya (kalender segmented+popover, custom tooltip/legend) demi kecepatan build tanpa sistem design token yang belum ada di repo ini.
-
 ## Pembungkus Web Component (`<dtn-*>`)
 
-Komponen di atas adalah komponen **React**. Supaya bisa dipakai konsumen yang bukan React — remote Vue/Svelte/Angular nanti — tiap komponen juga dibungkus jadi custom element.
+Komponen di `packages/ui` semuanya komponen **React**. Supaya bisa dipakai konsumen yang bukan React — remote Vue/Svelte/Angular nanti — sebagian juga dibungkus jadi custom element.
+
+Daftar lengkapnya ada di folder `src/component-wrapper/` itu sendiri: komponen yang dibungkus punya `buatElemen(...)`, yang belum punya berkas berisi `BELUM_DIBUNGKUS` beserta alasannya. Sekarang 11 dibungkus, 7 belum.
 
 ```
 <dtn-button color="primary">Masuk</dtn-button>
@@ -127,24 +65,6 @@ await loadRemote("duidtin_ui_design_system/component-wrapper/button");  // dafta
 await loadRemote("duidtin_ui_design_system/component-wrapper/semua");   // atau semuanya sekaligus
 el.addEventListener("press", () => kirim());
 ```
-
-### Yang dibungkus dan yang tidak
-
-| Dibungkus (11) | Bagian compound |
-|---|---|
-| `button`, `badge`, `spinner`, `data-state`, `bar-chart`, `line-chart`, `pie-chart` | — |
-| `alert` | `-icon`, `-content`, `-title`, `-description` |
-| `card` | `-header`, `-body`, `-footer` |
-| `empty-state` | `-icon`, `-title`, `-description`, `-action` |
-| `skeleton` | `-lines` |
-
-| Belum dibungkus (7) | Alasan |
-|---|---|
-| `select`, `tabs`, `table`, `text-field` | bagiannya bertukar data lewat **React Context** (id, `aria-*`, fokus, keyboard). Tiap custom element punya React root sendiri dan Context tidak menyeberang antar-root — dipecah jadi elemen terpisah, aksesibilitasnya putus |
-| `modal`, `date-range-picker` | sama, ditambah **portal**: isinya dirender ke luar pohon DOM elemen |
-| `error-boundary` | error boundary hanya menangkap error di pohon React-nya sendiri; anak yang di-slot lewat light DOM bukan bagian pohon itu, jadi elemennya akan *terlihat* bekerja padahal tidak |
-
-Tujuh itu tetap punya berkas di `component-wrapper/<nama>/index.ts` yang isinya alasan di atas — supaya tidak ada yang hilang diam-diam. Kalau nanti dibutuhkan di Vue, bentuknya **satu elemen** yang menerima bagian-bagiannya sebagai atribut (`<dtn-text-field label="Email" is-invalid>`), bukan dipecah.
 
 ### Cara kerjanya (`component-wrapper/utils/inti.ts`)
 
@@ -223,7 +143,9 @@ packages/ui/rslib.config.ts — dua lib dalam satu config
 
 Dua keluaran itu dibuka lewat `exports` di `package.json`: `"."` untuk komponen, `"./css"` untuk CSS-nya.
 
-`bundle: false` punya konsekuensi yang gampang terlupa: **berkas komponen tidak boleh mengimpor folder komponen lain** (`../button`). Tiap berkas dikompilasi sendiri-sendiri, jadi impor itu jadi eksternal yang tidak bisa di-resolve dan Rspack panic. Satu-satunya pengecualian `*.stories.tsx`, karena stories tidak ikut di-build.
+`bundle: false` berarti **tiap berkas dikompilasi sendiri-sendiri**, bukan digabung jadi satu bundel. Impor antar-folder tetap boleh: keluarannya jadi impor relatif biasa (`../components/button/index.js`) yang di-resolve saat dipakai konsumen — itulah yang dilakukan `component-wrapper/*/index.ts` terhadap `components/*`.
+
+> Catatan: README ini dulu menulis bahwa impor antar-folder membuat Rspack panic. Diuji ulang pada Rslib 0.19.5 dengan dua kasus — berkas wrapper mengimpor folder komponen, dan komponen mengimpor komponen lain — **dua-duanya build normal**. Klaim lama itu tidak lagi berlaku.
 
 ### 2. Codegen exposes — `predev` dan `prebuild`
 
@@ -378,6 +300,8 @@ Script ini yang menghilangkan langkah manual "bikin shim + daftarin ke `componen
 - Baca semua nama folder di `packages/ui/src/components/`, konversi ke PascalCase (`button` → `Button`) — asumsinya nama folder dan nama komponen yang di-export selalu selaras (konvensi yang sudah dipakai sejak awal).
 - Generate file shim `apps/producer/src/components/<nama>.ts` isinya cuma re-export dari `@duidtin/ui`, dan generate ulang seluruh isi `component-exposes.ts` dari daftar folder yang ketemu.
 - Konsekuensinya: `apps/producer/src/components/component-exposes.ts` dan tiap file shim `<nama>.ts` di folder itu **jadi file hasil generate**, bukan yang ditulis manual lagi — kalau diedit manual, akan ketiban pas `prebuild` jalan lagi.
+- **Pembungkus Web Component ikut digenerate di sini.** Script yang sama membaca `packages/ui/src/component-wrapper/*`, menulis shim `apps/producer/src/component-wrapper/<nama>.ts` (isinya `import "@duidtin/ui/component-wrapper/<nama>"` — impor efek samping, karena yang dibutuhkan pendaftaran elemennya), plus satu entri `./component-wrapper/semua` yang mendaftarkan semuanya sekaligus. Totalnya sekarang 18 expose React + 19 expose pembungkus + `./globals`.
+- Wrapper-nya sendiri digenerate script lain di `packages/ui` — lihat [Codegen](#codegen-packagesuiscriptsgenerate-wrappersts) di bagian Pembungkus Web Component.
 
 ## Tipe lintas-remote (MF `dts`)
 
@@ -421,34 +345,6 @@ Alternatif yang menghapus kebutuhan itu: menulis tipe publik yang berdiri sendir
 - Tiap komponen punya file `<nama>.stories.tsx` di folder yang sama (`src/components/button/button.stories.tsx`), isinya beberapa "story" (kombinasi props) yang bisa di-browse satu-satu di UI Storybook.
 - Jalankan `bun run storybook` di `packages/ui` (setelah `bun install`) untuk buka preview-nya di `localhost:6006`.
 
-### Storybook di Vercel: satu project dengan remote
-
-Storybook versi statis disajikan dari project Vercel yang sama dengan remote, di `https://super-apps-duidtin-ui-system.vercel.app/storybook/`. Membuka root domain akan dialihkan ke sana.
-
-Pengaturannya ada di dua berkas:
-
-- **`vercel.json`** menentukan install command, build command (`bun run build:vercel`), output directory (`apps/producer/dist/mf`), redirect, dan `ignoreCommand` yang melewati build kalau push tidak menyentuh folder ini (penjelasannya di README root, bagian Deploy). Isinya **menimpa** pengaturan build di dashboard Vercel, jadi ubah berkas ini, bukan dashboard.
-- **`scripts/build-vercel.ts`** menjalankan tiga langkah:
-  1. `bun run build` untuk membangun remote.
-  2. `build-storybook` di `packages/ui`.
-  3. Menyalin `storybook-static` ke `apps/producer/dist/mf/storybook`.
-
-  Script menolak jalan kalau `MF_PUBLIC_PATH` terisi, karena nilainya akan terkunci di dalam `remoteEntry.js`.
-
-Hasilnya satu folder output:
-
-```
-apps/producer/dist/mf/
-  remoteEntry.js, mf-manifest.json, <chunk>.js   ← remote, tetap di root
-  storybook/index.html, storybook/sb-manager/…  ← Storybook
-```
-
-- **Remote wajib tetap di root.** Rewrite host memetakan `/design-system/static/:path*` ke `<domain ini>/:path*`, jadi memindahkan remote ke sub-folder akan memutus semua halaman.
-- **Storybook aman di sub-folder** karena build statisnya memakai path aset relatif (`./sb-manager/…`).
-- **Redirect `/storybook` → `/storybook/` wajib ada.** Tanpa garis miring penutup, path relatif dihitung dari root dan `/sb-manager/runtime.js` jadi 404, sehingga halaman kosong.
-- **Konsekuensinya:** kalau build Storybook gagal, deploy remote ikut gagal. Dipilih demi satu URL. Kalau ini mulai mengganggu, pisahkan Storybook ke project Vercel sendiri.
-
-
 ## `packages/ui` — pabrik komponen
 
 - Build pakai Rslib format `"esm"` — output-nya paket npm biasa (`dist/` berisi ESM + `.d.ts`).
@@ -477,10 +373,11 @@ apps/producer/dist/mf/
 - `"name"` — `@duidtin/ui`, ini yang dipakai `apps/producer` buat `import { Button } from "@duidtin/ui"`. Beda dari `apps/producer` yang namanya jarang dipakai balik, paket ini justru inti yang di-consume paket lain.
 - `"version"` — formalitas, sama seperti `apps/producer`. Bun resolve ke folder lokal lewat `"workspaces"` di root, bukan berdasar nomor versi ini.
 - `"type": "module"` — sama seperti `apps/producer`, semua file dianggap ESM (`import`/`export`), bukan CommonJS.
-- `"sideEffects": false` — beda dari `apps/producer`. Field ini bilang ke bundler bahwa nggak ada file di paket ini yang punya efek samping cuma dari di-import. Efeknya: bundler boleh tree-shake agresif — kalau `apps/producer` cuma pakai `Button`, komponen lain yang nggak diimpor beneran dibuang dari bundle, bukan ikut kebawa. Field ini penting untuk paket library seperti ini, beda dari `apps/producer` yang nggak butuh ini sama sekali karena dia sendiri jadi entry akhir, bukan sesuatu yang di-tree-shake orang lain.
+- `"sideEffects": ["./src/component-wrapper/**", "./dist/component-wrapper/**"]` — **dulu `false`**. Field ini bilang ke bundler berkas mana yang punya efek samping cuma dari di-import. Semua komponen React tetap bebas efek samping (boleh di-tree-shake), TAPI berkas `component-wrapper/*` memanggil `customElements.define()` — kalau ditandai bebas efek samping, bundler membuangnya dan elemen `<dtn-*>` diam-diam tidak pernah terdaftar. Glob-nya wajib `**`, bukan `*`, karena wrapper-nya berada di dalam folder per komponen. Selebihnya efeknya seperti dulu: bundler boleh tree-shake agresif — kalau konsumen cuma memakai `Button`, komponen lain benar-benar dibuang dari bundle.
 - `"exports"` — di sini field ini benar-benar terpakai (beda dari `apps/producer` yang dead weight):
   - `"."` → entry utama (`import ... from "@duidtin/ui"`), dengan kondisi `"development"` yang nunjuk ke `src/index.ts` langsung (dipakai tooling mode dev, biar nggak perlu nunggu build dulu tiap ubah kode) dan `"import"`/`"default"` yang nunjuk ke hasil build `dist/index.js`.
   - `"./*"` → wildcard subpath, ini yang bikin bisa `import { Button } from "@duidtin/ui/components/button"` (deep import per komponen), bukan cuma lewat barrel `index.ts`. Berguna kalau komponennya makin banyak dan orang cuma mau ambil satu tanpa nge-load seluruh barrel.
+  - `"./component-wrapper/*"` → jalur khusus pembungkus Web Component. Dipisah dari `"./*"` karena entry-nya `index.ts` **di dalam folder** (`component-wrapper/button/index.ts`), sedangkan pola `"./*"` menebak berkas `.tsx` di satu tingkat.
   - `"./css"` → entry khusus buat CSS-nya, ini yang dipakai `apps/producer/src/styles/index.css` lewat `@import "@duidtin/ui/css";`.
 - `"types"` dan `"files"` — fungsinya sama dengan di `apps/producer` (fallback tipe buat tooling lama, dan pembatasan isi paket kalau dipublish), tapi di sini memang relevan — paket ini didesain buat diimpor langsung lewat `exports` di atas, bukan lewat `loadRemote()`.
 

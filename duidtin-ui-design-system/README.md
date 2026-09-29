@@ -25,43 +25,6 @@ From the root of this repo (`x-duidtin/duidtin-ui-design-system/`):
 3. `bun run storybook` — opens the component preview at `localhost:6006`. Quit the server with `q` or Ctrl+C twice (because `turbo.json` uses `"ui": "tui"`).
 4. `bun run dev:producer` — starts the `apps/producer` dev server (`--filter=@duidtin/producer --filter=@duidtin/ui`, so `packages/ui` is watched too) and serves `remoteEntry.js` live at `http://localhost:3001/design-system/static/remoteEntry.js` — this is what `duidtin-ui-layout` and the host `duidtin-ui` point at during local development.
 
-## Current status
-
-Done:
-- **18 components** in `packages/ui`. The first fourteen are visual primitives: `Button`, `Card`, `Badge`, `Table`, `Select`, `TextField`, `DateRangePicker`, `Spinner`, `Alert`, `Modal`, `Tabs`, `BarChart`, `LineChart`, `PieChart`. The charts pull in `recharts`.
-- The other four are **cross-feature patterns**, added while building beranda: `Skeleton` (loading placeholder), `EmptyState` (empty and error), `ErrorBoundary` (render crashes, per block), and `DataState` (a wrapper for a data block's three states). They live here rather than in a feature repo — built locally, each feature would end up with its own copy and they would drift apart.
-- `apps/producer` exposes all of the above plus `globals` over Module Federation, with automatic exposes codegen and cross-remote TypeScript types (`dts`) configured.
-- **Web Component wrappers** — 11 components are also available as `<dtn-*>` for non-React consumers; the other 7 deliberately are not, and each file states why. See [Web Component wrappers](#web-component-wrappers-dtn-).
-- `loadRemote()` is proven to work from **two real consumers at once**, both verified in a browser:
-  - `duidtin-ui-layout` renders this remote's `Button` in its header (the sign-out button). A Badge used to show the user's name, but it was removed in the header revamp;
-  - `duidtin-feature-beranda` renders `Card`, `Button`, `Badge` & `Alert` on the home page — and that repo runs **MF 2.x**, while this remote is on 0.24.1.
-- React stays a **single instance** across all four repos, and even across MF versions. The evidence: a button loaded through the layout (MF 0.24.1) and one loaded through beranda (MF 2.x) share the same React Aria ID prefix — had React been duplicated, the prefixes would differ.
-
-Not done:
-- Container (Docker) config. The Vercel deploy is live: the remote and Storybook share one project (see Storybook on Vercel).
-
-## Design tokens (`packages/ui/src/styles/tokens.css`)
-
-The palette, radii and shadows are defined as **CSS custom properties** prefixed `--dtn-`, not as Tailwind tokens. The reason is cross-repo: every repo has its own Tailwind build with its own prefix (`ui`, `lyt`, `fber`), so Tailwind tokens cannot be shared. Custom properties cascade at runtime through `:root` — the moment this remote's CSS loads, the layout and the feature remotes inherit the same values.
-
-Consumed from other repos through arbitrary values:
-
-```css
-.lyt-header__brand-mark {
-  @apply lyt:bg-[var(--dtn-primary)];
-}
-```
-
-Before this layer existed, the layout hardcoded `blue-600` and had to be **guessed** into matching the design system — the moment either changed, the two drifted apart silently.
-
-**Duitin Business** uses navy text (`#142b49`), action blue (`#175cd3`), neutral surfaces, 10px control radii and 16px card radii. Standard controls have a 44px minimum height (36px compact); tables support `md` and `sm` density. Status, chart, focus, typography and motion styles share the same runtime tokens.
-
-Preview all 18 components in Storybook → **Foundations / Business Banking / Overview**. The showcase includes transactions, transfer confirmation, account selection, charts and error recovery using simulated data.
-
-Light is the default theme. Set `.dark` or `data-theme="dark"` on `<html>` to theme portalled popovers and modals as well. Animations respect `prefers-reduced-motion`. Typography uses Inter when available, then system fonts; the library does not download external fonts.
-
-Component APIs and export names are unchanged. `Table size="sm"` now cascades to cells and columns; explicit cell/column sizes take precedence. Use `data-align="right"` on `Table.Column` and `Table.Cell` for monetary amounts. Wrap tables with `overflow-x: auto` on narrow screens.
-
 ## Stack
 
 - **Bun** — package manager & workspace runner (`bun install`, `bun run <script>`).
@@ -73,36 +36,11 @@ Component APIs and export names are unchanged. `Table size="sm"` now cascades to
 - **Module Federation** (`@module-federation/rsbuild-plugin`, `@module-federation/typescript`) — the mechanism that exposes components to outside consumers (`duidtin-ui-layout` and the host `duidtin-ui`), including cross-remote TypeScript type generation.
 - **Storybook** (Vite builder) — visual preview & documentation, separate from the Module Federation path at runtime. Its static build is also published at `/storybook/`.
 
-## Component list
-
-**Data & display**
-- `Button` — wraps the `react-aria-components` Button primitive. Variants: `variant` (solid/outline) × `color` (primary/default) × `size` (sm/md).
-- `Card` — compound (`Card`, `Card.Header`, `Card.Body`, `Card.Footer`). Variants: `size` (sm/md/lg) × `variant` (elevated/outlined/soft).
-- `Badge` — variants: `variant` (solid/soft/outlined) × `color` (default/primary/success/danger/warning/info).
-- `Table` — compound (`Table`, `Table.Header`, `Table.Column`, `Table.Body`, `Table.Row`, `Table.Cell`). Static mode uses the `react-aria-components` Table primitive (not a plain HTML `<table>`) — you get ARIA grid semantics + keyboard navigation for free.
-
-**Filters & input**
-- `Select` — compound (`Select`, `Select.Label`, `Select.Trigger`, `Select.Popover`, `Select.Item`); the dropdown uses the `react-aria-components` Select primitive.
-- `DateRangePicker` — two native `<input type="date">` fields (From/To) rather than a custom calendar — a deliberate simplification (see the note below).
-
-**Feedback & state**
-- `Spinner` — a custom SVG (`currentColor` gradient) with `animate-spin`. Variants: `color` (6 colors) × `size` (sm/md/lg/xl).
-- `Alert` — compound (`Alert`, `Alert.Icon`, `Alert.Content`, `Alert.Title`, `Alert.Description`). Variants: `variant` (6 colors); the icon color follows automatically through a CSS descendant selector.
-
-**Overlay & navigation**
-- `Modal` — compound (`Modal.Root`, `Modal.Content`, `Modal.Heading`, `Modal.Body`, `Modal.Footer`), built on `DialogTrigger` + `ModalOverlay` + `Modal` + `Dialog` from `react-aria-components` — enter/exit animation, focus trap, and esc-to-close all come from the primitives.
-- `Tabs` — compound (`Tabs`, `Tabs.List`, `Tabs.Tab`, `Tabs.Panel`), on the native `react-aria-components` Tabs primitive.
-
-**Charts** (the only category needing an extra dependency: `recharts`)
-- `BarChart` — multi-series bar chart. Props: `data`, `categoryKey`, `series` (an array of `{ dataKey, name?, color? }`).
-- `LineChart` — multi-series line chart, same prop shape as `BarChart`.
-- `PieChart` — pie/donut chart (`innerRadius` gives you donut mode). Props: `data` (an array of `{ name, value, color? }`).
-
-Every component follows the same pattern described in "Adding a new component" below — separate files under `styles/`, `types/`, `components/`. A few (`DateRangePicker`, `BarChart`/`LineChart`/`PieChart`) are deliberately simplified versions of their full counterparts (segmented calendar + popover, custom tooltip/legend) to keep the build moving without a design token system, which this repo doesn't have yet.
-
 ## Web Component wrappers (`<dtn-*>`)
 
-The components above are **React** components. So that non-React consumers — the future Vue/Svelte/Angular remotes — can use them too, each one is also wrapped as a custom element.
+Everything in `packages/ui` is a **React** component. So that non-React consumers — the future Vue/Svelte/Angular remotes — can use them too, some are also wrapped as custom elements.
+
+The full list lives in `src/component-wrapper/` itself: a wrapped component has `buatElemen(...)`, while the rest carry a file containing `BELUM_DIBUNGKUS` and the reason. Today 11 are wrapped and 7 are not.
 
 ```
 <dtn-button color="primary">Masuk</dtn-button>
@@ -127,24 +65,6 @@ await loadRemote("duidtin_ui_design_system/component-wrapper/button");  // regis
 await loadRemote("duidtin_ui_design_system/component-wrapper/semua");   // or all of them at once
 el.addEventListener("press", () => kirim());
 ```
-
-### What is wrapped, and what is not
-
-| Wrapped (11) | Compound parts |
-|---|---|
-| `button`, `badge`, `spinner`, `data-state`, `bar-chart`, `line-chart`, `pie-chart` | — |
-| `alert` | `-icon`, `-content`, `-title`, `-description` |
-| `card` | `-header`, `-body`, `-footer` |
-| `empty-state` | `-icon`, `-title`, `-description`, `-action` |
-| `skeleton` | `-lines` |
-
-| Not wrapped (7) | Why |
-|---|---|
-| `select`, `tabs`, `table`, `text-field` | their parts talk to each other through **React Context** (ids, `aria-*`, focus, keyboard). Every custom element owns a separate React root and Context does not cross roots — split into separate elements, their accessibility breaks |
-| `modal`, `date-range-picker` | same, plus a **portal**: the content renders outside the element's DOM tree |
-| `error-boundary` | an error boundary only catches errors inside its own React tree; children slotted through the light DOM are not part of that tree, so the element would *look* like it works while catching nothing |
-
-Those seven still get a `component-wrapper/<name>/index.ts` file containing the reason above, so nothing disappears silently. When they are needed in Vue, the shape is **one element** taking its parts as attributes (`<dtn-text-field label="Email" is-invalid>`), not a split.
 
 ### How it works (`component-wrapper/utils/inti.ts`)
 
@@ -223,7 +143,9 @@ packages/ui/rslib.config.ts — two libs in one config
 
 Both outputs are opened up through `exports` in `package.json`: `"."` for the components, `"./css"` for their CSS.
 
-`bundle: false` has a consequence that is easy to forget: **a component file must never import another component's folder** (`../button`). Every file is compiled on its own, so such an import becomes an unresolvable external and Rspack panics. The only exception is `*.stories.tsx`, since stories are not part of the build.
+`bundle: false` means **every file is compiled on its own**, not merged into one bundle. Cross-folder imports are still fine: the output becomes an ordinary relative import (`../components/button/index.js`) that resolves when a consumer uses it — which is exactly what `component-wrapper/*/index.ts` does with `components/*`.
+
+> Note: this README used to claim that a cross-folder import makes Rspack panic. Re-tested on Rslib 0.19.5 with two cases — a wrapper file importing a component folder, and a component importing another component — **both build cleanly**. The old claim no longer holds.
 
 ### 2. Exposes codegen — `predev` and `prebuild`
 
@@ -372,6 +294,8 @@ This script is what removed the manual "write a shim + register it in `component
 - Reads every folder name under `packages/ui/src/components/` and converts it to PascalCase (`button` → `Button`) — this assumes the folder name and the exported component name always line up, which is the convention used from the start.
 - Generates the `apps/producer/src/components/<name>.ts` shim, which is nothing but a re-export from `@duidtin/ui`, and regenerates the entire contents of `component-exposes.ts` from the folders it found.
 - The consequence: `apps/producer/src/components/component-exposes.ts` and every `<name>.ts` shim in that folder are **generated files**, not hand-written ones — edit them by hand and the next `prebuild` will overwrite you.
+- **The Web Component wrappers are generated here too.** The same script reads `packages/ui/src/component-wrapper/*`, writes a shim at `apps/producer/src/component-wrapper/<name>.ts` (its body is `import "@duidtin/ui/component-wrapper/<name>"` — a side-effect import, because what matters is registering the element), plus one `./component-wrapper/semua` entry that registers all of them at once. The total today is 18 React exposes + 19 wrapper exposes + `./globals`.
+- The wrappers themselves are generated by another script inside `packages/ui` — see [Codegen](#codegen-packagesuiscriptsgenerate-wrappersts) in the Web Component section.
 
 ## Cross-remote types (MF `dts`)
 
@@ -415,34 +339,6 @@ The alternative that removes that need: writing self-contained public types in `
 - Each component has a `<name>.stories.tsx` file in its own folder (`src/components/button/button.stories.tsx`) containing several "stories" (prop combinations) you can browse one by one in the Storybook UI.
 - Run `bun run storybook` in `packages/ui` (after `bun install`) to open the preview at `localhost:6006`.
 
-### Storybook on Vercel: same project as the remote
-
-The static Storybook is served from the same Vercel project as the remote, at `https://super-apps-duidtin-ui-system.vercel.app/storybook/`. Opening the domain root redirects there.
-
-Two files configure this:
-
-- **`vercel.json`** sets the install command, the build command (`bun run build:vercel`), the output directory (`apps/producer/dist/mf`), the redirects, and an `ignoreCommand` that skips the build when a push does not touch this folder (explained in the root README's Deploy section). It **overrides** the build settings in the Vercel dashboard, so change this file, not the dashboard.
-- **`scripts/build-vercel.ts`** runs three steps:
-  1. `bun run build` builds the remote.
-  2. `build-storybook` runs in `packages/ui`.
-  3. `storybook-static` is copied into `apps/producer/dist/mf/storybook`.
-
-  The script refuses to run if `MF_PUBLIC_PATH` is set, because the value would be baked into `remoteEntry.js`.
-
-The result is one output folder:
-
-```
-apps/producer/dist/mf/
-  remoteEntry.js, mf-manifest.json, <chunk>.js   ← remote, stays at the root
-  storybook/index.html, storybook/sb-manager/…  ← Storybook
-```
-
-- **The remote must stay at the root.** The host rewrite maps `/design-system/static/:path*` to `<this domain>/:path*`, so moving the remote into a subfolder breaks every page.
-- **Storybook is safe in a subfolder** because its static build uses relative asset paths (`./sb-manager/…`).
-- **The `/storybook` → `/storybook/` redirect is required.** Without the trailing slash, relative paths resolve from the root, `/sb-manager/runtime.js` returns 404, and the page stays blank.
-- **Tradeoff:** if the Storybook build fails, the remote deploy fails with it. Accepted in exchange for a single URL. If this starts to hurt, move Storybook to its own Vercel project.
-
-
 ## `packages/ui` — the component factory
 
 - Built with Rslib format `"esm"` — the output is an ordinary npm package (`dist/` holding ESM + `.d.ts`).
@@ -471,10 +367,11 @@ apps/producer/dist/mf/
 - `"name"` — `@duidtin/ui`, which is what `apps/producer` uses for `import { Button } from "@duidtin/ui"`. Unlike `apps/producer`, whose name is rarely referenced back, this package is the one other packages consume.
 - `"version"` — a formality, same as `apps/producer`. Bun resolves it to the local folder through the root `"workspaces"` field, not by version number.
 - `"type": "module"` — same as `apps/producer`; every file is treated as ESM (`import`/`export`), not CommonJS.
-- `"sideEffects": false` — different from `apps/producer`. This field tells bundlers that no file in this package has side effects merely from being imported. The effect: bundlers may tree-shake aggressively — if `apps/producer` only uses `Button`, the other components are genuinely dropped from the bundle rather than dragged along. It matters for a library package like this one, and not at all for `apps/producer`, which is itself a final entry rather than something others tree-shake.
+- `"sideEffects": ["./src/component-wrapper/**", "./dist/component-wrapper/**"]` — **it used to be `false`**. This field tells bundlers which files have side effects merely from being imported. Every React component is still side-effect free (fine to tree-shake), BUT the `component-wrapper/*` files call `customElements.define()` — mark those as side-effect free and the bundler drops them, so the `<dtn-*>` elements are silently never registered. The glob must be `**`, not `*`, because each wrapper lives inside its own component folder. Otherwise the effect is as before: if a consumer only uses `Button`, the other components are genuinely dropped from the bundle.
 - `"exports"` — here the field genuinely earns its keep (unlike in `apps/producer`, where it is dead weight):
   - `"."` → the main entry (`import ... from "@duidtin/ui"`), with a `"development"` condition pointing straight at `src/index.ts` (used by dev-mode tooling, so you don't have to rebuild on every change) and `"import"`/`"default"` pointing at the built `dist/index.js`.
   - `"./*"` → the wildcard subpath, which is what makes `import { Button } from "@duidtin/ui/components/button"` (per-component deep imports) work, rather than only going through the `index.ts` barrel. Useful as the component count grows and someone wants just one without loading the whole barrel.
+  - `"./component-wrapper/*"` → a dedicated path for the Web Component wrappers. Kept separate from `"./*"` because its entry is an `index.ts` **inside a folder** (`component-wrapper/button/index.ts`), while the `"./*"` pattern expects a `.tsx` file one level down.
   - `"./css"` → a dedicated entry for the CSS, used by `apps/producer/src/styles/index.css` via `@import "@duidtin/ui/css";`.
 - `"types"` and `"files"` — the same purpose as in `apps/producer` (a type fallback for older tooling, and limiting package contents if published), but here they are genuinely relevant: this package is designed to be imported directly through the `exports` above, not through `loadRemote()`.
 

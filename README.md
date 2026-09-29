@@ -4,7 +4,7 @@
 
 A Module Federation-based microfrontend super-app.
 
-## Every remote may use a different stack
+## Six repos, six Vercel projects
 
 Module Federation composes applications **at runtime through a contract**, not at build time. The contract is only three things: the container name, the `exposes` list, and the shared scope. As long as those line up, each repo is free to pick its own framework and bundler — there is not a single `npm install` between them.
 
@@ -69,7 +69,17 @@ Module Federation composes applications **at runtime through a contract**, not a
 - **Styling** — Tailwind v4, prefix `fath`
 - **Path** — `basePath: "/auth"`
 - **Role** — the login page (`./login`) and the session-expired modal (`./sesi-berakhir`): email/password form, `login()` from `@duidtin/auth`, renders `AuthError`
-- **Note** — the only feature remote that fully works when opened on its own (`:3004`), because the auth package creates a fallback store. `pages/index.tsx` must use `dynamic()` as an async boundary — see the [repo README](duidtin-feature-auth/README.id.md#dua-ganjalan-yang-sudah-kena-dan-solusinya)
+- **Note** — the only feature remote that fully works when opened on its own (`:3004`), because the auth package creates a fallback store. `pages/index.tsx` must use `dynamic()` as an async boundary — see the [repo README](duidtin-feature-auth/README.id.md)
+
+### 6. `duidtin-api` — the backend
+
+- **Port** — 4000
+- **Runtime** — Bun in dev, Node.js (a Vercel Function) in production
+- **Stack** — Express 5 · Mongoose 8.24.4 (pinned) · Zod 4 · JWT HS256 · bcryptjs
+- **Database** — MongoDB Atlas
+- **Path** — **none**: reached directly on its own domain, not through a host rewrite
+- **Role** — the auth API: `login`, `refresh`, `logout`, `logout-semua`, `me`. Beranda's data endpoints do not exist yet
+- **Note** — the only part that is **not** Module Federation. The frontend calls it through `NEXT_PUBLIC_API_URL`, and the frontend's origin must be listed in the API's `CORS_ORIGINS`. Details in [README.be.id.md](README.be.id.md) and [duidtin-api/README.id.md](duidtin-api/README.id.md)
 
 > Naming: `ui-*` for infrastructure (host, design system, layout), `feature-*` for business features.
 
@@ -124,62 +134,20 @@ other tabs
 - The core never reads `process.env`; each app passes the base URL through `configureAuth()`.
 - Full session contract: [README.be.id.md](README.be.id.md).
 
-### What MUST match
-
-| | Why |
-|---|---|
-| **React version** — 18.3.1 everywhere | it is `shared` as a singleton; two React instances on one page means an immediate `Invalid hook call` |
-| **Container names** — `duidtin_ui_layout`, etc. | the exact string `loadRemote()` uses on the consumer side |
-| **`exposes` keys** — `./base`, `./globals` | matched by hand across repos; nothing checks them |
-
-### What MAY differ
-
-| | host | design system | layout | beranda | auth |
-|---|---|---|---|---|---|
-| Framework | Next 14 | no Next | Next 14 | Next 16 | Next 16 |
-| Bundler | webpack | Rslib + Rsbuild | webpack | Rspack |
-| MF plugin | `nextjs-mf` | `rsbuild-plugin` | `nextjs-mf` | `enhanced` |
-| MF runtime | 0.24.1 | 0.24.1 | 0.24.1 | 2.9.0 |
-| Tailwind prefix | `app` | `ui` | `lyt` | `fber` |
-| Dev port | 3000 | 3001 | 3002 | 3003 |
-| `basePath` | — | `/design-system/static` | `/layout` | `/beranda` |
-
-The package manager and TypeScript version may differ too; right now they happen to match (bun).
-
-**Tailwind prefixes must differ**, because all four render into one page. Without them, utility classes and theme variables (`--spacing`, `--color-*`) overwrite each other.
-
-**Colours do not differ.** The palette, radii and shadows are written once as `--dtn-*` in the design system's `tokens.css`, then cascade to every repo through `:root`. Tailwind in each repo only handles layout.
-
-**How the CSS reaches the browser** does differ, because Next forbids global CSS imports outside `_app.tsx` while an MF-exposed module is not `_app.tsx`:
-
-| Repo | How |
-|---|---|
-| host | `import "@/styles/globals.css"` in `_app.tsx` |
-| design system | exposes `./globals`, `loadRemote`d by the host in PHASE 1 |
-| layout | exposes `./globals` + a webpack `style-loader` rule |
-| beranda | CSS compiled into a string, injected by `ensureGlobalsStylesheet()` |
-
-> **Now proven:** `duidtin-feature-beranda` runs MF runtime **2.9.0** while the other three sit on **0.24.1**, and they do talk to each other — in both directions. The host (0.24.1) loads beranda (2.x), then beranda (2.x) loads the design system (0.24.1), all inside one render tree with no errors. Even cross-repo `dts` works: the design system's types are generated into `@mf-types/` on beranda's side automatically.
-
-### Running it
-
-Four terminals, remotes before the host:
-
-```bash
-cd duidtin-ui-design-system && bun install && bun run dev:producer   # :3001
-cd duidtin-ui-layout        && bun install && bun run dev            # :3002
-cd duidtin-feature-beranda  && bun install && bun run dev            # :3003
-cd duidtin-ui               && bun install && bun run dev            # :3000 ← open this
-```
-
-If a remote isn't running the page still renders — the failed part is swapped for an error box by `fallbackPlugin` (section 5 below). That is the intended behaviour.
-
-**You don't have to run everything.** When changing one remote, run only that remote's server and open the production host with `?remote-lokal=name@port`. When changing the host, run it in `NEXT_PUBLIC_REMOTE_DARI=publish` mode. Details in the [host README](duidtin-ui/README.md#dev-without-running-every-server).
-
-
 ## Deploy
 
-> **Status: all four projects are deployed.** The host is live at `https://super-apps-duidtin.vercel.app`, joining the remotes through rewrites. The design system (remote + Storybook) is live at `https://super-apps-duidtin-ui-system.vercel.app` (Storybook at `/storybook/`). The layout is live at `https://super-apps-duidtin-ui-layout.vercel.app/layout` (`remoteEntry.js` under `/layout/_next/static/chunks/`). Beranda is deployed; the host attaches it on `/` once `REMOTE_BERANDA_URL` is set. The rest of this section is a decided plan. Items marked ☐ in the [checklist](#checklist-before-the-first-deploy) are not yet done in code.
+> **Status: six projects deployed.**
+
+| Project | URL | Note |
+|---|---|---|
+| host | `https://super-apps-duidtin.vercel.app` | joins every remote through rewrites |
+| design system | `https://super-apps-duidtin-ui-system.vercel.app` | Storybook at `/storybook/` |
+| layout | `https://super-apps-duidtin-ui-layout.vercel.app/layout` | `remoteEntry.js` under `/layout/_next/static/chunks/` |
+| beranda | deployed | `/beranda/*` still 404 — `REMOTE_BERANDA_URL` on the host is not right yet |
+| auth | `https://super-apps-duidtin-feature-auth.vercel.app` | the host's `/login` already renders its form |
+| api | `https://super-apps-duidtin-api-eta.vercel.app` | `/health` → `db: "terhubung"`, login 200 |
+
+Still outstanding: `NEXT_PUBLIC_API_URL` is not set on the host and auth projects, so the production login page still calls `http://localhost:4000`.
 
 ### Topology: one domain, told apart by path
 
@@ -188,71 +156,17 @@ https://super-apps-duidtin.vercel.app/                                  → host
 https://super-apps-duidtin.vercel.app/layout/_next/static/…             → layout project
 https://super-apps-duidtin.vercel.app/beranda/_next/static/…            → beranda project
 https://super-apps-duidtin.vercel.app/design-system/static/…            → design-system project
+https://super-apps-duidtin.vercel.app/auth/_next/static/…               → auth project
 ```
+
+**The backend does NOT follow this pattern.** `duidtin-api` is reached directly on its own
+domain (`https://super-apps-duidtin-api-eta.vercel.app`), not through an `/api` rewrite. Two
+consequences: its URL is supplied through the `NEXT_PUBLIC_API_URL` env in every bundle that
+calls it, and the host's origin must be listed in the API's `CORS_ORIGINS`.
 
 This topology is **already locked in by the code**, not a free choice. In all three Next repos, `getBaseFederationUrl()` returns `window.location.origin` whenever it is not on localhost, so in production the host looks for every remote on its own domain. Publish each remote to its own domain and the host breaks immediately.
 
-A single origin is also what keeps the next stage simple: session cookies and `localStorage` are shared by every remote automatically, and a backend can live at `/api` with no CORS.
-
-### Same as qcash, different at the router layer
-
-| | qcash | duidtin |
-|---|---|---|
-| One domain, remotes told apart by path | yes | yes |
-| One repo = one independent deploy | a `Dockerfile` per repo | one Vercel project per folder |
-| Mixed MF versions in production | host `0.18.1`, dhe `2.x` | host `0.24.1`, beranda `2.9` |
-| **What unifies the domain** | **the OpenShift router** (infrastructure) | **rewrites in the host** |
-
-```
-browser → super-apps-duidtin.vercel.app/layout/_next/static/chunks/remoteEntry.js
-            └─▶ host rewrites → super-apps-duidtin-ui-layout.vercel.app/layout/_next/…
-```
-
-- **A rewrite is not a redirect.** The address bar does not change; only JS/CSS chunk files are routed, not pages.
-- Composing the layout, beranda and design system still happens inside one page through Module Federation.
-- qcash's host has `rewrites()` too, but only in development — its comment reads *"Deployed envs are same-origin, so no rewrite is needed."* There is no OpenShift router on Vercel, so the host's rewrites take that role.
-
-### Platform: Vercel Hobby, four projects from one repo
-
-| Project | Root Directory | Framework | Build Command | Output Directory |
-|---|---|---|---|---|
-| `duidtin-ui-design-system` | `duidtin-ui-design-system` | Other | `bun run build:vercel` | `apps/producer/dist/mf` |
-| `duidtin-ui-layout` | `duidtin-ui-layout` | Next.js | `bun run build` | *(default)* |
-| `duidtin-feature-beranda` | `duidtin-feature-beranda` | Next.js | `bun run build` | *(default)* |
-| `duidtin-ui` | `duidtin-ui` | Next.js | `bun run build` | *(default)* |
-
-| Item | Notes |
-|---|---|
-| Install Command | `bun install`, all four |
-| Why not a single project | one project builds one application from one root; the different toolchains and independent deploys would be lost |
-| The `build` scripts | usable as they are: `NEXT_PRIVATE_LOCAL_WEBPACK=true` is already in the host and layout scripts, and beranda's `prebuild` compiles Tailwind through the local binary |
-| Design-system settings | in `duidtin-ui-design-system/vercel.json`, overriding the dashboard. `build:vercel` builds the remote and Storybook, served at `/storybook/` |
-| Order of creating projects | design system → layout → host → beranda. The host went first because beranda was still static; `REMOTE_BERANDA_URL` must be set before the host build |
-
-**Automatic builds on push**
-
-```
-push to main
-  └─▶ EVERY connected project is triggered
-        └─▶ each project's ignoreCommand:
-              sha="${VERCEL_GIT_PREVIOUS_SHA:-}"
-              [ -z "$sha" ] && exit 1                       ← FIRST deploy → build
-              git cat-file -e "$sha^{commit}" || exit 1     ← SHA missing from clone → build
-              git diff --quiet "$sha" HEAD -- . && exit 0 || exit 1
-                ├─ exit 0   folder unchanged  → build SKIPPED
-                └─ exit ≥1  changed / errored → build RUNS
-```
-
-| Item | Notes |
-|---|---|
-| Vercel's built-in skipping | does not apply: it requires `workspaces` in a root `package.json`, which this repo has not |
-| `VERCEL_GIT_PREVIOUS_SHA` | that project's last successful deployment. `HEAD^` alone compares only the last commit, so a change in an earlier commit could be missed |
-| Deploy **pertama** sebuah project | `VERCEL_GIT_PREVIOUS_SHA` belum ada. Dulu jatuh ke `HEAD^`, jadi kalau commit terakhir tidak menyentuh folder itu, deploy perdananya **dibatalkan** — persis yang terjadi saat membuat project `duidtin-api`. Sekarang SHA kosong = selalu build |
-| Clone `--depth=10` | if the comparison commit falls outside that depth, `git diff` errors and the build runs. It fails safe |
-| Shape in `vercel.json` | `"ignoreCommand": "sha="${VERCEL_GIT_PREVIOUS_SHA:-}"; [ -z "$sha" ] && exit 1; git cat-file -e "$sha^{commit}" 2>/dev/null || exit 1; git diff --quiet "$sha" HEAD -- . && exit 0 || exit 1"` — the host and the auth remote add `../duidtin-packages/auth` to the path list |
-| Status | set in all five folders (including `duidtin-api`). The design system also keeps its build settings there; the others hold only `ignoreCommand` |
-| Manual redeploy | the same commit is skipped too. Untick **Use project's Ignore Build Step** |
-| Remote → host | a remote need not trigger a host build; the host reads the latest `remoteEntry.js` at runtime |
+A single origin is also what keeps sessions simple: `localStorage` is shared by every remote automatically — which is why one session store on `window.__DUIDTIN_AUTH__` covers the whole page.
 
 ### Host environment variables
 
@@ -262,30 +176,10 @@ push to main
 | `REMOTE_LAYOUT_URL` | the layout's `*.vercel.app` URL | `/layout/:path*` → `…/layout/:path*` |
 | `REMOTE_BERANDA_URL` | beranda's `*.vercel.app` URL | `/beranda/:path*` → `…/beranda/:path*` |
 | `REMOTE_AUTH_URL` | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
-| `BACKEND_URL` *(later)* | the backend | `/api/:path*` → `…/:path*` |
+| `NEXT_PUBLIC_API_URL` | the `duidtin-api` URL | **no rewrite** — read by `configureAuth()` in the host bundle. Remotes that call the API set it for themselves too (`duidtin-feature-auth`) |
 
 - **The design system's prefix is stripped**, because it is not Next and has no `basePath`: its files sit at the root of its Vercel domain. The layout and beranda keep their prefixes.
 - **Local dev:** the variables are empty → no rewrites → remotes are reached through their own ports.
-
-### Checklist before the first deploy
-
-| | Item | Notes |
-|---|---|---|
-| ☑ | Env-var-driven host rewrites | in `duidtin-ui/next.config.mjs`, active only when the variable is set. Verified locally against the live design system and layout: every request goes through one origin. Changing a variable means redeploying the host with Ignore Build Step unticked |
-| ☑ | `remoteEntry.js` caching | no extra header needed after all — see the table below |
-| ☐ | `?gagal` and `?lambat` behind `NEXT_PUBLIC_API_SIMULASI` | both are live in production too; anyone can take down beranda blocks through the URL |
-| ☐ | Verify beranda's build before the host's | `next-rspack` is still experimental, and Next 16 + Rspack on Vercel has no precedent |
-| ☐ | Never set `MF_PUBLIC_PATH` in production env | so asset paths stay relative to the single domain |
-
-The caching concern: `remoteEntry.js` keeps its name across deploys, so a cached copy could point at chunks that no longer exist (`ChunkLoadError`). What the deployed remotes actually send:
-
-| Remote | Header sent | Why it is still safe |
-|---|---|---|
-| design system | `max-age=0, must-revalidate` | Vercel's default for static files |
-| layout, beranda | `public,max-age=31536000,immutable` | Next applies it to everything under `_next/static` |
-| both | — | the host never requests the bare URL: `runtimePlugin.cjs` (the `beforeRequest` hook) appends `?t=Date.now()` on every page load. The host never requests `mf-manifest.json` at all |
-
-Still unconfirmed: that in the production host's Network tab, the layout's and beranda's `remoteEntry.js` really are requested with `?t=`.
 
 ### Rules for the next remotes
 
@@ -334,13 +228,6 @@ cd duidtin-packages/auth && bun link          # once
 cd ../../duidtin-ui      && bun link @duidtin/auth
 # laptop → local copy, Vercel → registry; undo with bun unlink
 ```
-
-### Known risks
-
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Old chunks disappear on redeploy | a page left open requests the previous version's chunks → 404 | `RetryPlugin` + `fallbackPlugin` in the host. The real fix is keeping the previous build's assets around for a while |
-| PR previews are not composed automatically | a remote's preview is not used by the host's preview | the host's rewrites point at production remotes |
 
 ### If it later moves to a VPS + Docker + Caddy
 
@@ -425,9 +312,10 @@ Where each piece stands today:
 | Piece | Code | Production |
 |---|---|---|
 | host, layout, design system | ✅ | ✅ live |
-| auth remote | ✅ login + session-expired modal | ⚠️ deployed, but `REMOTE_AUTH_URL` is not in effect on the host → `/auth/*` 404 |
+| auth remote | ✅ login + session-expired modal | ✅ live, the host's `/login` already renders its form |
 | beranda | ✅ UI, **data still mocked** | ⚠️ `REMOTE_BERANDA_URL` is wrong → `/beranda/*` 404 |
-| `duidtin-api` | ✅ auth complete, no data endpoints yet | ⬜ still local (`http://localhost:4000`) |
+| `duidtin-api` | ✅ auth complete, no data endpoints yet | ✅ live, `/health` → `db: "terhubung"` |
+| FE → API wiring | — | ⚠️ `NEXT_PUBLIC_API_URL` is unset on host & auth → production login still calls `localhost:4000` |
 
 ## Architecture flow
 

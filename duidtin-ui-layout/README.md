@@ -12,31 +12,18 @@ This repo is a consumer of `duidtin-ui-design-system`, so both dev servers have 
 2. In this folder: `bun install`, then `bun run dev` — Next.js at `http://localhost:3002/layout`.
 3. `bun run build` — produces `remoteEntry.js` in `.next/static/chunks/`.
 4. `bun run check-types` — `tsc --noEmit`.
+5. `bun run tipe` — refreshes the design system's types in `@mf-types/`. It runs automatically through `predev` and `prebuild`, so you rarely call it by hand.
 
 Opening `http://localhost:3002/layout` only shows a guard page (see the "pages/index.tsx" section below), not a layout preview.
-
-## Current status
-
-Done and verified working:
-- `layouts/default/` — Sidebar + Header + `{children}` + Footer, exposed as `./default`.
-- The header consumes `Button` from `duidtin_ui_design_system` through `loadRemote()` — the "a remote calling another remote" pattern is proven to actually render in a browser (not merely to build), styles included.
-- `styles/globals.css` exposed as `./globals`.
-- `pages/index.tsx` is a guard page, and `exposePages: false` keeps it from being exposed.
-- The sidebar provides business navigation (Beranda, Payroll, Transfer, Mutasi, Persetujuan). Entries whose route does not exist yet render as a `disabled` `<span>` rather than an `<a>`, so no link can 404.
-- **Mounted by the real host.** `duidtin-ui` renders this layout through `loadRemote("duidtin_ui_layout/default")`, verified in a browser. That first mount is what uncovered item 8 under "Snags".
-
-Not done:
-- Real auth/context bridging — `onLogout` & `userName` are still plain props, not wired to any provider.
-- A role-aware menu. `navItems` is already a prop, but the host does not send one yet, so `DEFAULT_NAV_ITEMS` in this repo is still used. Once auth exists, a maker and a checker should see different menus.
-- i18n and container (Docker) config. For Vercel, `vercel.json` holds only `ignoreCommand`; the build uses the Next.js defaults set in the dashboard.
 
 ## Stack
 
 - **Next.js 14.2.35** — Pages Router, Webpack (not Turbopack, which is a precondition for this MF plugin to work at all).
 - **`@module-federation/nextjs-mf` 8.8.54** — this version is **pinned deliberately**: it brings `@module-federation/enhanced` **0.24.1**, exactly the version `duidtin-ui-design-system` uses. Newer releases (8.8.56+) have moved to MF `2.x`, a different version line from the design system.
 - **`@module-federation/runtime` 0.24.1** — used directly in `pages/_app.tsx` (`init`) and `components/remote/design-system.tsx` (`loadRemote`), matched to the version above.
-- **`webpack` 5.105.0 + `NEXT_PRIVATE_LOCAL_WEBPACK=true`** — `nextjs-mf` refuses to run against the webpack bundled into Next; both of these are required, not either/or (see "Snags we hit").
+- **`webpack` 5.105.0 + `NEXT_PRIVATE_LOCAL_WEBPACK=true`** — `nextjs-mf` refuses to run against the webpack bundled into Next, so webpack is installed as its own dependency and that flag must come with it.
 - **React 18.3.1** — matching `duidtin-ui-design-system`, so the shared singleton stays consistent.
+- **`react-aria-components` 1.18.0 + `tailwind-variants` + `fflate`** — **devDependencies, not runtime**. The first two back the design system's component TYPES so props stay precise; `fflate` is used by the type-download script. None of them reach the bundle.
 - **Tailwind CSS v4** (prefix `lyt`) — the same BEM + `@apply` pattern as the design system, just a different prefix so it can't collide with the design system's `ui:` or the host's own. **The colours themselves are not hardcoded** — they come from the design system's `var(--dtn-*)` tokens, which cascade through `:root` once its CSS loads. This file used to hardcode `blue-600` and had to be guessed into matching.
 
 ## Folder structure
@@ -62,6 +49,9 @@ duidtin-ui-layout/
       layout.css
       header.css
       footer.css
+  scripts/
+    ambil-tipe-design-system.ts   # downloads the design system's @mf-types.zip
+  @mf-types/             # the downloaded types, COMMITTED
   pages/
     _app.tsx             # init() + loadRemote globals, client-only
     index.tsx            # guard page
@@ -111,7 +101,7 @@ void loadRemote(`${DESIGN_SYSTEM_REMOTE}/globals`);
 
 `getBaseFederationUrl()` ([utils/index.ts](utils/index.ts)) is an environment-detection function (reading `window.location.hostname` **at that moment**, not at build time) — it **has to be a function, not a hardcoded value**, because this is what runs in a real user's browser. Hardcoded, `duidtin-ui-layout` would always call the dev URL even when accessed from production.
 
-> **Note:** the intent was for `init()` here to override the build-time `remotes` in A. In reality it does not yet — see [Snags](#snags-we-hit-and-why-the-fixes-look-like-that), item 7.
+> **Note:** the intent was for `init()` here to override the build-time `remotes` in A. It does **not** — for the same remote name, the build-time entry wins. The static `localhost:3001` entry in the config is left on purpose: the host registers the design system first, so production still uses the host's URL.
 
 Locally it returns `http://localhost:3001` (the design system on a different port); anywhere else it returns the origin currently being viewed — in production every remote shares one domain, separated by their own `basePath` (`/layout` for this repo, `/design-system` for the design system).
 
@@ -123,6 +113,17 @@ The production host can load the layout from a local dev server through `?remote
 - Set, Next 14.2 switches to **block** mode, where cross-site script requests are **always** answered with a 403 — the origin list is not checked for `no-cors` requests. Unlike Next 16 in beranda, which checks the Referer.
 
 Tested with a cross-site-flagged request against the layout dev server: 200.
+
+### D. `assetPrefix` — absolute URLs during dev
+
+`next.config.mjs` sets `assetPrefix: process.env.MF_PUBLIC_PATH`, and the `dev` script points it at `http://localhost:3002/layout`.
+
+| Situation | Value | Effect |
+|---|---|---|
+| `bun run dev` | `http://localhost:3002/layout` | layout chunks are requested from this port, not from the host page's origin |
+| `bun run build` (production) | **empty** | chunks are requested relative to the domain being browsed, then forwarded by the host's `/layout/:path*` rewrite |
+
+Without an absolute URL in dev, a host on `:3000` would ask itself for the layout chunks and 404 — the same snag beranda hit. **Never set `MF_PUBLIC_PATH` on Vercel**: it would be baked in and production would point at localhost.
 
 ## Architecture flow
 
@@ -199,7 +200,7 @@ host uses it  duidtin-ui → loadRemote("duidtin_ui_layout/default")
 
 Three distinct moments: `exposes`/`remotes` freeze at **build**, the remote entry is registered at **boot**, and component chunks are fetched at **render**. The easy thing to mix up: `loadRemote(".../globals")` at boot has already fetched the container, so rendering only needs the component chunk — it isn't starting from scratch.
 
-> **Not resolved yet:** the build-time `remotes` and the runtime `remotes` point at a remote with the **same name**, and the build-time one turns out to win — see [Snags](#snags-we-hit-and-why-the-fixes-look-like-that), last item.
+> **Note:** the build-time `remotes` and the runtime `remotes` point at a remote with the **same name**, and the build-time one wins. Left as is — see the note in section B.
 
 ## Types from the design system (`@mf-types`)
 
@@ -208,7 +209,7 @@ Remote component props are **not re-declared** here. They come from the design s
 ```
 design-system build → @mf-types.zip  (contains node_modules/@duidtin/ui)
         │
-bun run tipe                              ← runs automatically via predev & prebuild
+bun run tipe   (scripts/ambil-tipe-design-system.ts)   ← runs automatically via predev & prebuild
   └─ download + unpack into @mf-types/duidtin_ui_design_system/
         │
 import type { Button } from "@mf-types/duidtin_ui_design_system/components/button";
@@ -224,63 +225,3 @@ export type ButtonProps = ComponentProps<typeof Button>;
 | Versions of those two | must track the design system's; drift makes the types disagree |
 
 Why bother: hand-written interfaces drift silently. New variants never arrive, removed variants stay "allowed", and callback signatures can be wrong without anyone noticing.
-
-## Snags we hit (and why the fixes look like that)
-
-None of the nine below were in the original plan. Items 1-7 surfaced once this repo became the design system's first real consumer; item 8 only surfaced once the `duidtin-ui` host made this repo a *consumed* remote for the first time. Item 9 surfaced on a Vercel redeploy. Items 3-6 are fixed in the `duidtin-ui-design-system` repo, not here; item 7 is deliberately left as is.
-
-1. **`nextjs-mf` needs a local webpack.** The build died immediately: `process.env.NEXT_PRIVATE_LOCAL_WEBPACK is not set to true`. Fix: `npm install webpack` plus the env var prefixed onto the `dev`/`build` scripts — both, not either.
-
-2. **A too-new `enhanced-resolve` crashes the Next 14 build.** Once local webpack was installed, up came `TypeError: _resolveContext_stack.delete is not a function`. The cause: `enhanced-resolve` ≥5.19 changed `resolveContext.stack` from a real `Set` to a linked list that merely resembles one (no `.delete`), while Next's internal plugins still call `.delete`. Fix: an `overrides` entry in `package.json` pinning `5.18.3`.
-
-3. **The remote was never being served.** `apps/producer` in the design system used to have `rslib build --watch` as its `dev` script — that only writes to `dist/`, it starts no HTTP server, so `http://localhost:3001` had nothing on it. Fix (in the design system): switch to `rslib mf-dev`.
-
-4. **Remote chunks fetched from the wrong origin.** The design system's `assetPrefix` was a relative path (`/design-system/static/`), so when consumed from `localhost:3002` the chunks were looked for at `localhost:3002/design-system/static/...` → `ChunkLoadError`. Fix (in the design system): during dev, set `MF_PUBLIC_PATH` to an absolute URL (`http://localhost:3001/design-system/static/`). Production is unaffected because every remote shares one domain there.
-
-5. **The host page reloaded endlessly.** The rsbuild dev client was bundled into `remoteEntry.js`, and once loaded it called `location.reload()` on the **consumer's** page — this page reloaded over and over and the remote components never got a chance to render. Fix (in the design system): `dev: { hmr: false, liveReload: false }` in the producer's `rslib.config.ts`.
-
-6. **Remote components rendered, but completely unstyled.** The design system's `dist/index.tailwind.css` turned out to still contain raw `@apply ui:...` — Tailwind was never compiled during `rslib build`, the file was merely copied through. This had been masked all along by Storybook compiling Tailwind itself through `@tailwindcss/vite`, so the components looked right in Storybook while the published CSS was broken. Fix (in the design system): add `postcss.config.mjs` to `packages/ui` and exclude `.css` files from the `bundle: false` entry.
-
-7. **The runtime `remotes` does NOT override the build-time one — left as is, safe while the host registers first.** `module-federation.config.mjs` registers `duidtin_ui_design_system` at `http://localhost:3001/...` (hardcoded), and `pages/_app.tsx` registers the same name at whatever `getBaseFederationUrl()` returns. The assumption was that the runtime one wins. What actually happens is the reverse:
-
-   - The build-time URL is inlined into the webpack runtime chunk and registered during bootstrap, **before** the `_app.tsx` module is executed.
-   - `init()` in `_app.tsx` uses the same `name`, so the runtime **reuses the existing instance** (`getGlobalFederationInstance`) rather than creating a new one.
-   - Merging the remotes goes through `formatAndRegisterRemote(...)`, which calls `registerRemote(remote, res, { force: false })`. If a remote name is already registered and `force` isn't set, the new entry is **discarded silently** — with no warning at all (the warning message is only emitted on the `force: true` branch).
-
-   Why production does not break: the same first-registration-wins rule works in this repo's favour inside the host. When the layout runs inside `duidtin-ui`, its `_app.tsx` does not run at all (only `./default` is loaded), and the host's `federationInit()` has already registered `duidtin_ui_design_system` with the correct runtime URL before this repo's `remoteEntry.js` is fetched. This repo's build-time entry arrives second, so it is the one discarded. A single-origin production simulation confirmed it: zero requests to `localhost:3001`, and the header's `Button` loaded from the correct origin.
-
-   What remains: this holds only while the host registers the design system first. If that registration ever becomes lazy, the build-time `localhost:3001` URL wins and production breaks. Opening this repo directly is not affected, because `pages/index.tsx` is a guard page that loads no design-system component.
-
-   If the host's order ever changes, there are two fixes (neither applied, by decision):
-   - **Empty out `remotes` in `module-federation.config.mjs`** (to `{}`) so the runtime is the only thing registering it. This is the pattern the `qcash-ui` host uses. It is safe because this repo never statically `import()`s a remote module — everything goes through `loadRemote()`.
-   - Or change `init({ remotes })` into `init({ name })` + `registerRemotes([...], { force: true })`, which overrides the old entry explicitly.
-
-8. **This repo's own chunks were fetched from the host's origin — the mirror image of item 4.** The moment `duidtin-ui` tried `loadRemote("duidtin_ui_layout/default")`, `remoteEntry.js` loaded fine but everything inside it died with:
-
-   ```
-   ChunkLoadError: Loading chunk __federation_expose_default failed.
-   (error: http://localhost:3000/layout/_next/static/chunks/__federation_expose_default.js)
-                           ^^^^ the HOST's port, not this repo's
-   ```
-
-   Cause: without an `assetPrefix`, webpack's `publicPath` is `auto`, which resolves relative to **the page currently open** — and that page belongs to the host (`:3000`), not to this repo (`:3002`). This is exactly the same failure the design system already fixed in item 4; this repo had it all along, but it was invisible because until now this repo had only ever been a *consumer*, never a *consumed* remote. Nothing loads its chunks cross-origin until a host exists.
-
-   Fix: `assetPrefix: process.env.MF_PUBLIC_PATH` in `next.config.mjs`, with `MF_PUBLIC_PATH=http://localhost:3002/layout` prefixed onto the `dev` script — the same shape as the design system's fix. Production is unaffected, since every remote shares one domain there and `basePath` is enough.
-
-   Diagnosing it was harder than it should have been: `nextjs-mf` injects an internal plugin whose `errorLoadRemote` logs only `"duidtin_ui_layout/default offline"` and swallows the error object. The real `ChunkLoadError` only appeared after the host's own `fallbackPlugin` was changed to log `error` too.
-
-9. **A Vercel build failed on a restored webpack cache.** The host — whose webpack config matches this repo's — failed to deploy with `RealContentHashPlugin: Some kind of unexpected caching problem occurred`: Vercel restored the build cache from the previous deployment, and the chunk hashes in that cache no longer matched the new build. Fix: `if (!dev) config.cache = false` in `next.config.mjs`, the same as beranda, which has disabled caching from the start. This repo was changed before it hit the problem; the cache stays on in dev.
-
-## Next steps
-
-The `duidtin-ui` host now exists and renders this layout for real, so the loop is closed. What remains here:
-
-- **Item 7 above is deliberately left as is.** The host registers `duidtin_ui_design_system` first, so this repo's build-time `localhost:3001` URL is never used. Revisit it only if the host's registration becomes lazy.
-- Real auth/context bridging — `onLogout` and `userName` are still plain props, wired to nothing.
-- i18n and container (Docker) config.
-
-## Business Banking layout
-
-A 248px sidebar appears at viewport widths of 1024px and above. Smaller screens use a header menu button to reveal navigation above the content. Escape closes the menu and returns focus to its trigger. A skip link provides direct keyboard access to main content.
-
-The layout uses shared `--dtn-*` design tokens. Existing `activePath`, `navItems`, `userName`, `onLogout`, and `children` props remain supported; nested routes mark their parent menu active. Logout is shown when `onLogout` is provided.

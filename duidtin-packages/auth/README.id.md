@@ -1,5 +1,7 @@
 # @duidtin/auth
 
+[English](README.md) · **Bahasa Indonesia**
+
 > **Status: inti + React selesai, 22 tes lolos. Dipakai `duidtin-ui` (store + guard + modal sesi berakhir) dan `duidtin-feature-auth` (login & login ulang); layout dan beranda belum.** Arsitektur sesi ada di [README.be.id.md](../../README.be.id.md); distribusi paket di [README root](../../README.id.md).
 
 Logika sesi untuk semua repo duidtin. Bukan remote Module Federation — paket biasa yang di-`import`.
@@ -64,6 +66,10 @@ Empat status, dan bedanya penting:
 | `config.ts` | `configureAuth({ baseUrl })` |
 | `types.ts` | cerminan kontrak API |
 | `react.ts` | `useAuth()` — satu-satunya berkas yang menyentuh React |
+| `index.ts` | pintu ekspor paket; subpath `/react` menunjuk `react.ts` |
+| `tests/` | `auth.test.ts` (22 tes) + `helpers.ts` (adapter axios palsu) + `setup.ts` (DOM tiruan, dipanggil lewat `bunfig.toml`) |
+| `bunfig.toml` | `[test] preload` untuk DOM tiruan, dan **`[install] peer = false`** — React itu peer opsional; kalau bun ikut memasangnya di sini, bundler pemakai bisa me-resolve React KEDUA lewat paket ini dan halaman langsung `Invalid hook call` |
+| `tsconfig.build.json` | dipakai `bun run build`; menghasilkan `dist/` berisi ESM + `.d.ts` |
 
 `skipAuth: true` dipakai semua endpoint auth di `api.ts`: tokennya dikirim manual, dan `/auth/refresh` memang tidak boleh lewat interceptor — kalau lewat, refresh yang ditolak akan memicu refresh lagi.
 
@@ -76,7 +82,9 @@ Empat status, dan bedanya penting:
 | | `getAuthStore()` | remote; memulangkan store host |
 | | `http` | instance axios bertoken (`.get`, `.post`, …); satu-satunya cara memanggil API dengan sesi |
 | | `login`, `logout`, `logoutAll`, `refreshProfile` | aksi; `login` melempar `AuthError` kalau ditolak |
-| | `AuthError`, `Session`, `User`, `ErrorCode`, … | tipe; nama tipe English, nama field tetap mengikuti JSON `duidtin-api` (`pengguna`, `nama`, `kode`) |
+| | `getBaseUrl()` | membaca balik base URL yang sedang dipakai |
+| | `readSession()`, `readLastUser()`, `SESSION_KEY`, `LAST_USER_KEY` | akses langsung ke penyimpanan — dipakai host/tes untuk memeriksa keadaan tanpa lewat store |
+| | `AuthError`, `Session`, `User`, `ErrorCode`, `AuthState`, `AuthStore`, … | tipe; nama tipe English, nama field tetap mengikuti JSON `duidtin-api` (`pengguna`, `nama`, `kode`) |
 | `@duidtin/auth/react` | `useAuth()` | `{ status, user, isLoggedIn, sesiKedaluwarsa, penggunaTerakhir, login, logout, logoutAll, refreshProfile }` |
 
 `penggunaTerakhir` = `{ nama, email }` pengguna terakhir, dipakai mengisi modal login ulang. Bertahan saat sesi kedaluwarsa, **dibuang saat logout eksplisit** — supaya email tidak tertinggal di komputer bersama.
@@ -103,37 +111,3 @@ import { http } from "@duidtin/auth";
 const { data } = await http.get("/beranda/rekening");   // data = { status, message, data }
 const rekening = data.data.rekening;
 ```
-
-## Keputusan yang mendasari
-
-| Hal | Alasan |
-|---|---|
-| 5 endpoint auth ikut di paket, endpoint bisnis tidak | `/auth/refresh` dipicu dari dalam interceptor `http` (kunci antar-tab + tulis store), jadi kontrak auth sudah pasti ada di sini; `login`/`logout` ikut supaya tidak terbelah dua repo. Endpoint bisnis dibuat tiap feature DI ATAS `http` — kalau ikut, tiap tambah endpoint berarti naik versi paket |
-| Store dibuat host, dipinjam lewat `window.__DUIDTIN_AUTH__` | tiap remote mem-bundle paket ini sendiri; tanpa satu instance, tiap remote punya sesi sendiri — persis masalah context di qcash |
-| `zustand/vanilla`, bukan versi React-nya | inti tidak boleh menyentuh framework, supaya remote Vue/Svelte/Angular nanti cukup menambah pembungkus belasan baris |
-| Satu kunci `duidtin:sesi` | penulisan tidak bisa setengah jadi: token tersimpan tapi data penggunanya belum |
-| Tidak membaca `process.env` | nama env berbeda tiap bundler; app yang mengisinya lewat `configureAuth()` |
-| axios, bukan `fetch` mentah | interceptor request/response jadi satu tempat untuk token + refresh; error non-2xx otomatis dilempar, jadi pemanggil tidak perlu cek `res.ok` sendiri |
-| Semua kegagalan dipetakan ke `AuthError` | pemanggil cukup membaca `.status` dan `.kode`, tidak perlu tahu bentuk `AxiosError` |
-| Sesi berakhir → `kedaluwarsa`, bukan langsung `unauthenticated` | membuang sesi sepenuhnya berarti melempar pengguna ke `/login` dan menghapus isi halaman. Dengan mengingat penggunanya, cukup minta password di modal dan halaman tetap utuh — pola yang sama dipakai qcash (`SessionExpired`) |
-| Request ditahan, bukan ditolak, saat kedaluwarsa | inilah yang membuat pemulihannya halus: satu kali isi password, semua request yang tertahan dilanjutkan dengan token baru. Kalau ditolak, tiap blok menampilkan error dan pengguna harus memuat ulang sendiri |
-| Timer ke `sesiBerlakuSampai` | tanpa timer, sesi yang mati tidak terdeteksi sampai ada request — halaman yang dibiarkan terbuka tetap tampak login |
-| Web Locks + cadangan antrean | menjaga balapan refresh antar-tab; `navigator.locks` tidak ada di semua lingkungan |
-| `logout()` membersihkan sesi lokal lebih dulu | jaringan putus tidak boleh membuat pengguna terjebak dalam keadaan "masih login" |
-
-## Perintah
-
-| Perintah | Fungsi |
-|---|---|
-| `bun run build` | `tsc` → `dist/` (ESM + `.d.ts`) |
-| `bun run check-types` | cek tipe `src` dan `tests` |
-| `bun test` | 22 tes: hydrate, sinkronisasi antar-tab, login/logout/refreshProfile, header Bearer, refresh proaktif, 401 kedaluwarsa, refresh tunggal saat dua request bersamaan, hydrate sesi yang sudah lewat, timer kedaluwarsa, dua request tertahan lalu lanjut setelah login ulang, logout saat menunggu, request tanpa sesi ditolak sebelum menyentuh jaringan |
-
-Tes memakai DOM tiruan (`@happy-dom/global-registrator`) dan **adapter axios palsu** — tidak menyentuh server, dan header hasil rakitan interceptor diperiksa langsung dari `config`.
-
-## Belum ada
-
-- Pembungkus `/vue`, `/svelte`, `/angular` — dibuat saat ada remote-nya.
-- Pemakaian di layout dan beranda.
-- Peringatan "sesi berakhir 2 menit lagi" — tinggal timer kedua di atas yang sudah ada.
-- `refreshProfile()` otomatis saat boot host (menyegarkan nama/peran yang berubah di DB).

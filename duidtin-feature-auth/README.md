@@ -17,19 +17,14 @@ Unlike beranda, **this repo can be used on its own.** The form really works at `
 
 For the full production-like chain, add `../duidtin-ui-layout` (`:3002`) and `../duidtin-ui` (`:3000`), then open `http://localhost:3000/login`.
 
-## Current status
-
-Verified in a browser (`:3004`, design system from its dev server):
-
-- The form renders fully: two `TextField`s (email + password) and a `Button`, all from the design system.
-- The button stays disabled until both fields are filled, then enables.
-- Submitting with the API down → a red `Alert` *"Tidak bisa menghubungi server…"*, with both fields marked invalid.
-
-Not yet:
-
-- A real re-login against `duidtin-api` (typing the password in the modal) has not been tested end to end; the hold-and-replay logic itself is covered by tests in `@duidtin/auth`.
-- Vercel deployment + `REMOTE_AUTH_URL` in the host.
-- Forgot-password / activation pages.
+| Command | What it does |
+|---|---|
+| `bun run dev` | dev server `:3004` |
+| `bun run build` | production build (`prebuild` runs `paket` + `style` + `tipe` first) |
+| `bun run style` | compiles Tailwind → `styles/global.exposes.ts` |
+| `bun run tipe` | downloads the design system's types → `@mf-types/` |
+| `bun run paket` | builds `@duidtin/auth` then re-runs `bun install` here |
+| `bun run check-types` | `tsc --noEmit` |
 
 ## Env
 
@@ -39,42 +34,6 @@ Not yet:
 | `MF_PUBLIC_PATH` | absolute asset URL, **dev only** (`bun run dev` sets it itself) | never set it on Vercel — the chunk URLs would be baked to localhost |
 
 `NEXT_PUBLIC_*` is inlined at build time, so changing it in the dashboard does nothing until a redeploy. And it must be set **per project**: the host has its own copy of `baseUrl`, this remote has its own, and beranda will too.
-
-## Deploy (Vercel)
-
-| Setting | Value |
-|---|---|
-| Root Directory | `duidtin-feature-auth` |
-| Include files outside the Root Directory | **ON** — the `@duidtin/auth` package lives outside the root |
-| Build Command | default; `prebuild` builds the auth package and compiles Tailwind |
-| After deploying | set `REMOTE_AUTH_URL` in the host project, then redeploy the host (the `/auth/:path*` rewrite is baked at build time) |
-
-## Coding rules this repo follows
-
-| Rule | Here |
-|---|---|
-| Every action and piece of logic lives in a custom hook | [`hooks/use-login.ts`](hooks/use-login.ts) — submit, error mapping, the `bisaKirim` guard, **and the field wiring** |
-| State goes to Zustand, not `useState` | [`stores/form-login.ts`](stores/form-login.ts) — email, password, error message, submitting flag |
-| UI comes from the design system | `TextField`, `Button`, `Alert` loaded at runtime; **no local reusable components** |
-
-## The component never wires fields
-
-The hook hands back ready-made `TextField` props, so the component never touches
-`value`/`onChange`:
-
-```tsx
-const { fieldEmail, fieldPassword, kirim, pesanGalat, sedangKirim, bisaKirim } = useLogin({ onSuccess });
-
-<TextField {...fieldEmail}>
-  <TextFieldLabel>Email</TextFieldLabel>
-  <TextFieldInput placeholder="nama@perusahaan.co.id" />
-</TextField>
-```
-
-`FieldTeks` carries `value`, `onChange`, `name`, `type`, `autoComplete`, `isRequired`,
-`isDisabled` (while submitting) and `isInvalid` (when there is an error). The payoff:
-changing a rule — say, disabling fields while the account is locked — happens in the
-hook alone, with no JSX edits.
 
 ## Session-expired modal
 
@@ -123,7 +82,7 @@ Remote component props are **not re-declared** here. They come from the design s
 ```
 design-system build → @mf-types.zip  (contains node_modules/@duidtin/ui)
         │
-bun run tipe                              ← runs automatically via predev & prebuild
+bun run tipe   (scripts/ambil-tipe-design-system.ts)   ← runs automatically via predev & prebuild
   └─ download + unpack into @mf-types/duidtin_ui_design_system/
         │
 import type { Button } from "@mf-types/duidtin_ui_design_system/components/button";
@@ -153,70 +112,53 @@ Why bother: hand-written interfaces drift silently. New variants never arrive, r
 
 **Redirecting is not this remote's job.** The `/login` and `/` routes belong to the host; the remote only calls `onSuccess`. Same pattern as `onLogout` in `duidtin-ui-layout`.
 
-## Session: who owns what
-
-```
-window.__DUIDTIN_AUTH__   one session store, created by the HOST   ← borrowed here
-stores/form-login.ts      form state, owned by this repo only
-services/auth.ts          configureAuth({ baseUrl })               ← MUST be repeated in every remote
-```
-
-`baseUrl` is module state and every remote bundles its own copy of `@duidtin/auth`, so the host's `configureAuth()` never reaches this bundle. Only the store object is genuinely shared.
-
-`configureAuth()` is called at module scope ([`services/auth.ts`](services/auth.ts)), not in `pages/_app.tsx`: when the host loads this remote, `_app.tsx` never executes — the host only pulls the `./login` module. The same reasoning applies to the design-system registration in [`services/federation.ts`](services/federation.ts).
-
-## Error messages
-
-The wording comes from `duidtin-api` (`AuthError.message`) and is shown as-is — if the backend improves a sentence, the frontend follows without a deploy.
-
-| Situation | Code | Shown |
-|---|---|---|
-| Wrong email/password | `KREDENSIAL_SALAH` | the server's message |
-| Account locked for 15 minutes | `AKUN_TERKUNCI` | the server's message |
-| Too many attempts | `TERLALU_BANYAK_PERCOBAAN` | the server's message |
-| Server down / network failure | — (`status` 0) | *"Tidak bisa menghubungi server…"* (written in the frontend, because the server never answered) |
-
-The message appears in **one place only**, the `Alert`. Both fields are merely marked red through `isInvalid`.
-
 ## Folder structure
 
 ```
-components/remote/design-system.tsx   bridge to design-system components (TextField/Button/Alert)
-constants/federation.ts               design-system container name & remoteEntry path
-containers/login/index.tsx            ← what is exposed as ./login
-hooks/use-login.ts                    all submit logic + error mapping
-pages/_app.tsx                        deliberately empty
-pages/index.tsx                       the :3004 dev page — uses dynamic(), see the note below
+components/remote/design-system.tsx   bridge to the design-system components (TextField/Button/Alert/Modal)
+constants/federation.ts               the design system's container name & remoteEntry path
+containers/login/index.tsx            ← exposed as ./login
+containers/sesi-berakhir/index.tsx    ← exposed as ./sesi-berakhir
+hooks/use-login.ts                    login form logic: submit, fields, error mapping
+hooks/use-login-ulang.ts              modal logic: password only, email from the last session
+stores/form-login.ts                  login form state (zustand)
+stores/login-ulang.ts                 re-login modal state (zustand)
 services/auth.ts                      configureAuth() for this bundle
-services/federation.ts                register the design system in this repo's MF runtime
-stores/form-login.ts                  form state (zustand)
-styles/globals.css                    Tailwind prefix `fath` + login.css
-scripts/build-styles.ts               compile CSS into a string → styles/global.exposes.ts (generated)
+services/federation.ts                registers the design system in this repo's MF runtime
+utils/index.ts                        getBaseFederationUrl() — environment detection
+types/global.d.ts                     window.__DUIDTIN_REMOTE_ENTRY__ + __DUIDTIN_AUTH__
+pages/_app.tsx                        deliberately empty
+pages/index.tsx                       the :3004 dev page — must use dynamic(), see Config below
+scripts/build-styles.ts               compiles CSS into a string → styles/global.exposes.ts (generated)
+scripts/ambil-tipe-design-system.ts   downloads the design system's @mf-types.zip
+styles/globals.css + login.css        Tailwind prefix `fath` + login page & modal classes
+@mf-types/                            the design system's types, committed
+next.config.ts                        basePath /auth, exposes, shared, react alias
 ```
-
-## Two traps already hit, and their fixes
-
-| Symptom | Cause | Fix |
-|---|---|---|
-| The modal's **Masuk** button threw a `TypeError` on click | `onPress={kirim}` — React Aria passes a `PressEvent`, while `kirim` expects a `FormEvent` and calls `preventDefault()`. It passed while the props were hand-written (`onPress?: () => void`) | `onPress={() => void kirim()}`. Found the moment the props were switched to the real types from `@mf-types` |
-| `resolving fallback for shared module react` (from `zustand/esm/react.mjs`) | `@duidtin/auth` is installed from a local path and carries its own `zustand`, while React is deliberately absent from the package's `node_modules` | alias `react`/`react-dom` to this repo's `node_modules` in `next.config.ts` — the same pattern the host uses |
-| `loadShareSync failed! … whether an async boundary is implemented` when opening `:3004` | a Next page is a synchronous module; design-system components ask for React from the share scope before it is populated | `pages/index.tsx` loads the container through `dynamic()` — that is the async boundary. It never happens under the host, which loads `./login` asynchronously |
-| Design-system chunks requested from `:3004`, then 404 | the design system's **production** build uses a relative `assetPrefix` (`/design-system/static/`), which is only correct behind the host's rewrites | use the design system's dev server (`bun run dev:producer`), which emits absolute `http://localhost:3001/…` URLs |
 
 ## Module Federation config
 
 ```ts
+// next.config.ts
+basePath: "/auth"
+assetPrefix: process.env.MF_PUBLIC_PATH          // absolute in dev, empty in production
+allowedDevOrigins: ["super-apps-duidtin.vercel.app"]
 name: "duidtin_feature_auth"
-exposes: { "./login": "./containers/login/index.tsx", "./globals": "./styles/global.exposes.ts" }
-shared: { react, react-dom → singleton, eager }
+exposes: {
+  "./login":         "./containers/login/index.tsx",
+  "./sesi-berakhir": "./containers/sesi-berakhir/index.tsx",
+  "./globals":       "./styles/global.exposes.ts",
+}
+shared: { react, react-dom → singleton + eager }
+resolve.alias: { react, react-dom → this repo's node_modules }
 ```
 
-- `shared` **must be written by hand**: `@module-federation/enhanced` does not share React automatically the way `nextjs-mf` does in the host. Without it → `Invalid hook call`.
-- `eager: true` ensures React is already in the share scope when the design system asks for it synchronously.
-- `@duidtin/auth` is **not** shared: its session store is already a singleton through `window.__DUIDTIN_AUTH__`, so each remote may carry its own copy of the package code.
-
-## Styling
-
-Exactly like beranda: Tailwind is compiled into a **string** by `scripts/build-styles.ts`, written to `styles/global.exposes.ts` (generated, not committed), and injected as a `<style>` when `./globals` loads. Next forbids importing global CSS from anywhere but `pages/_app.tsx`, and an exposed module is clearly not that.
-
-This repo's Tailwind prefix is `fath` (beranda `fber`, layout `lyt`, design system `ui`). The `--dtn-*` tokens come from the design system, so the colours match every other page automatically.
+| Setting | Why |
+|---|---|
+| `shared` written by hand | `@module-federation/enhanced` does not share React automatically the way `nextjs-mf` does in the host. Without it → `Invalid hook call` |
+| `eager: true` | React must already be in the share scope when the design system asks for it **synchronously** (`loadShareSync`) |
+| `resolve.alias` for react | `@duidtin/auth` is installed from a local path and carries its own `zustand`; without the alias, `zustand/esm/react.mjs` fails to resolve (`resolving fallback for shared module react`) |
+| absolute `assetPrefix` in dev | without it a host on `:3000` asks itself for this remote's chunks and 404s. **Never set `MF_PUBLIC_PATH` on Vercel** — it would be baked in |
+| `allowedDevOrigins` | Next 16 answers 403 for cross-site script requests unless the Referer hostname is listed. This is what makes `?remote-lokal=duidtin_feature_auth@3004` work from the production host |
+| `pages/index.tsx` uses `dynamic()` | a Next page is a synchronous module; without an async boundary the design-system components call `loadShareSync("react")` before the share scope is filled, and fail. It never happens under the host, which loads `./login` asynchronously |
+| `@duidtin/auth` is **not** shared | its session store is already a singleton through `window.__DUIDTIN_AUTH__`, so each remote may carry its own copy of the package code |

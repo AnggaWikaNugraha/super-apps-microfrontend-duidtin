@@ -6,36 +6,28 @@ Host (shell) super-app. Dia yang pegang routing, mendaftarkan semua remote ke Mo
 
 ## Cara mulai
 
-Host butuh kedua remote nyala duluan. Tiga terminal:
+Host tidak merender UI sendiri — semuanya datang dari remote. Yang perlu dinyalakan tergantung halaman yang mau dibuka:
 
-1. `../duidtin-ui-design-system/` → `bun install` lalu `bun run dev:producer` — remote di `http://localhost:3001/design-system/static/remoteEntry.js`.
-2. `../duidtin-ui-layout/` → `bun install` lalu `bun run dev` — remote di `http://localhost:3002/layout/_next/static/chunks/remoteEntry.js`.
-3. Folder ini → `bun install` lalu `bun run dev` — buka `http://localhost:3000`.
+| Mau membuka | Server yang perlu nyala |
+|---|---|
+| `/` (beranda) | design-system `:3001`, layout `:3002`, beranda `:3003`, host `:3000` |
+| `/login` | design-system `:3001`, auth `:3004`, host `:3000` |
+| login sungguhan | + `duidtin-api` `:4000` |
+
+```bash
+cd ../duidtin-ui-design-system && bun install && bun run dev:producer   # :3001
+cd ../duidtin-ui-layout        && bun install && bun run dev            # :3002
+cd ../duidtin-feature-beranda  && bun install && bun run dev            # :3003
+cd ../duidtin-feature-auth     && bun install && bun run dev            # :3004
+cd ../duidtin-api              && bun install && bun run dev            # :4000
+cd ../duidtin-ui               && bun install && bun run dev            # :3000 ← buka ini
+```
 
 Host juga memakai paket lokal `@duidtin/auth` (`file:../duidtin-packages/auth`). `bun install` di sini sudah menyalinnya; kalau paketnya diubah, jalankan `bun install` lagi — lihat [Sesi](#sesi-duidtinauth).
 
 `bun run build` buat production build, `bun run check-types` buat `tsc --noEmit`.
 
 Kalau remote-nya belum nyala, halaman **tetap tampil** — bagian yang gagal diganti kotak merah oleh `fallbackPlugin` (lihat FASE 4). Itu memang perilaku yang diinginkan, bukan bug.
-
-## Status saat ini
-
-Sudah diverifikasi jalan di browser (bukan cuma build sukses):
-
-- Boot mendaftarkan semua remote (2 global + 1 feature), CSS yang global ke-fetch sebelum render pertama.
-- `loadRemote("duidtin_ui_layout/default")` membungkus halaman — header & footer kerender lengkap dengan style-nya.
-- **FASE 2 sudah benar-benar jalan** sejak `duidtin_feature_beranda` terdaftar di route `/`. Sebelum itu `featureRegistry` kosong dan loop-nya nol iterasi.
-- **React tetap satu instance lintas 4 repo DAN lintas versi MF.** Buktinya konkret: tombol yang dimuat lewat layout (MF 0.24.1) dan tombol yang dimuat lewat beranda (MF **2.x**) punya prefix ID React Aria yang sama (`react-aria4676304478-:r2:` vs `:r6:`) — kalau React-nya kedobelan, prefiksnya bakal beda.
-- `fallbackPlugin` terbukti kepakai: waktu layout masih gagal dimuat, halaman nggak blank, cuma bagian itu yang diganti kotak error.
-- Host **tidak merender komponen UI sendiri sama sekali** — shell-nya benar-benar tipis. Seluruh isi `/` datang dari remote.
-- **Rewrites produksi terverifikasi.** Di domain host, `/` serta `remoteEntry.js` dan chunk design-system dan layout 200 lewat rewrite. Uji lokal sebelumnya (lewat IP jaringan) menunjukkan semua request lewat satu origin, `remoteEntry.js` diminta dengan `?t=`, dan 0 request ke localhost.
-
-Belum ada:
-
-- **Feature remote kedua dan seterusnya** — sekarang baru ada satu (`duidtin_feature_beranda` di route `/`). Payroll, Transfer, Mutasi, Persetujuan masih kosong.
-- i18n (`loadLocalesForModule` di host `qcash-ui` belum ada padanannya di sini).
-- Menu di layout belum menyesuaikan peran (maker vs checker). Sesi sendiri sudah jalan penuh: guard, `/login`, dan header memakai `useAuth()`.
-- Uji browser untuk `?remote-lokal` dari **host produksi** dan untuk mode `NEXT_PUBLIC_REMOTE_DARI=publish` — lihat [Dev tanpa menyalakan semua server](#dev-tanpa-menyalakan-semua-server).
 
 ## Stack
 
@@ -69,16 +61,21 @@ duidtin-ui/
       hooks/useModuleLoading.ts
     remote/index.tsx     # jembatan remote INFRASTRUKTUR saja (layout).
                          # remote FITUR dideklarasikan langsung di pages/-nya
+    auth/GuardSesi.tsx           # penjaga sesi seluruh halaman, dipasang di _app.tsx
+    auth/ModalSesiBerakhir.tsx   # loadRemote("duidtin_feature_auth/sesi-berakhir"),
+                                 # pengecualian: dipakai di halaman mana saja
     ui/RemoteErrorBoundary.tsx   # FASE 4 lapis 3
     ui/PenandaRemoteLokal.tsx    # penanda saat ada remote lokal
   utils/index.ts         # getBaseFederationUrl() — environment detection
+  utils/rute.ts          # tujuanSetelahLogin(?dari) — saring path internal saja
   pages/
     _app.tsx             # FASE 1 dipanggil di sini + provider + getLayout
-    index.tsx            # FASE 3 — halaman pertama yang beneran render remote
+    index.tsx            # FASE 3 — beranda + layout, header pakai useAuth()
+    login.tsx            # FASE 3 — remote auth, SENGAJA tanpa getLayout
   styles/globals.css     # tailwind prefix(app)
-  types/global.d.ts      # window.__FEDERATION_LOADED, window.__DUIDTIN_REMOTE_ENTRY__
+  types/global.d.ts      # window.__FEDERATION_LOADED, __DUIDTIN_REMOTE_ENTRY__, __DUIDTIN_AUTH__
   module-federation.config.mjs
-  next.config.mjs        # rewrites produksi (dari env)
+  next.config.mjs        # rewrites produksi (dari env) + alias react ke node_modules host
   vercel.json            # cuma ignoreCommand: lewati build Vercel kalau folder ini tidak berubah
 ```
 
@@ -95,58 +92,6 @@ exposes: {},   // ← permanen kosong
 **`remotes: {}`** — ini beda paling mendasar dari `duidtin-ui-layout`, yang `remotes`-nya boleh hardcode. Kalau daftar remote host ditulis statis di sini, tiap nambah satu remote baru host wajib rebuild + redeploy. Dengan dikosongkan, daftarnya di-resolve belakangan lewat kode JS biasa (`federationInit()`), jadi nambah fitur cukup nambah satu entry di `constants/features/registry.ts`.
 
 **`exposes: {}`** — permanen. Host cuma consumer, nggak pernah jadi remote buat repo lain. `filename` tetap perlu karena plugin butuh nama container-nya sendiri buat share scope, walaupun isinya nggak dipakai siapa-siapa.
-
-## Dev tanpa menyalakan semua server
-
-Jalankan hanya repo yang sedang diubah; sisanya diambil dari Vercel.
-
-| Yang diubah | Server lokal | Buka |
-|---|---|---|
-| beranda | `duidtin-feature-beranda`: `bun run dev` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_feature_beranda@3003` |
-| layout | `duidtin-ui-layout`: `bun run dev` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_ui_layout@3002` |
-| ui system | `duidtin-ui-design-system`: `bun run dev:producer` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_ui_design_system@3001` |
-| host | `duidtin-ui` dalam mode publish | `http://localhost:3000` |
-| host + beranda | keduanya | `http://localhost:3000/?remote-lokal=duidtin_feature_beranda@3003` |
-
-### `?remote-lokal` — remote diambil dari laptop
-
-- Format `nama@port`, dipisah koma untuk lebih dari satu remote. `?remote-lokal=hapus` mengembalikan semuanya ke normal.
-- Param dipakai sekali: isinya disimpan ke `localStorage["duidtin:remote-lokal"]` (**mengganti** daftar sebelumnya), lalu dibuang dari address bar. Berlaku hanya di browser itu.
-- Selama ada override, penanda oranye muncul di pojok kiri bawah dengan tautan untuk kembali ke versi normal.
-- **Pengaman:** tujuan override hanya `http://localhost:<port>` atau `http://127.0.0.1:<port>`, nama harus terdaftar di registry, dan port 1–65535; entri lain dibuang. Kode ini ikut ke produksi, dan batasan inilah yang mencegahnya dipakai untuk memuat script dari server orang lain.
-- Host menaruh URL final tiap remote di `window.__DUIDTIN_REMOTE_ENTRY__`. Beranda — runtime MF 2.x dengan registry sendiri — membacanya untuk design-system, jadi override design-system berlaku juga di dalam beranda. Layout memakai runtime yang sama dengan host, jadi otomatis ikut.
-- Kode: [`services/federation/utils/remote-lokal.ts`](services/federation/utils/remote-lokal.ts), [`getModuleEntry()`](services/federation/utils/module-entry.ts), [`components/ui/PenandaRemoteLokal.tsx`](components/ui/PenandaRemoteLokal.tsx).
-
-Dev server remote harus menerima request script dari domain host produksi:
-
-| Remote | Perilaku dev server | Pengaturan |
-|---|---|---|
-| beranda (Next 16) | request script `/_next/*` lintas situs dijawab 403, kecuali hostname Referer ada di `allowedDevOrigins` | `allowedDevOrigins: ["super-apps-duidtin.vercel.app"]` |
-| layout (Next 14.2) | tanpa `allowedDevOrigins` hanya memberi peringatan; kalau diisi, **semua** script lintas situs ditolak | sengaja tidak diisi |
-| ui system (Rsbuild) | tidak memblokir | — |
-
-**Referer dari halaman https.** Allowlist beranda dicocokkan dengan hostname Referer, padahal halaman https yang memuat `http://localhost` tidak mengirim Referer — kebijakan bawaan Chrome (`strict-origin-when-cross-origin`) membuangnya saat request turun dari https ke http. Gejalanya di terminal beranda: *"This request did not include an allowlistable source host"*. Karena itu, selama ada override host menyisipkan `<meta name="referrer" content="origin-when-cross-origin">` sebelum remote pertama dimuat (`kirimRefererKeRemoteLokal()`); kebijakan ini tetap mengirim **origin saja**, tanpa path dan query, walaupun turun ke http. Pengunjung tanpa override tetap memakai kebijakan bawaan. Dibuktikan dengan eksperimen Chrome headless: halaman https → script `http://localhost`, tanpa meta Referer kosong, dengan meta Referer berisi origin halaman.
-
-Diuji dengan request bertanda lintas situs (`Sec-Fetch-Site: cross-site`) ke dev server: beranda 200 untuk Referer host produksi, 403 untuk domain lain dan 403 tanpa Referer; layout dan ui system 200. Di browser, `?remote-lokal` diuji pada host dev lokal: param tersimpan, entri tidak valid dibuang, penanda tampil, dan layout + beranda + tombol design-system tetap tampil. Dari host produksi, versi pertama (tanpa meta referrer) terbukti gagal dengan 403 di atas; perbaikannya belum diuji dari produksi karena belum di-deploy.
-
-- Pakai Chrome. Chrome versi baru meminta izin akses jaringan lokal sekali saat halaman Vercel memuat `localhost` — pilih izinkan. Safari bisa memblokir `http://localhost` dari halaman `https`.
-- Setelah menyimpan berkas, reload browser. Hot reload dari halaman Vercel belum diuji.
-
-### `NEXT_PUBLIC_REMOTE_DARI=publish` — host lokal, remote dari Vercel
-
-Buat `.env.local` di `duidtin-ui` (sudah di-gitignore):
-
-```
-NEXT_PUBLIC_REMOTE_DARI=publish
-REMOTE_DESIGN_SYSTEM_URL=https://super-apps-duidtin-ui-system.vercel.app
-REMOTE_LAYOUT_URL=https://super-apps-duidtin-ui-layout.vercel.app
-REMOTE_BERANDA_URL=https://<domain-beranda>.vercel.app
-```
-
-- `getBaseFederationUrl()` memakai origin `http://localhost:3000` walaupun hostname-nya localhost, dan rewrites di `next.config.mjs` — yang juga aktif saat `next dev` — meneruskan `/design-system/static/*`, `/layout/*`, dan `/beranda/*` ke Vercel.
-- Remote produksi tidak bisa dipakai langsung tanpa mode ini: `publicPath`-nya relatif (mis. `/layout/_next/`), jadi chunk-nya dicari di `localhost:3000` dan 404.
-- `NEXT_PUBLIC_*` dibaca saat `next dev` mulai — restart setelah mengubah `.env.local`.
-- Belum diuji di browser.
 
 ## Sesi (`@duidtin/auth`)
 
@@ -228,30 +173,6 @@ Terverifikasi di browser dengan empat server lokal (host, layout, design-system,
 | Sesi kedaluwarsa saat halaman terbuka | tetap di `/`, header masih tampil, modal **Sesi berakhir** muncul dengan nama + email terisi |
 | Tombol Keluar di modal | modal hilang, catatan pengguna terakhir dibuang, pindah ke `/login` |
 
-## Deploy (Vercel)
-
-Live di `https://super-apps-duidtin.vercel.app` (project Vercel dengan Root Directory `duidtin-ui`). Diverifikasi dari luar: `/`, `remoteEntry.js` dan chunk design-system serta layout 200 lewat domain host. `/beranda/*` baru jalan setelah `REMOTE_BERANDA_URL` diisi dan host di-build ulang.
-
-Di produksi host menjadi router satu domain. `next.config.mjs` membangun `rewrites()` dari env, dan tiap aturan hanya dipasang kalau env-nya terisi:
-
-| Env | Rewrite |
-|---|---|
-| `REMOTE_DESIGN_SYSTEM_URL` | `/design-system/static/:path*` → `${url}/:path*` (prefiks dibuang, karena berkas design-system ada di root domainnya) |
-| `REMOTE_LAYOUT_URL` | `/layout/:path*` → `${url}/layout/:path*` |
-| `REMOTE_BERANDA_URL` | `/beranda/:path*` → `${url}/beranda/:path*` |
-
-- Garis miring di akhir URL dibuang, jadi `https://x.vercel.app/` dan `https://x.vercel.app` sama saja.
-- Saat dev lokal env kosong, jadi tidak ada rewrite. Remote tetap diakses lewat port masing-masing.
-- Rewrites dikunci saat build. **Mengganti env berarti redeploy**, dan di dialog Redeploy centang **Use project's Ignore Build Step** harus dihilangkan: kodenya tidak berubah, jadi `ignoreCommand` akan melewati build.
-
-**Paket `@duidtin/auth` ikut di-build saat deploy.** Karena paketnya di luar Root Directory host, project Vercel host wajib menyalakan **Include files outside the Root Directory**, dan `prebuild` di `package.json` membangun paket lalu `bun install` ulang sebelum `next build`. `ignoreCommand` juga ikut memeriksa folder paket (`-- . ../duidtin-packages/auth`), supaya perubahan paket memicu build host. Env `NEXT_PUBLIC_API_URL` diisi di project Vercel host.
-
-**Cache webpack dimatikan saat build produksi** (`if (!dev) config.cache = false` di `next.config.mjs`). Vercel memulihkan cache build dari deployment sebelumnya, dan bersama `nextjs-mf` itu pernah menggagalkan build host dengan `RealContentHashPlugin: Some kind of unexpected caching problem occurred` — hash chunk di cache tidak lagi cocok dengan hasil build baru. Kalau pesan itu muncul lagi, Redeploy dengan centang **Use existing Build Cache** dihilangkan. Saat dev cache tetap aktif.
-
-**Beranda terpasang di `/`.** `REMOTE_BERANDA_URL` wajib terisi di project Vercel host **sebelum** build yang membawa kode ini. Tanpa env itu tidak ada rewrite `/beranda/*`, jadi `remoteEntry.js` beranda 404, `RetryPlugin` mencoba 3 kali, lalu area konten berubah jadi kotak error dari `fallbackPlugin`.
-
-Riwayat: beranda sempat dilepas dari host (registry kosong + halaman statis milik host) supaya host bisa di-deploy lebih dulu, lalu dipasang kembali setelah beranda di-deploy.
-
 ## Alur Arsitektur
 
 Empat fase yang jalan di **waktu berbeda**. Yang paling gampang ketuker: FASE 2 dan FASE 3 sama-sama jalan tiap pindah halaman, tapi cuma FASE 3 yang naruh komponen ke layar.
@@ -293,7 +214,7 @@ Tidak menerima argumen. Cuma menggabungkan dua sumber:
 [...globalFeatures, ...Object.values(featureRegistry)]
 ```
 
-Hasilnya sekarang — 2 global + 1 feature:
+Hasilnya sekarang — 2 global + 2 feature:
 
 ```ts
 [
@@ -310,6 +231,13 @@ Hasilnya sekarang — 2 global + 1 feature:
     routes: []
   },
   {
+    name: "duidtin_feature_auth",
+    entryPath: "/auth/_next/static/chunks/remoteEntry.js",
+    devOrigin: "http://localhost:3004",
+    routes: ["/login"],
+    matchType: "exact"               // ← cuma /login, bukan /login/apa-pun
+  },
+  {
     name: "duidtin_feature_beranda",
     entryPath: "/beranda/_next/static/chunks/remoteEntry.js",
     devOrigin: "http://localhost:3003",
@@ -318,7 +246,7 @@ Hasilnya sekarang — 2 global + 1 feature:
 ]
 ```
 
-> **`routes: []` bukan berarti "tidak didaftarkan".** Fungsi ini sengaja mengambil **global DAN per-fitur**. Kalau nanti `featureRegistry` berisi 3 fitur, di sini jadi 5 item dan kelimanya ikut didaftarkan. Yang membedakan global dari per-fitur cuma langkah 5 di bawah.
+> **`routes: []` bukan berarti "tidak didaftarkan".** Fungsi ini sengaja mengambil **global DAN per-fitur**. Sekarang `featureRegistry` berisi 2 fitur, jadi di sini ada 4 item dan keempatnya ikut didaftarkan. Yang membedakan global dari per-fitur cuma langkah 5 di bawah.
 
 #### 2. `getModuleEntry(name)` → `string`
 
@@ -416,7 +344,7 @@ Di production `devOrigin` **diabaikan sepenuhnya** — yang membedakan remote sa
 | **Parameter** | — |
 | **Memulangkan** | `{ nama_remote: "http://localhost:<port>" }` dari `localStorage["duidtin:remote-lokal"]`; `{}` kalau kosong, rusak, atau storage diblokir |
 
-Isinya ditulis `terapkanParamRemoteLokal()` di awal `federationInit()`, dari `?remote-lokal=nama@port`. Nilai yang bukan `http://localhost:*` / `http://127.0.0.1:*` dibuang saat dibaca. Rinciannya di [Dev tanpa menyalakan semua server](#dev-tanpa-menyalakan-semua-server).
+Isinya ditulis `terapkanParamRemoteLokal()` di awal `federationInit()`, dari `?remote-lokal=nama@port`. Nilai yang bukan `http://localhost:*` / `http://127.0.0.1:*` dibuang saat dibaca.
 
 ##### Contoh utuh — dua remote, dari nama sampai URL
 
@@ -1019,7 +947,7 @@ Baris pertama itu intinya: di `/` fase ini **sama sekali tidak jalan**, tapi lay
 
 > Fase ini **sudah benar-benar jalan** sejak `duidtin_feature_beranda` terdaftar di route `/`. Buka `localhost:3000` dengan console terbuka, filter `[MFE]`, dan log `FASE 2 warm-up "duidtin_feature_beranda" → ok` akan muncul. Sebelum ada feature remote, `getModulesForRoute()` selalu memulangkan `[]` dan seluruh fase ini no-op.
 
-### FASE 3 — Render sebenarnya (`pages/index.tsx`)
+### FASE 3 — Render sebenarnya (`pages/index.tsx`, `pages/login.tsx`)
 
 ```
 Browser buka "/"
@@ -1038,6 +966,13 @@ Browser buka "/"
 ```
 
 Ini fase yang **beneran naruh komponen ke layar**, dan dia **total independen dari `registry.ts`** — string-nya ditulis manual per file halaman.
+
+Ada dua halaman, dan bentuknya sengaja berbeda:
+
+| Halaman | Remote | Layout | Catatan |
+|---|---|---|---|
+| `pages/index.tsx` | `duidtin_feature_beranda/base` | `getLayout` → `DefaultLayout` (remote layout), `userName`/`onLogout` dari `useAuth()` | |
+| `pages/login.tsx` | `duidtin_feature_auth/login` | **tanpa `getLayout`** | header butuh sesi, sedangkan di sini pengguna justru belum punya sesi. Pengalihan setelah berhasil ditangani host lewat prop `onSuccess` |
 
 #### 1. `remoteComponent(path, pick?)` → `ComponentType`
 
@@ -1242,12 +1177,6 @@ scope React tembus **lintas versi Module Federation**, bukan cuma lintas repo.
 
 Karena container sudah hangat sejak fase sebelumnya, FASE 3 tinggal mengambil chunk komponennya saja. Itulah manfaat warm-up di FASE 2.
 
-#### Aturan main yang tidak dijaga apa pun
-
-- **Path berkas = path URL = key `exposes`.** Ketiganya disinkronkan manual. `pages/transaksi/index.tsx` ↔ URL `/transaksi` ↔ `exposes["./base"]` di remote-nya.
-- **Tidak di-generate** dari `registry.ts`. Menambah satu sub-halaman = mengubah **2 repo**.
-- **Salah ketik baru ketahuan di browser** — `Module "..." does not exist in container.` TypeScript maupun build tidak mengecek silang antar repo.
-
 #### Ringkasan — fungsi memulangkan apa
 
 | Fungsi | Parameter | Memulangkan |
@@ -1289,12 +1218,3 @@ Container MF di-export lewat deklarasi `var`, dan strip nggak valid jadi nama va
 Bentuknya beda karena build tool-nya beda: design-system pakai **Rslib** (`/static/`), layout pakai **Next** (`/_next/static/chunks/`). Jadi nggak bisa satu formula `buildStandardEntryUrl()` seperti di `qcash-ui` — path-nya memang harus data, bukan turunan dari nama.
 
 `devOrigin` cuma kepakai saat dev lokal (tiap remote beda port). Di luar localhost dia diabaikan: semua remote satu domain, dibedain lewat prefix di `entryPath`.
-
-## Langkah berikutnya
-
-1. **Feature remote berikutnya** — Daftar Penerima, Payroll, Mutasi, Persetujuan. Tiga hal yang wajib disiapkan di tiap remote baru sejak awal:
-   - **`assetPrefix` absolut saat dev**, kalau tidak chunk-nya diminta ke origin host dan 404 (pelajaran dari `duidtin-ui-layout`);
-   - **`shared` react singleton** — `nextjs-mf` mengurusnya otomatis, `enhanced` **tidak**;
-   - **daftarkan remote di jalur kode yang jalan saat dimuat host** — bukan di `pages/_app.tsx`, yang tidak pernah dieksekusi dalam konteks host (pelajaran dari `duidtin-feature-beranda`).
-2. Auth/context provider, biar `userName` & `onLogout` nggak hardcode lagi, dan menu bisa menyesuaikan peran.
-3. i18n per-module.

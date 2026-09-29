@@ -6,36 +6,28 @@ The super-app host (shell). It owns routing, registers every remote with the Mod
 
 ## Getting started
 
-The host needs both remotes running first. Three terminals:
+The host renders no UI of its own — everything comes from remotes. What you need to run depends on the page you want to open:
 
-1. `../duidtin-ui-design-system/` → `bun install` then `bun run dev:producer` — remote at `http://localhost:3001/design-system/static/remoteEntry.js`.
-2. `../duidtin-ui-layout/` → `bun install` then `bun run dev` — remote at `http://localhost:3002/layout/_next/static/chunks/remoteEntry.js`.
-3. This folder → `bun install` then `bun run dev` — open `http://localhost:3000`.
+| To open | Servers that must be running |
+|---|---|
+| `/` (beranda) | design system `:3001`, layout `:3002`, beranda `:3003`, host `:3000` |
+| `/login` | design system `:3001`, auth `:3004`, host `:3000` |
+| a real login | + `duidtin-api` `:4000` |
+
+```bash
+cd ../duidtin-ui-design-system && bun install && bun run dev:producer   # :3001
+cd ../duidtin-ui-layout        && bun install && bun run dev            # :3002
+cd ../duidtin-feature-beranda  && bun install && bun run dev            # :3003
+cd ../duidtin-feature-auth     && bun install && bun run dev            # :3004
+cd ../duidtin-api              && bun install && bun run dev            # :4000
+cd ../duidtin-ui               && bun install && bun run dev            # :3000 ← open this
+```
 
 The host also uses the local `@duidtin/auth` package (`file:../duidtin-packages/auth`). `bun install` here copies it; if the package changes, run `bun install` again — see [Session](#session-duidtinauth).
 
 `bun run build` for a production build, `bun run check-types` for `tsc --noEmit`.
 
 If a remote isn't running the page **still renders** — the failed part is replaced by a red box from `fallbackPlugin` (see PHASE 4). That is the intended behaviour, not a bug.
-
-## Current status
-
-Verified working in a real browser (not just a successful build):
-
-- Boot registers every remote (2 global + 1 feature); the global CSS is fetched before the first render.
-- `loadRemote("duidtin_ui_layout/default")` wraps the page — header and footer render with their styles intact.
-- **PHASE 2 now genuinely runs**, ever since `duidtin_feature_beranda` was registered on route `/`. Before that, `featureRegistry` was empty and the loop did zero iterations.
-- **React stays a single instance across 4 repos AND across MF versions.** Concrete evidence: the button loaded through the layout (MF 0.24.1) and the button loaded through beranda (MF **2.x**) share the same React Aria ID prefix (`react-aria4676304478-:r2:` vs `:r6:`) — had React been duplicated, the prefixes would differ.
-- `fallbackPlugin` is proven to fire: while the layout was still failing to load, the page did not go blank; only that part was swapped for an error box.
-- The host renders **no UI component of its own at all** — the shell is genuinely thin. Everything on `/` comes from a remote.
-- **Production rewrites verified.** On the host domain, `/` plus the design system's and layout's `remoteEntry.js` and chunks return 200 through the rewrites. An earlier local test (through the LAN IP) showed every request going through one origin, `remoteEntry.js` requested with `?t=`, and 0 requests to localhost.
-
-Not there yet:
-
-- **A second feature remote and beyond** — there is only one so far (`duidtin_feature_beranda` at route `/`). Payroll, Transfer, Statement and Approvals are still missing.
-- i18n (no equivalent of `qcash-ui`'s `loadLocalesForModule` yet).
-- The layout's menu does not yet adapt to roles (maker vs checker). The session itself is fully wired: guard, `/login`, and a header driven by `useAuth()`.
-- A browser test of `?remote-lokal` from the **production host**, and of `NEXT_PUBLIC_REMOTE_DARI=publish` mode — see [Dev without running every server](#dev-without-running-every-server).
 
 ## Stack
 
@@ -67,18 +59,23 @@ duidtin-ui/
     federation/
       provider.tsx       # PHASE 2: waitForFederation + per-route warm-up
       hooks/useModuleLoading.ts
+    auth/GuardSesi.tsx           # session guard for every page, mounted in _app.tsx
+    auth/ModalSesiBerakhir.tsx   # loadRemote("duidtin_feature_auth/sesi-berakhir"),
+                                 # the exception: it can appear on any page
     remote/index.tsx     # bridge for INFRASTRUCTURE remotes only (the layout).
                          # FEATURE remotes are declared in their own pages/ file
     ui/RemoteErrorBoundary.tsx   # PHASE 4, layer 3
     ui/PenandaRemoteLokal.tsx    # badge shown while a local remote is active
   utils/index.ts         # getBaseFederationUrl() — environment detection
+  utils/rute.ts          # tujuanSetelahLogin(?dari) — internal paths only
   pages/
     _app.tsx             # PHASE 1 is kicked off here + provider + getLayout
-    index.tsx            # PHASE 3 — the first page that actually renders remotes
+    index.tsx            # PHASE 3 — beranda + layout, header driven by useAuth()
+    login.tsx            # PHASE 3 — the auth remote, deliberately WITHOUT getLayout
   styles/globals.css     # tailwind prefix(app)
-  types/global.d.ts      # window.__FEDERATION_LOADED, window.__DUIDTIN_REMOTE_ENTRY__
+  types/global.d.ts      # window.__FEDERATION_LOADED, __DUIDTIN_REMOTE_ENTRY__, __DUIDTIN_AUTH__
   module-federation.config.mjs
-  next.config.mjs        # production rewrites (from env)
+  next.config.mjs        # production rewrites (from env) + react aliased to the host's node_modules
   vercel.json            # ignoreCommand only: skip the Vercel build when this folder is unchanged
 ```
 
@@ -95,58 +92,6 @@ exposes: {},   // ← permanently empty
 **`remotes: {}`** — this is the deepest difference from `duidtin-ui-layout`, where hardcoding `remotes` is fine. If the host's remote list were static here, adding a single new remote would force a host rebuild and redeploy. Leaving it empty means the list is resolved later by ordinary JS (`federationInit()`), so adding a feature is just one more entry in `constants/features/registry.ts`.
 
 **`exposes: {}`** — permanently. The host is only ever a consumer, never a remote for another repo. `filename` is still required because the plugin needs a name for its own container to manage the shared scope, even though nobody consumes it.
-
-## Dev without running every server
-
-Run only the repo you are changing; everything else comes from Vercel.
-
-| Changing | Local server | Open |
-|---|---|---|
-| beranda | `duidtin-feature-beranda`: `bun run dev` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_feature_beranda@3003` |
-| layout | `duidtin-ui-layout`: `bun run dev` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_ui_layout@3002` |
-| ui system | `duidtin-ui-design-system`: `bun run dev:producer` | `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_ui_design_system@3001` |
-| host | `duidtin-ui` in publish mode | `http://localhost:3000` |
-| host + beranda | both | `http://localhost:3000/?remote-lokal=duidtin_feature_beranda@3003` |
-
-### `?remote-lokal` — a remote served from your laptop
-
-- Format `name@port`, comma-separated for several remotes. `?remote-lokal=hapus` returns everything to normal.
-- The param is used once: its contents are saved to `localStorage["duidtin:remote-lokal"]` (**replacing** the previous list), then removed from the address bar. It applies to that browser only.
-- While an override is active, an orange badge sits in the bottom-left corner with a link back to the normal version.
-- **Safeguard:** override targets must be `http://localhost:<port>` or `http://127.0.0.1:<port>`, the name must be in the registry, and the port 1–65535; anything else is dropped. This code ships to production, and that restriction is what stops it from being used to load scripts from someone else's server.
-- The host puts every remote's final URL in `window.__DUIDTIN_REMOTE_ENTRY__`. Beranda — an MF 2.x runtime with its own registry — reads it for the design system, so a design-system override also applies inside beranda. The layout shares the host's runtime, so it follows automatically.
-- Code: [`services/federation/utils/remote-lokal.ts`](services/federation/utils/remote-lokal.ts), [`getModuleEntry()`](services/federation/utils/module-entry.ts), [`components/ui/PenandaRemoteLokal.tsx`](components/ui/PenandaRemoteLokal.tsx).
-
-The remote's dev server has to accept script requests from the production host's domain:
-
-| Remote | Dev server behaviour | Setting |
-|---|---|---|
-| beranda (Next 16) | cross-site script requests to `/_next/*` get a 403 unless the Referer hostname is in `allowedDevOrigins` | `allowedDevOrigins: ["super-apps-duidtin.vercel.app"]` |
-| layout (Next 14.2) | without `allowedDevOrigins` it only warns; once set, **every** cross-site script is rejected | deliberately unset |
-| ui system (Rsbuild) | does not block | — |
-
-**Referer from an https page.** Beranda's allowlist is matched against the Referer hostname, but an https page loading `http://localhost` sends no Referer — Chrome's default policy (`strict-origin-when-cross-origin`) strips it when a request goes from https down to http. The symptom in beranda's terminal: *"This request did not include an allowlistable source host"*. So while an override is active, the host inserts `<meta name="referrer" content="origin-when-cross-origin">` before the first remote loads (`kirimRefererKeRemoteLokal()`); that policy still sends **the origin only**, no path or query, even when going down to http. Visitors without an override keep the default policy. Proven with a headless Chrome experiment: an https page → a `http://localhost` script, with no Referer without the meta and the page origin as Referer with it.
-
-Tested with cross-site-flagged requests (`Sec-Fetch-Site: cross-site`) against the dev servers: beranda returns 200 for the production host's Referer, 403 for another domain and 403 with no Referer; the layout and ui system return 200. In a browser, `?remote-lokal` was tested against the local dev host: the param is saved, invalid entries are dropped, the badge shows, and the layout, beranda and design-system button still render. From the production host, the first version (without the referrer meta) was shown to fail with the 403 above; the fix has not been tested from production because it is not deployed yet.
-
-- Use Chrome. Recent Chrome versions ask once for local network access when a Vercel page loads `localhost` — allow it. Safari may block `http://localhost` from an `https` page.
-- After saving a file, reload the browser. Hot reload from the Vercel page is untested.
-
-### `NEXT_PUBLIC_REMOTE_DARI=publish` — local host, remotes from Vercel
-
-Create `.env.local` in `duidtin-ui` (already git-ignored):
-
-```
-NEXT_PUBLIC_REMOTE_DARI=publish
-REMOTE_DESIGN_SYSTEM_URL=https://super-apps-duidtin-ui-system.vercel.app
-REMOTE_LAYOUT_URL=https://super-apps-duidtin-ui-layout.vercel.app
-REMOTE_BERANDA_URL=https://<beranda-domain>.vercel.app
-```
-
-- `getBaseFederationUrl()` uses the `http://localhost:3000` origin even though the hostname is localhost, and the rewrites in `next.config.mjs` — also active under `next dev` — forward `/design-system/static/*`, `/layout/*` and `/beranda/*` to Vercel.
-- Production remotes cannot be used directly without this mode: their `publicPath` is relative (e.g. `/layout/_next/`), so their chunks are looked up on `localhost:3000` and 404.
-- `NEXT_PUBLIC_*` is read when `next dev` starts — restart after changing `.env.local`.
-- Not yet tested in a browser.
 
 ## Session (`@duidtin/auth`)
 
@@ -228,30 +173,6 @@ Verified in a browser with four local servers (host, layout, design system, auth
 | Session expires while the page is open | stays on `/`, the header is still there, the **Sesi berakhir** modal appears with name + email prefilled |
 | The modal's sign-out button | the modal disappears, the last-user record is dropped, and we move to `/login` |
 
-## Deploy (Vercel)
-
-Live at `https://super-apps-duidtin.vercel.app` (a Vercel project with Root Directory `duidtin-ui`). Verified from outside: `/`, plus the design system's and layout's `remoteEntry.js` and chunks, return 200 through the host domain. `/beranda/*` works once `REMOTE_BERANDA_URL` is set and the host is rebuilt.
-
-In production the host acts as a single-domain router. `next.config.mjs` builds `rewrites()` from env, and each rule is added only when its variable is set:
-
-| Env | Rewrite |
-|---|---|
-| `REMOTE_DESIGN_SYSTEM_URL` | `/design-system/static/:path*` → `${url}/:path*` (prefix stripped, since the design system's files sit at the root of its domain) |
-| `REMOTE_LAYOUT_URL` | `/layout/:path*` → `${url}/layout/:path*` |
-| `REMOTE_BERANDA_URL` | `/beranda/:path*` → `${url}/beranda/:path*` |
-
-- A trailing slash on the URL is stripped, so `https://x.vercel.app/` and `https://x.vercel.app` behave the same.
-- In local dev the variables are empty, so there are no rewrites. Remotes are still reached through their own ports.
-- Rewrites are locked in at build time. **Changing an env var means a redeploy**, and in the Redeploy dialog **Use project's Ignore Build Step** must be unticked: the code has not changed, so `ignoreCommand` would skip the build.
-
-**`@duidtin/auth` is built during deploys.** The package lives outside the host's Root Directory, so the host's Vercel project must enable **Include files outside the Root Directory**, and `prebuild` in `package.json` builds the package and re-runs `bun install` before `next build`. `ignoreCommand` also watches the package folder (`-- . ../duidtin-packages/auth`) so package changes trigger a host build. `NEXT_PUBLIC_API_URL` is set in the host's Vercel project.
-
-**Webpack caching is off for production builds** (`if (!dev) config.cache = false` in `next.config.mjs`). Vercel restores the build cache from the previous deployment, and together with `nextjs-mf` that once failed the host build with `RealContentHashPlugin: Some kind of unexpected caching problem occurred` — the chunk hashes in the cache no longer matched the new build. If that message appears again, Redeploy with **Use existing Build Cache** unticked. The cache stays on in dev.
-
-**Beranda is attached on `/`.** `REMOTE_BERANDA_URL` must be set in the host's Vercel project **before** the build that ships this code. Without it there is no `/beranda/*` rewrite, so beranda's `remoteEntry.js` returns 404, `RetryPlugin` tries 3 times, and the content area turns into the `fallbackPlugin` error box.
-
-History: beranda was briefly detached from the host (an empty registry plus a static page owned by the host) so the host could be deployed first, then re-attached once beranda was deployed.
-
 ## Architecture flow
 
 Four phases that run at **different times**. The easiest confusion: PHASE 2 and PHASE 3 both run on every navigation, but only PHASE 3 puts anything on screen.
@@ -293,7 +214,7 @@ Takes no arguments. It merely merges two sources:
 [...globalFeatures, ...Object.values(featureRegistry)]
 ```
 
-What it returns today — 2 global + 1 feature:
+What it returns today — 2 global + 2 features:
 
 ```ts
 [
@@ -305,6 +226,11 @@ What it returns today — 2 global + 1 feature:
     entryPath: "/layout/_next/static/chunks/remoteEntry.js",
     devOrigin: "http://localhost:3002",
     routes: [] },
+  { name: "duidtin_feature_auth",
+    entryPath: "/auth/_next/static/chunks/remoteEntry.js",
+    devOrigin: "http://localhost:3004",
+    routes: ["/login"],
+    matchType: "exact" },         // ← only /login, not /login/anything
   { name: "duidtin_feature_beranda",
     entryPath: "/beranda/_next/static/chunks/remoteEntry.js",
     devOrigin: "http://localhost:3003",
@@ -312,7 +238,7 @@ What it returns today — 2 global + 1 feature:
 ]
 ```
 
-> **`routes: []` does not mean "not registered".** This function deliberately takes **both global AND per-feature**. Once `featureRegistry` holds 3 features this returns 5 items, and all five get registered. The only thing separating global from per-feature is step 5 below.
+> **`routes: []` does not mean "not registered".** This function deliberately takes **both global AND per-feature**. `featureRegistry` currently holds 2 features, so this returns 4 items and all four get registered. The only thing separating global from per-feature is step 5 below.
 
 #### 2. `getModuleEntry(name)` → `string`
 
@@ -406,7 +332,7 @@ In production `devOrigin` is **ignored entirely** — the only thing distinguish
 | **Parameter** | — |
 | **Returns** | `{ remote_name: "http://localhost:<port>" }` from `localStorage["duidtin:remote-lokal"]`; `{}` when empty, corrupt, or storage is blocked |
 
-Its contents are written by `terapkanParamRemoteLokal()` at the start of `federationInit()`, from `?remote-lokal=name@port`. Values other than `http://localhost:*` / `http://127.0.0.1:*` are dropped on read. Details in [Dev without running every server](#dev-without-running-every-server).
+Its contents are written by `terapkanParamRemoteLokal()` at the start of `federationInit()`, from `?remote-lokal=name@port`. Values other than `http://localhost:*` / `http://127.0.0.1:*` are dropped on read.
 
 ##### A full worked example — two remotes, from name to URL
 
@@ -1009,7 +935,7 @@ That first row is the whole point: on `/` this phase **did not run at all**, yet
 
 > This phase **now genuinely runs**, ever since `duidtin_feature_beranda` was registered on route `/`. Open `localhost:3000` with the console open, filter for `[MFE]`, and the log `FASE 2 warm-up "duidtin_feature_beranda" → ok` appears. Before the first feature remote existed, `getModulesForRoute()` always returned `[]` and this whole phase was a no-op.
 
-### PHASE 3 — The actual render (`pages/index.tsx`)
+### PHASE 3 — The actual render (`pages/index.tsx`, `pages/login.tsx`)
 
 ```
 Browser opens "/"
@@ -1028,6 +954,13 @@ Browser opens "/"
 ```
 
 This is the phase that **actually puts components on screen**, and it is **entirely independent of `registry.ts`** — the strings are written by hand, one page file at a time.
+
+There are two pages, and their shapes differ on purpose:
+
+| Page | Remote | Layout | Note |
+|---|---|---|---|
+| `pages/index.tsx` | `duidtin_feature_beranda/base` | `getLayout` → `DefaultLayout` (the layout remote), with `userName`/`onLogout` from `useAuth()` | |
+| `pages/login.tsx` | `duidtin_feature_auth/login` | **no `getLayout`** | the header needs a session, and here the user has none yet. Redirecting after success is the host's job, through the `onSuccess` prop |
 
 #### 1. `remoteComponent(path, pick?)` → `ComponentType`
 
@@ -1234,12 +1167,6 @@ shared scope carries **across Module Federation versions**, not merely across re
 
 Because the container was warmed in an earlier phase, PHASE 3 only has to fetch the component chunk. That is precisely the payoff of PHASE 2's warm-up.
 
-#### Rules that nothing enforces
-
-- **File path = URL path = `exposes` key.** All three are kept in sync by hand. `pages/transaksi/index.tsx` ↔ URL `/transaksi` ↔ `exposes["./base"]` in its remote.
-- **Nothing is generated** from `registry.ts`. Adding one sub-page means editing **2 repos**.
-- **A typo only surfaces in the browser** — `Module "..." does not exist in container.` Neither TypeScript nor the build cross-checks across repos.
-
 #### Summary — what each function returns
 
 | Function | Parameters | Returns |
@@ -1281,12 +1208,3 @@ An MF container is exported through a `var` declaration, and hyphens aren't vali
 The shapes differ because the build tools differ: the design system uses **Rslib** (`/static/`), the layout uses **Next** (`/_next/static/chunks/`). So a single `buildStandardEntryUrl()` formula like `qcash-ui`'s cannot work — the path genuinely has to be data, not something derived from the name.
 
 `devOrigin` only matters during local dev (each remote on its own port). Off localhost it is ignored: every remote shares one domain and is told apart by the prefix in `entryPath`.
-
-## Next steps
-
-1. **The next feature remotes** — Beneficiaries, Payroll, Statement, Approvals. Three things every new remote must get right from day one:
-   - **an absolute `assetPrefix` in dev**, otherwise its chunks are requested from the host's origin and 404 (lesson from `duidtin-ui-layout`);
-   - **`shared` react as a singleton** — `nextjs-mf` handles it automatically, `enhanced` does **not**;
-   - **register remotes on a code path that runs when the host loads it** — not in `pages/_app.tsx`, which is never executed in the host's context (lesson from `duidtin-feature-beranda`).
-2. An auth/context provider, so `userName` and `onLogout` stop being hardcoded and the menu can adapt to roles.
-3. Per-module i18n.
