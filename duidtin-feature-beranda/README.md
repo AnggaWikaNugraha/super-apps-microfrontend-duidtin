@@ -151,7 +151,7 @@ duidtin-feature-beranda/
     beranda.css          # BEM classes + @apply
   index.html             # the dev page
   rsbuild.config.ts · postcss.config.mjs
-  vercel.json            # buildCommand + outputDirectory + ignoreCommand
+  vercel.json            # framework:null + buildCommand + outputDirectory + ignoreCommand
 ```
 
 ## The host contract
@@ -499,6 +499,29 @@ The host also has a `RemoteErrorBoundary`, but that wraps the WHOLE application 
 5. **`isCustomElement` is not optional.** Without it Vue treats `dtn-card` as an unregistered component. Beyond the console warning there is a subtler effect: values are passed as DOM properties rather than attributes — and the wrapper only observes attributes.
 
 6. **A plain `.click()` on the inner `<dtn-button>` does work.** The first guess was that pointer events would have to be simulated, since React Aria uses `usePress`. Not so: one `click()` already produces a bubbling `CustomEvent("press")` that reaches the Vue handler. Verified over CDP.
+
+## Deploy
+
+Its own Vercel project, with **Root Directory** `duidtin-feature-beranda`. Every build setting lives in `vercel.json`, so nothing needs clicking in the dashboard except one env var:
+
+```json
+{
+  "framework": null,          // NOT Next.js any more — the output is static
+  "buildCommand": "bun run build",
+  "outputDirectory": "dist",  // the files land in dist/beranda/**
+  "ignoreCommand": "… skip the build when this folder and ../duidtin-packages/auth are unchanged"
+}
+```
+
+`"framework": null` is required. This project used to be Next.js and Vercel keeps using that preset unless contradicted — the build then looks for a `.next/` that no longer exists.
+
+| Env on the beranda project | Value | If empty |
+|---|---|---|
+| `PUBLIC_API_URL` | the production API URL | falls back to `http://localhost:4000`, so the deployed home page hits the visitor's own laptop and always fails |
+
+The value is **baked at build time**, so setting the env is not enough — it needs a redeploy.
+
+And on the **host** project, `REMOTE_BERANDA_URL` must hold this project's URL. Without it the host has no `/beranda/:path*` rewrite, so `remoteEntry.js` 404s and the whole remote dies — that single file is the door to every chunk. Rewrites are baked into the host build too, so the host needs a redeploy as well.
 
 ## Next steps
 

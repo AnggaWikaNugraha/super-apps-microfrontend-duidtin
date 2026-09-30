@@ -151,7 +151,7 @@ duidtin-feature-beranda/
     beranda.css          # kelas BEM + @apply
   index.html             # halaman dev
   rsbuild.config.ts · postcss.config.mjs
-  vercel.json            # buildCommand + outputDirectory + ignoreCommand
+  vercel.json            # framework:null + buildCommand + outputDirectory + ignoreCommand
 ```
 
 ## Kontrak dengan host
@@ -499,6 +499,29 @@ Host juga punya `RemoteErrorBoundary`, tapi itu membungkus SELURUH isi aplikasi 
 5. **`isCustomElement` tidak opsional.** Tanpa opsi itu Vue menganggap `dtn-card` komponen yang belum terdaftar. Selain peringatan di console, efek yang lebih halus: nilainya dikirim sebagai properti DOM, bukan atribut — dan pembungkusnya cuma memantau atribut.
 
 6. **Klik `.click()` pada `<dtn-button>` di dalamnya memang bekerja.** Awalnya diduga perlu mensimulasikan pointer event karena React Aria memakai `usePress`. Ternyata tidak: satu `click()` sudah menghasilkan `CustomEvent("press")` yang menggelembung sampai ke handler Vue. Diverifikasi lewat CDP.
+
+## Deploy
+
+Project Vercel sendiri, dengan **Root Directory** `duidtin-feature-beranda`. Seluruh setelan build ada di `vercel.json`, jadi tidak ada yang perlu diklik di dashboard kecuali satu env:
+
+```json
+{
+  "framework": null,          // BUKAN Next.js lagi — outputnya static
+  "buildCommand": "bun run build",
+  "outputDirectory": "dist",  // berkasnya di dist/beranda/**
+  "ignoreCommand": "… lewati build kalau folder ini dan ../duidtin-packages/auth tidak berubah"
+}
+```
+
+`"framework": null` wajib. Project ini dulu Next.js dan Vercel akan tetap memakai preset itu kalau tidak dibantah — hasilnya build mencari `.next/` yang tidak pernah ada lagi.
+
+| Env di project beranda | Nilai | Kalau kosong |
+|---|---|---|
+| `PUBLIC_API_URL` | URL API produksi | jatuh ke `http://localhost:4000`, jadi beranda produksi menembak laptop pembukanya dan selalu gagal |
+
+Nilainya **ke-bake saat build**, jadi mengisi env saja tidak cukup — harus redeploy.
+
+Dan di project **host**, `REMOTE_BERANDA_URL` harus berisi URL project ini. Tanpa itu host tidak punya rewrite `/beranda/:path*`, jadi `remoteEntry.js` 404 dan seluruh remote mati — satu berkas itu pintu ke semua chunk. Rewrite juga dikunci saat build host, jadi host ikut perlu redeploy.
 
 ## Langkah berikutnya
 

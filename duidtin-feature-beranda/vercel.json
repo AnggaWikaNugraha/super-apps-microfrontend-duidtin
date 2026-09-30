@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
   "buildCommand": "bun run build",
   "outputDirectory": "dist",
   "ignoreCommand": "sha=\"${VERCEL_GIT_PREVIOUS_SHA:-}\"; [ -z \"$sha\" ] && exit 1; git cat-file -e \"$sha^{commit}\" 2>/dev/null || exit 1; git diff --quiet \"$sha\" HEAD -- . ../duidtin-packages/auth && exit 0 || exit 1"
