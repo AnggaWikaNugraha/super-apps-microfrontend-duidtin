@@ -10,7 +10,7 @@ The host renders no UI of its own — everything comes from remotes. What you ne
 
 | To open | Servers that must be running |
 |---|---|
-| `/` (beranda) | design system `:3001`, layout `:3002`, beranda `:3003`, host `:3000` |
+| `/` (beranda) | design system `:3001`, layout `:3002`, beranda `:3003` (Vue), host `:3000` |
 | `/login` | design system `:3001`, auth `:3004`, host `:3000` |
 | a real login | + `duidtin-api` `:4000` |
 
@@ -64,6 +64,8 @@ duidtin-ui/
                                  # the exception: it can appear on any page
     remote/index.tsx     # bridge for INFRASTRUCTURE remotes only (the layout).
                          # FEATURE remotes are declared in their own pages/ file
+    federation/remote-mount.tsx  # bridge for remotes that are NOT React (beranda is Vue):
+                                 # gives them a <div> and calls their mount(el)
     ui/RemoteErrorBoundary.tsx   # PHASE 4, layer 3
     ui/PenandaRemoteLokal.tsx    # badge shown while a local remote is active
   utils/index.ts         # getBaseFederationUrl() — environment detection
@@ -232,7 +234,7 @@ What it returns today — 2 global + 2 features:
     routes: ["/login"],
     matchType: "exact" },         // ← only /login, not /login/anything
   { name: "duidtin_feature_beranda",
-    entryPath: "/beranda/_next/static/chunks/remoteEntry.js",
+    entryPath: "/beranda/static/remoteEntry.js",   // ← Rsbuild, not Next: no _next/static/chunks
     devOrigin: "http://localhost:3003",
     routes: ["/"] },              // ← this one is per-feature, not global
 ]
@@ -959,7 +961,7 @@ There are two pages, and their shapes differ on purpose:
 
 | Page | Remote | Layout | Note |
 |---|---|---|---|
-| `pages/index.tsx` | `duidtin_feature_beranda/base` | `getLayout` → `DefaultLayout` (the layout remote), with `userName`/`onLogout` from `useAuth()` | |
+| `pages/index.tsx` | `duidtin_feature_beranda/base` | `getLayout` → `DefaultLayout` (the layout remote), with `userName`/`onLogout` from `useAuth()` | this remote is **Vue**, so it renders through `<RemoteMount>`, not `remoteComponent()` |
 | `pages/login.tsx` | `duidtin_feature_auth/login` | **no `getLayout`** | the header needs a session, and here the user has none yet. Redirecting after success is the host's job, through the `onSuccess` prop |
 
 #### 1. `remoteComponent(path, pick?)` → `ComponentType`
@@ -995,6 +997,34 @@ at component MOUNT     next/dynamic runs the loader
 ```
 
 So defining 20 remote bridges in one file does not trigger 20 fetches. Only what renders gets fetched.
+
+#### 1b. `<RemoteMount modul>` — for remotes that are not React
+
+`remoteComponent()` assumes the module exports a component. That does not hold for
+`duidtin_feature_beranda`, which is Vue: React cannot render a Vue component, nor the
+other way round. The only thing that crosses the boundary is **DOM**, so that remote
+exposes a function instead.
+
+```tsx
+// components/federation/remote-mount.tsx
+const mod = await loadRemote<{ mount?: Pemasang }>(modul);
+lepas = mod.mount(wadah.current);   // inside useEffect
+…
+return () => lepas?.();             // on cleanup
+```
+
+| | |
+|---|---|
+| **Prop** | `modul: string` — `"duidtin_feature_beranda/base"` |
+| **Expects** | `mount(el: HTMLElement) => () => void` |
+| **Renders** | one empty `<div>`; everything inside it belongs to the remote |
+
+The host never learns which framework fills that `<div>`. A Svelte or Angular remote
+later uses this same component with not a line changed here. Two details that matter:
+the effect can be torn down before the module arrives (in dev, StrictMode runs every
+effect twice), so the result is discarded when that happens; and a failure to load is
+rendered inline rather than thrown, because one dead feature should not take the page
+with it.
 
 #### 2. `loadRemote(path)` → `Promise<unknown>`
 
@@ -1115,23 +1145,27 @@ Browser opens http://localhost:3000/
 │           out      : { default: ƒ }
 │           NETWORK  : GET :3002/layout/_next/.../__federation_expose_default.js
 │
-└─▶ <HomePage /> → <BerandaContainer /> MOUNTS   ← FEATURE remote, declared
+└─▶ <HomePage /> → <RemoteMount> MOUNTS          ← FEATURE remote, declared
       │                                             directly in pages/index.tsx
       └─▶ loadRemote("duidtin_feature_beranda/base")
-            out      : { default: ƒ }
-            NETWORK  : GET :3003/beranda/_next/.../[base chunk]
+            out      : { mount: ƒ, default: ƒ }    ← a FUNCTION, not a component
+            NETWORK  : GET :3003/beranda/static/js/async/[base chunk]
             │
-            └─ INSIDE beranda, a remote calls another remote again:
-                 loadRemote("duidtin_ui_design_system/components/card")   → { Card, default }
-                 loadRemote("duidtin_ui_design_system/components/button") → { Button, default }
-                 loadRemote("duidtin_ui_design_system/components/alert")  → { Alert, default }
-                 loadRemote("duidtin_ui_design_system/components/badge")  → { Badge, default }
-                 NETWORK : GET :3001/design-system/static/__federation_expose_components__*.js
+            └─ mount(<div>) → a Vue app is mounted into that element
+                 loadRemote("duidtin_ui_design_system/component-wrapper/semua")
+                 NETWORK : GET :3001/design-system/static/__federation_expose_component_wrapper__*.js
+                 → customElements.define("dtn-card", …) and so on
+                 → <dtn-card> in a Vue template runs the very same React component
 ```
 
 Note the split on the `MOUNTS` lines: the layout comes through `components/remote/`
 (an infrastructure remote, used across pages), while beranda is declared directly
 in `pages/index.tsx` (a feature remote, used by one page only).
+
+And note the shape of what comes back: beranda returns a **function**, not a component.
+That is not a stylistic choice — the remote is Vue, and React cannot render a Vue
+component. `components/federation/remote-mount.tsx` supplies an empty `<div>`, calls
+the function, and calls the returned cleanup when the effect tears down.
 
 The resulting DOM — **four repos** interleaved in one tree:
 
@@ -1139,12 +1173,15 @@ The resulting DOM — **four repos** interleaved in one tree:
 <div class="lyt-layout">                            <!-- duidtin_ui_layout -->
   <header class="lyt-header">
     <span class="ui-badge ui-badge--soft" …>        <!-- design system VIA the layout -->
-    <button class="ui-button …" id="react-aria4676304478-:r2:">Keluar</button>
+    <button class="ui-button …" id="react-aria2066869333-:r4:">Keluar</button>
   </header>
   <main class="lyt-layout__main">
-    <div class="fber-page">                         <!-- duidtin_feature_beranda, Tailwind prefix fber -->
-      <div class="ui-card ui-card--elevated" …>     <!-- design system VIA beranda -->
-      <button class="ui-button …" id="react-aria4676304478-:r6:">Payroll</button>
+    <div class="fber-page">                         <!-- duidtin_feature_beranda (VUE), prefix fber -->
+      <dtn-card variant="elevated">                 <!-- a design-system Web Component -->
+        <span data-dtn-wadah>                       <!-- the React root INSIDE the element -->
+          <div class="ui-card ui-card--elevated" …>
+      <dtn-button color="default" variant="outline">
+        <button class="ui-button …" id="react-aria2066869333-:r6:">Perbarui</button>
     </div>
   </main>
 </div>
@@ -1152,10 +1189,16 @@ The resulting DOM — **four repos** interleaved in one tree:
 
 The host itself contributes **not a single element** here — it only composes.
 
-And look at those two React Aria `id`s: `:r2:` was loaded through the layout (MF 0.24.1),
-`:r6:` through beranda (MF **2.x**), yet the prefix is identical (`react-aria4676304478`).
-Had React been duplicated, the prefixes would differ. That is mechanical proof the React
-shared scope carries **across Module Federation versions**, not merely across repos.
+And look at those two React Aria `id`s: the header one is rendered by the **host's** React,
+the beranda one by a React root inside a **Web Component**, inside a **Vue** app, loaded
+through **beranda's own** MF runtime — yet the prefix is identical
+(`react-aria2066869333`). Had React been duplicated, the prefixes would differ. That is
+mechanical proof the React shared scope reaches all the way into a remote that is not
+even React.
+
+The `<span data-dtn-wadah>` above is not decoration either: it is the container the
+design-system wrapper creates for its React root, so that `createRoot().render()` does
+not overwrite the original children Vue passed in. Details in the design-system README.
 
 #### What this phase fetches, and what it does NOT
 

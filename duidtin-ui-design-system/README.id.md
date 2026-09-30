@@ -38,7 +38,7 @@ Dari root repo ini (`x-duidtin/duidtin-ui-design-system/`):
 
 ## Pembungkus Web Component (`<dtn-*>`)
 
-Komponen di `packages/ui` semuanya komponen **React**. Supaya bisa dipakai konsumen yang bukan React — remote Vue/Svelte/Angular nanti — sebagian juga dibungkus jadi custom element.
+Komponen di `packages/ui` semuanya komponen **React**. Supaya bisa dipakai konsumen yang bukan React, sebagian juga dibungkus jadi custom element. Sejak `duidtin-feature-beranda` pindah ke **Vue**, jalur ini bukan lagi persiapan untuk nanti — itu satu-satunya cara beranda memakai design-system, dan pemakaian sungguhan itulah yang akhirnya menyingkap dua bug di bawah.
 
 Daftar lengkapnya ada di folder `src/component-wrapper/` itu sendiri: komponen yang dibungkus punya `buatElemen(...)`, yang belum punya berkas berisi `BELUM_DIBUNGKUS` beserta alasannya. Sekarang 11 dibungkus, 7 belum.
 
@@ -73,10 +73,13 @@ Tanpa pustaka pihak ketiga — Custom Elements API + `react-dom/client`:
 ```
 connectedCallback
   ├─ bungkus anak asli dalam <span data-dtn-anak>     ← tidak pernah dilepas dari dokumen
+  │    display:none dulu                              ← yang memunculkannya callback ref di bawah
   ├─ tambah <span data-dtn-wadah> → createRoot()      ← hanya INI milik React
-  └─ render(<Komponen {...props}><span ref=slot/></Komponen>)
-        └─ pindahkan pembungkus anak ke dalam slot     ← light DOM slot
-             └─ slot tidak dirender (mis. DataState saat memuat) → anak disembunyikan, bukan dihapus
+  └─ render(<Komponen {...props}><span ref=#taruhSlot/></Komponen>)
+        └─ React memanggil #taruhSlot SAAT COMMIT     ← bukan setelah render() kembali
+             ├─ dapat elemen → pindahkan pembungkus anak ke dalamnya + tampilkan
+             └─ dapat null   → komponen tidak merender slot (mis. DataState kosong/gagal)
+                               → anak disembunyikan, bukan dihapus
 
 attributeChangedCallback → render ulang
 disconnectedCallback     → unmount DITUNDA satu tick; elemen yang cuma dipindah tidak ikut hancur
@@ -88,10 +91,19 @@ Dua hal yang sempat menjebak saat membangunnya, dicatat supaya tidak terulang:
 |---|---|---|
 | Label tombol hilang, `<button>` ter-render kosong | `createRoot().render()` menimpa isi elemen; `@r2wc/react-to-web-component` tidak menyentuh `childNodes` sama sekali | pabrik sendiri yang menyimpan anak lebih dulu — pustaka itu akhirnya dicopot |
 | Elemen tidak terdaftar sama sekali | `sideEffects` di `packages/ui/package.json` — `customElements.define()` itu efek samping murni, dan glob satu tingkat (`/*`) tidak menjangkau `button/index.ts` | `"sideEffects": ["./src/component-wrapper/**", "./dist/component-wrapper/**"]` |
+| `<dtn-badge>Data contoh</dtn-badge>` tampil **kosong**, tapi `<dtn-button>` benar | posisi anak dibaca lewat `queueMicrotask` setelah `render()`. Root React 18 merender **asinkron**, jadi slot-nya belum ada dan anaknya disembunyikan selamanya. Tombol lolos cuma karena atributnya berubah sesudahnya dan render kedua menemukan slot dari commit pertama | `createRef` → **callback ref** beridentitas stabil, yang dipanggil React tepat saat commit. Sekaligus menangani kasus sebaliknya lewat `ref(null)` |
+| `<dtn-skeleton-lines lines="5">` selalu menghasilkan 3 balok | codegen cuma mengenal props untuk elemen induk, jadi `lines` nempel di `<dtn-skeleton>` yang tidak memakainya | `propsBagian` di `peta.ts` — bagian compound boleh punya props sendiri |
 
 **Shadow DOM sengaja tidak dipakai.** CSS design-system berbasis kelas global (`ui-button`); shadow boundary akan memutusnya dan tiap elemen harus menyuntikkan CSS-nya sendiri. Dengan light DOM, expose `./globals` yang sudah ada tetap berlaku apa adanya.
 
-**React tetap dimuat** di halaman yang memakai elemen ini — wrapper ini antarmuka, bukan penulisan ulang. Remote non-React cukup mendeklarasikan `shared: { react, react-dom: { singleton: true } }` supaya memakai React milik host, bukan membawa React kedua.
+**React tetap dimuat** di halaman yang memakai elemen ini — wrapper ini antarmuka, bukan penulisan ulang. Tapi konsumen non-React **tidak perlu memasang React sendiri**: `shared` di sini dideklarasikan singleton **dengan fallback**, jadi
+
+| Keadaan | React yang dipakai |
+|---|---|
+| Ada yang menyediakan di share scope (mis. host React) | punya host — satu instance, `id` React Aria-nya pun sama prefiks |
+| Share scope kosong (remote non-React dibuka sendiri) | salinan bawaan design-system |
+
+`duidtin-feature-beranda` memanfaatkan itu: `shared: {}` kosong, nol dependensi React, dan tetap jalan di dua keadaan.
 
 ### Codegen (`packages/ui/scripts/generate-wrappers.ts`)
 
@@ -104,9 +116,11 @@ Dijalankan otomatis lewat `prebuild`, atau manual: `bun run gen:wrapper`.
 
 | Ditulis tangan sekali | Di mana |
 |---|---|
-| props non-varian (`isDisabled`, `data`, `isLoading`), event (`onPress` → `press`), daftar yang dilewati | `src/component-wrapper/utils/peta.ts` |
+| props non-varian (`isDisabled`, `data`, `isLoading`), props bagian compound (`propsBagian`), event (`onPress` → `press`), daftar yang dilewati | `src/component-wrapper/utils/peta.ts` |
 
 Keluarannya: `component-wrapper/<n>/index.ts` per komponen, `component-wrapper/index.ts` (mendaftarkan semua), dan `utils/elemen.d.ts` (deklarasi JSX). Semuanya **berkas generate** — jangan diedit tangan.
+
+`elemen.d.ts` itu deklarasi **JSX**, jadi cuma berlaku untuk konsumen React. Konsumen Vue butuh bentuk lain (`declare module "vue" { interface GlobalComponents }`) dan menulisnya sendiri — lihat `types/dtn-elements.d.ts` di `duidtin-feature-beranda`. Arsip `@mf-types` juga tidak membantu di sana: isinya tipe React.
 
 ## Alur singkatnya
 

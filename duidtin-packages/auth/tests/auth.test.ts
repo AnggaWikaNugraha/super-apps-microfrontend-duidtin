@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { effectScope } from "vue";
 
 import { login, logout, refreshProfile } from "../src/service.js";
 import { http } from "../src/axios.js";
 import { configureAuth } from "../src/config.js";
 import { SESSION_KEY } from "../src/storage.js";
 import { getAuthStore, installAuthStore } from "../src/store.js";
+import { useAuth as useAuthVue } from "../src/vue.js";
 import { fakeSession, fillStorage, MINUTE, mockApi, readRaw, readRawPengguna, resetAuth, respond } from "./helpers.js";
 
 const API = "http://localhost:4000";
@@ -326,5 +328,56 @@ describe("tanpa sesi", () => {
       kode: "TOKEN_TIDAK_ADA",
     });
     expect(palsu.calls).toHaveLength(0);
+  });
+});
+
+describe("useAuth (vue)", () => {
+  test("ref ikut berubah saat store berubah", () => {
+    installAuthStore();
+
+    const scope = effectScope();
+    const auth = scope.run(() => useAuthVue())!;
+
+    expect(auth.status.value).toBe("unauthenticated");
+    expect(auth.isLoggedIn.value).toBe(false);
+
+    getAuthStore().getState().setSession(fakeSession());
+
+    expect(auth.status.value).toBe("authenticated");
+    expect(auth.user.value?.nama).toBe("Angga Wika");
+    expect(auth.isLoggedIn.value).toBe(true);
+
+    getAuthStore().getState().tandaiKedaluwarsa();
+
+    expect(auth.sesiKedaluwarsa.value).toBe(true);
+    expect(auth.penggunaTerakhir.value?.email).toBe("angga@duidtin.test");
+
+    scope.stop();
+  });
+
+  test("langganan dilepas saat scope berhenti", () => {
+    installAuthStore();
+
+    const scope = effectScope();
+    const auth = scope.run(() => useAuthVue())!;
+
+    scope.stop();
+    getAuthStore().getState().setSession(fakeSession());
+
+    // store berubah, tapi ref ini sudah tidak mendengarkan lagi
+    expect(auth.status.value).toBe("unauthenticated");
+  });
+
+  test("membaca store yang sama dengan versi React, bukan salinan", () => {
+    fillStorage(fakeSession());
+    installAuthStore();
+
+    const scope = effectScope();
+    const auth = scope.run(() => useAuthVue())!;
+
+    expect(auth.user.value?.email).toBe("angga@duidtin.test");
+    expect(JSON.parse(readRaw()!).pengguna.email).toBe(auth.user.value?.email);
+
+    scope.stop();
   });
 });

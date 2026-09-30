@@ -9,7 +9,7 @@ import { buatElemen } from "../utils/inti";
 
 export const NAMA_ELEMEN = "dtn-skeleton";
 
-buatElemen(NAMA_ELEMEN, Skeleton as never, { props: { lines: "number", variant: "string" } });
-buatElemen("dtn-skeleton-lines", Skeleton.Lines as never);
+buatElemen(NAMA_ELEMEN, Skeleton as never, { props: { variant: "string" } });
+buatElemen("dtn-skeleton-lines", Skeleton.Lines as never, { props: { lines: "number" } });
 
 export default NAMA_ELEMEN;

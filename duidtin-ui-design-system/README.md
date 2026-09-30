@@ -38,7 +38,7 @@ From the root of this repo (`x-duidtin/duidtin-ui-design-system/`):
 
 ## Web Component wrappers (`<dtn-*>`)
 
-Everything in `packages/ui` is a **React** component. So that non-React consumers — the future Vue/Svelte/Angular remotes — can use them too, some are also wrapped as custom elements.
+Everything in `packages/ui` is a **React** component. So that non-React consumers can use them too, some are also wrapped as custom elements. Since `duidtin-feature-beranda` moved to **Vue**, this path is no longer preparation for later — it is the only way the home page consumes the design system, and that real use is what finally surfaced the two bugs below.
 
 The full list lives in `src/component-wrapper/` itself: a wrapped component has `buatElemen(...)`, while the rest carry a file containing `BELUM_DIBUNGKUS` and the reason. Today 11 are wrapped and 7 are not.
 
@@ -73,10 +73,13 @@ No third-party library — the Custom Elements API plus `react-dom/client`:
 ```
 connectedCallback
   ├─ wrap the original children in <span data-dtn-anak>   ← never detached from the document
+  │    display:none at first                              ← the callback ref below reveals it
   ├─ append <span data-dtn-wadah> → createRoot()          ← the ONLY part React owns
-  └─ render(<Component {...props}><span ref=slot/></Component>)
-        └─ move the children wrapper into the slot         ← light DOM slot
-             └─ slot not rendered (e.g. DataState while loading) → children hidden, not removed
+  └─ render(<Component {...props}><span ref=#taruhSlot/></Component>)
+        └─ React calls #taruhSlot AT COMMIT TIME           ← not when render() returns
+             ├─ given an element → move the children wrapper in + reveal it
+             └─ given null       → the component renders no slot (e.g. DataState empty/failed)
+                                   → children hidden, not removed
 
 attributeChangedCallback → re-render
 disconnectedCallback     → unmount DEFERRED by a tick, so a mere move does not destroy the root
@@ -88,10 +91,19 @@ Two traps hit while building it, written down so they are not repeated:
 |---|---|---|
 | The button label vanished, `<button>` rendered empty | `createRoot().render()` overwrites the element's content, and `@r2wc/react-to-web-component` never touches `childNodes` | our own factory, which captures the children first — that library was dropped again |
 | The elements were not registered at all | `sideEffects` in `packages/ui/package.json` — `customElements.define()` is a pure side effect, and a one-level glob (`/*`) does not reach `button/index.ts` | `"sideEffects": ["./src/component-wrapper/**", "./dist/component-wrapper/**"]` |
+| `<dtn-badge>Data contoh</dtn-badge>` rendered **empty**, while `<dtn-button>` was fine | the child position was read from a `queueMicrotask` scheduled after `render()`. A React 18 root renders **asynchronously**, so the slot did not exist yet and the children stayed hidden forever. The button only escaped because an attribute changed afterwards and the second render found the slot from the first commit | `createRef` → a **callback ref** with a stable identity, which React calls exactly at commit time. It also covers the opposite case through `ref(null)` |
+| `<dtn-skeleton-lines lines="5">` always produced three bars | the codegen only knew props for the parent element, so `lines` landed on `<dtn-skeleton>`, which does not use it | `propsBagian` in `peta.ts` — compound parts may declare their own props |
 
 **Shadow DOM is deliberately avoided.** The design system's CSS is global and class-based (`ui-button`); a shadow boundary would cut it off and every element would have to inject its own CSS. With the light DOM, the existing `./globals` expose keeps working as-is.
 
-**React is still loaded** on any page using these elements — this wrapper is an interface, not a rewrite. A non-React remote only needs `shared: { react, react-dom: { singleton: true } }` to use the host's React rather than shipping a second one.
+**React is still loaded** on any page using these elements — this wrapper is an interface, not a rewrite. But a non-React consumer **does not need to install React itself**: `shared` here is declared singleton **with a fallback**, so
+
+| Situation | Which React runs |
+|---|---|
+| Someone provides it in the share scope (e.g. a React host) | the host's — one instance, and even the React Aria `id` prefixes match |
+| The share scope is empty (a non-React remote opened standalone) | the design system's own bundled copy |
+
+`duidtin-feature-beranda` leans on exactly that: an empty `shared: {}`, zero React dependencies, and it still works in both situations.
 
 ### Codegen (`packages/ui/scripts/generate-wrappers.ts`)
 
@@ -104,9 +116,11 @@ Runs automatically through `prebuild`, or by hand: `bun run gen:wrapper`.
 
 | Written by hand, once | Where |
 |---|---|
-| non-variant props (`isDisabled`, `data`, `isLoading`), events (`onPress` → `press`), the skip list | `src/component-wrapper/utils/peta.ts` |
+| non-variant props (`isDisabled`, `data`, `isLoading`), compound-part props (`propsBagian`), events (`onPress` → `press`), the skip list | `src/component-wrapper/utils/peta.ts` |
 
 Output: `component-wrapper/<n>/index.ts` per component, `component-wrapper/index.ts` (registers everything) and `utils/elemen.d.ts` (JSX declarations). All of it is **generated** — do not edit by hand.
+
+`elemen.d.ts` holds **JSX** declarations, so it only serves React consumers. A Vue consumer needs a different shape (`declare module "vue" { interface GlobalComponents }`) and writes its own — see `types/dtn-elements.d.ts` in `duidtin-feature-beranda`. The `@mf-types` archive is no help there either: it contains React types.
 
 ## The flow in short
 

@@ -10,7 +10,7 @@ Host tidak merender UI sendiri — semuanya datang dari remote. Yang perlu dinya
 
 | Mau membuka | Server yang perlu nyala |
 |---|---|
-| `/` (beranda) | design-system `:3001`, layout `:3002`, beranda `:3003`, host `:3000` |
+| `/` (beranda) | design-system `:3001`, layout `:3002`, beranda `:3003` (Vue), host `:3000` |
 | `/login` | design-system `:3001`, auth `:3004`, host `:3000` |
 | login sungguhan | + `duidtin-api` `:4000` |
 
@@ -61,6 +61,8 @@ duidtin-ui/
       hooks/useModuleLoading.ts
     remote/index.tsx     # jembatan remote INFRASTRUKTUR saja (layout).
                          # remote FITUR dideklarasikan langsung di pages/-nya
+    federation/remote-mount.tsx  # jembatan remote yang BUKAN React (beranda itu Vue):
+                                 # memberi <div> lalu memanggil mount(el)-nya
     auth/GuardSesi.tsx           # penjaga sesi seluruh halaman, dipasang di _app.tsx
     auth/ModalSesiBerakhir.tsx   # loadRemote("duidtin_feature_auth/sesi-berakhir"),
                                  # pengecualian: dipakai di halaman mana saja
@@ -239,7 +241,7 @@ Hasilnya sekarang — 2 global + 2 feature:
   },
   {
     name: "duidtin_feature_beranda",
-    entryPath: "/beranda/_next/static/chunks/remoteEntry.js",
+    entryPath: "/beranda/static/remoteEntry.js",   // ← Rsbuild, bukan Next: tanpa _next/static/chunks
     devOrigin: "http://localhost:3003",
     routes: ["/"]                    // ← yang ini per-fitur, bukan global
   },
@@ -971,7 +973,7 @@ Ada dua halaman, dan bentuknya sengaja berbeda:
 
 | Halaman | Remote | Layout | Catatan |
 |---|---|---|---|
-| `pages/index.tsx` | `duidtin_feature_beranda/base` | `getLayout` → `DefaultLayout` (remote layout), `userName`/`onLogout` dari `useAuth()` | |
+| `pages/index.tsx` | `duidtin_feature_beranda/base` | `getLayout` → `DefaultLayout` (remote layout), `userName`/`onLogout` dari `useAuth()` | remote ini **Vue**, jadi dirender lewat `<RemoteMount>`, bukan `remoteComponent()` |
 | `pages/login.tsx` | `duidtin_feature_auth/login` | **tanpa `getLayout`** | header butuh sesi, sedangkan di sini pengguna justru belum punya sesi. Pengalihan setelah berhasil ditangani host lewat prop `onSuccess` |
 
 #### 1. `remoteComponent(path, pick?)` → `ComponentType`
@@ -1007,6 +1009,33 @@ saat komponen di-MOUNT        loader dijalankan next/dynamic
 ```
 
 Jadi mendefinisikan 20 jembatan remote di satu file tidak memicu 20 fetch. Yang dirender saja yang di-fetch.
+
+#### 1b. `<RemoteMount modul>` — untuk remote yang bukan React
+
+`remoteComponent()` mengandaikan modulnya mengekspor komponen. Itu tidak berlaku untuk
+`duidtin_feature_beranda` yang sekarang Vue: React tidak bisa merender komponen Vue, dan
+sebaliknya. Yang bisa diseberangkan cuma **DOM**, jadi remote itu mengekspor fungsi.
+
+```tsx
+// components/federation/remote-mount.tsx
+const mod = await loadRemote<{ mount?: Pemasang }>(modul);
+lepas = mod.mount(wadah.current);   // di dalam useEffect
+…
+return () => lepas?.();             // saat cleanup
+```
+
+| | |
+|---|---|
+| **Prop** | `modul: string` — `"duidtin_feature_beranda/base"` |
+| **Yang diharapkan** | `mount(el: HTMLElement) => () => void` |
+| **Yang dirender** | satu `<div>` kosong; seluruh isinya milik remote |
+
+Host tidak pernah tahu framework apa yang mengisi `<div>` itu. Remote Svelte atau Angular
+nanti memakai komponen yang sama tanpa satu baris pun berubah di sini. Dua detail yang
+penting: efeknya bisa sudah dibersihkan sebelum modulnya sampai (saat dev, StrictMode
+menjalankan tiap efek dua kali), jadi hasilnya dibuang kalau itu terjadi; dan kegagalan
+memuat dirender di tempat, bukan dilempar — satu fitur mati tidak boleh menjatuhkan
+seluruh halaman.
 
 #### 2. `loadRemote(path)` → `Promise<unknown>`
 
@@ -1125,23 +1154,27 @@ Browser buka http://localhost:3000/
 │           keluaran : { default: ƒ }
 │           JARINGAN : GET :3002/layout/_next/.../__federation_expose_default.js
 │
-└─▶ <HomePage /> → <BerandaContainer /> MOUNT   ← remote FITUR, dideklarasikan
+└─▶ <HomePage /> → <RemoteMount> MOUNT          ← remote FITUR, dideklarasikan
       │                                            langsung di pages/index.tsx
       └─▶ loadRemote("duidtin_feature_beranda/base")
-            keluaran : { default: ƒ }
-            JARINGAN : GET :3003/beranda/_next/.../[chunk base]
+            keluaran : { mount: ƒ, default: ƒ }   ← FUNGSI, bukan komponen
+            JARINGAN : GET :3003/beranda/static/js/async/[chunk base]
             │
-            └─ di DALAM beranda, remote memanggil remote lagi:
-                 loadRemote("duidtin_ui_design_system/components/card")   → { Card, default }
-                 loadRemote("duidtin_ui_design_system/components/button") → { Button, default }
-                 loadRemote("duidtin_ui_design_system/components/alert")  → { Alert, default }
-                 loadRemote("duidtin_ui_design_system/components/badge")  → { Badge, default }
-                 JARINGAN : GET :3001/design-system/static/__federation_expose_components__*.js
+            └─ mount(<div>) → app Vue dipasang di elemen itu
+                 loadRemote("duidtin_ui_design_system/component-wrapper/semua")
+                 JARINGAN : GET :3001/design-system/static/__federation_expose_component_wrapper__*.js
+                 → customElements.define("dtn-card", …) dst
+                 → <dtn-card> di template Vue menjalankan komponen React yang sama
 ```
 
 Perhatikan pembagiannya di baris `MOUNT`: layout diambil lewat `components/remote/`
 (remote infrastruktur, dipakai lintas halaman), sedangkan beranda dideklarasikan
 langsung di `pages/index.tsx` (remote fitur, cuma dipakai satu halaman).
+
+Dan perhatikan bentuk keluarannya: beranda memulangkan **fungsi**, bukan komponen.
+Itu bukan gaya bebas — remote itu Vue, dan React tidak bisa merender komponen Vue.
+`components/federation/remote-mount.tsx` yang menyediakan `<div>` kosong lalu
+memanggil fungsinya, dan melepasnya lagi saat efeknya dibersihkan.
 
 DOM yang dihasilkan — **empat repo** bercampur dalam satu pohon:
 
@@ -1149,12 +1182,15 @@ DOM yang dihasilkan — **empat repo** bercampur dalam satu pohon:
 <div class="lyt-layout">                            <!-- duidtin_ui_layout -->
   <header class="lyt-header">
     <span class="ui-badge ui-badge--soft" …>        <!-- design-system LEWAT layout -->
-    <button class="ui-button …" id="react-aria4676304478-:r2:">Keluar</button>
+    <button class="ui-button …" id="react-aria2066869333-:r4:">Keluar</button>
   </header>
   <main class="lyt-layout__main">
-    <div class="fber-page">                         <!-- duidtin_feature_beranda, Tailwind prefix fber -->
-      <div class="ui-card ui-card--elevated" …>     <!-- design-system LEWAT beranda -->
-      <button class="ui-button …" id="react-aria4676304478-:r6:">Payroll</button>
+    <div class="fber-page">                         <!-- duidtin_feature_beranda (VUE), prefix fber -->
+      <dtn-card variant="elevated">                 <!-- Web Component design-system -->
+        <span data-dtn-wadah>                       <!-- React root DI DALAM elemen -->
+          <div class="ui-card ui-card--elevated" …>
+      <dtn-button color="default" variant="outline">
+        <button class="ui-button …" id="react-aria2066869333-:r6:">Perbarui</button>
     </div>
   </main>
 </div>
@@ -1162,10 +1198,15 @@ DOM yang dihasilkan — **empat repo** bercampur dalam satu pohon:
 
 Host sendiri **tidak menyumbang satu elemen pun** di sini — dia cuma merangkai.
 
-Dan perhatikan dua `id` React Aria itu: `:r2:` dimuat lewat layout (MF 0.24.1),
-`:r6:` lewat beranda (MF **2.x**), tapi prefiksnya sama (`react-aria4676304478`).
-Kalau React kedobelan, prefiksnya bakal berbeda. Ini bukti mekanis bahwa share
-scope React tembus **lintas versi Module Federation**, bukan cuma lintas repo.
+Dan perhatikan dua `id` React Aria itu: yang di header dirender React **milik host**,
+yang di beranda dirender React di dalam **Web Component**, di dalam app **Vue**, yang
+dimuat lewat runtime MF **milik beranda** — tapi prefiksnya sama persis
+(`react-aria2066869333`). Kalau React kedobelan, prefiksnya bakal berbeda. Ini bukti
+mekanis bahwa share scope React tembus sampai ke dalam remote yang bahkan bukan React.
+
+`<span data-dtn-wadah>` di atas juga bukan hiasan: itu wadah yang dibuat pembungkus
+design-system untuk React root-nya, supaya `createRoot().render()` tidak menimpa anak
+asli yang dikirim Vue. Rinciannya di README design-system.
 
 #### Yang di-fetch di fase ini, dan yang TIDAK
 

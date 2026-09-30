@@ -2,7 +2,7 @@
 
 [English](README.md) · **Bahasa Indonesia**
 
-> **Status: inti + React selesai, 22 tes lolos. Dipakai `duidtin-ui` (store + guard + modal sesi berakhir) dan `duidtin-feature-auth` (login & login ulang); layout dan beranda belum.** Arsitektur sesi ada di [README.be.id.md](../../README.be.id.md); distribusi paket di [README root](../../README.id.md).
+> **Status: inti + React + Vue selesai, 25 tes lolos. Dipakai `duidtin-ui` (store + guard + modal sesi berakhir) dan `duidtin-feature-auth` (login & login ulang); layout belum.** Arsitektur sesi ada di [README.be.id.md](../../README.be.id.md); distribusi paket di [README root](../../README.id.md).
 
 Logika sesi untuk semua repo duidtin. Bukan remote Module Federation — paket biasa yang di-`import`.
 
@@ -17,8 +17,8 @@ BOOT — host, _app.tsx, sebelum federationInit()
     ├─ dengar event "storage"      ← tab lain login/logout
     └─ window.__DUIDTIN_AUTH__ = store
 
-REMOTE — layout, beranda, auth
-  getAuthStore()                   ← pinjam store host
+REMOTE — layout, beranda (Vue), auth
+  getAuthStore()                   ← pinjam store host, apa pun frameworknya
     └─ global tidak ada (repo dibuka sendiri) → installAuthStore() di sini
 
 LOGIN
@@ -65,10 +65,11 @@ Empat status, dan bedanya penting:
 | `storage.ts` | baca/tulis/hapus `localStorage["duidtin:sesi"]` dan `localStorage["duidtin:pengguna-terakhir"]` |
 | `config.ts` | `configureAuth({ baseUrl })` |
 | `types.ts` | cerminan kontrak API |
-| `react.ts` | `useAuth()` — satu-satunya berkas yang menyentuh React |
-| `index.ts` | pintu ekspor paket; subpath `/react` menunjuk `react.ts` |
-| `tests/` | `auth.test.ts` (22 tes) + `helpers.ts` (adapter axios palsu) + `setup.ts` (DOM tiruan, dipanggil lewat `bunfig.toml`) |
-| `bunfig.toml` | `[test] preload` untuk DOM tiruan, dan **`[install] peer = false`** — React itu peer opsional; kalau bun ikut memasangnya di sini, bundler pemakai bisa me-resolve React KEDUA lewat paket ini dan halaman langsung `Invalid hook call` |
+| `react.ts` | `useAuth()` versi React — satu-satunya berkas yang menyentuh React |
+| `vue.ts` | `useAuth()` versi Vue — store yang sama, dikembalikan sebagai ref |
+| `index.ts` | pintu ekspor paket; subpath `/react` dan `/vue` menunjuk dua berkas di atas |
+| `tests/` | `auth.test.ts` (25 tes) + `helpers.ts` (adapter axios palsu) + `setup.ts` (DOM tiruan, dipanggil lewat `bunfig.toml`) |
+| `bunfig.toml` | `[test] preload` untuk DOM tiruan, dan **`[install] peer = false`** — React dan Vue itu peer opsional; kalau bun ikut memasangnya di sini, bundler pemakai bisa me-resolve React KEDUA lewat paket ini dan halaman langsung `Invalid hook call` |
 | `tsconfig.build.json` | dipakai `bun run build`; menghasilkan `dist/` berisi ESM + `.d.ts` |
 
 `skipAuth: true` dipakai semua endpoint auth di `api.ts`: tokennya dikirim manual, dan `/auth/refresh` memang tidak boleh lewat interceptor — kalau lewat, refresh yang ditolak akan memicu refresh lagi.
@@ -86,6 +87,7 @@ Empat status, dan bedanya penting:
 | | `readSession()`, `readLastUser()`, `SESSION_KEY`, `LAST_USER_KEY` | akses langsung ke penyimpanan — dipakai host/tes untuk memeriksa keadaan tanpa lewat store |
 | | `AuthError`, `Session`, `User`, `ErrorCode`, `AuthState`, `AuthStore`, … | tipe; nama tipe English, nama field tetap mengikuti JSON `duidtin-api` (`pengguna`, `nama`, `kode`) |
 | `@duidtin/auth/react` | `useAuth()` | `{ status, user, isLoggedIn, sesiKedaluwarsa, penggunaTerakhir, login, logout, logoutAll, refreshProfile }` |
+| `@duidtin/auth/vue` | `useAuth()` | kunci yang sama, tapi lima yang pertama berupa **ref** (`status.value`); aksinya fungsi biasa |
 
 `penggunaTerakhir` = `{ nama, email }` pengguna terakhir, dipakai mengisi modal login ulang. Bertahan saat sesi kedaluwarsa, **dibuang saat logout eksplisit** — supaya email tidak tertinggal di komputer bersama.
 
@@ -103,6 +105,12 @@ installAuthStore();
 import { useAuth } from "@duidtin/auth/react";
 
 const { user, isLoggedIn, logout } = useAuth();
+```
+```ts
+// KOMPONEN mana pun (Vue) — store yang SAMA dengan yang dibaca React
+import { useAuth } from "@duidtin/auth/vue";
+
+const { user, isLoggedIn, logout } = useAuth();   // user.value, isLoggedIn.value
 ```
 ```ts
 // AMBIL DATA, di repo mana pun

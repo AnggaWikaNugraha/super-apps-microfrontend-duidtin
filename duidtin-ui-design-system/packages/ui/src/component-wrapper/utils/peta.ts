@@ -10,6 +10,8 @@ import type { TipeProp } from "./inti";
 export interface Penyesuaian {
   /** Props tambahan di luar varian. */
   props?: Record<string, TipeProp>;
+  /** Props untuk bagian compound-nya, mis. `{ Lines: { lines: "number" } }`. */
+  propsBagian?: Record<string, Record<string, TipeProp>>;
   /** Prop React → nama DOM event. */
   events?: Record<string, string>;
   /** `false` = jangan buat elemen untuk bagian compound-nya. */
@@ -28,7 +30,8 @@ const KONTEKS =
 export const peta: Record<string, Penyesuaian> = {
   button: { props: { isDisabled: "boolean", type: "string" }, events: { onPress: "press" } },
 
-  skeleton: { props: { lines: "number" } },
+  // `lines` milik Skeleton.Lines, bukan Skeleton — Root cuma merender satu balok.
+  skeleton: { propsBagian: { Lines: { lines: "number" } } },
 
   "data-state": {
     props: {

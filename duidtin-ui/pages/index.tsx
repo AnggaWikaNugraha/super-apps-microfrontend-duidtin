@@ -1,33 +1,29 @@
 import { useAuth } from "@duidtin/auth/react";
-import { loadRemote } from "@module-federation/runtime";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 
+import RemoteMount from "@/components/federation/remote-mount";
 import { DefaultLayout } from "@/components/remote";
 
-import type { ComponentType, ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 /**
  * FASE 3 — route "/" dilayani feature remote, bukan konten host.
  *
- * `loadRemote` fitur ditulis LANGSUNG di sini, bukan lewat `components/remote/`.
+ * Nama modul fiturnya ditulis LANGSUNG di sini, bukan lewat `components/remote/`.
  * Berkas itu khusus remote infrastruktur (layout, design-system) yang dipakai
  * lintas halaman; remote fitur cuma dipakai satu halaman, jadi lebih jelas kalau
  * dideklarasikan di tempat dia dipakai.
  *
- * Dua stack berbeda ketemu di halaman ini:
- *   <DefaultLayout>      → duidtin_ui_layout       (Next 14 + webpack + MF 0.24.1)
- *   <BerandaContainer>   → duidtin_feature_beranda (Next 16 + Rspack  + MF 2.x)
+ * DUA FRAMEWORK ketemu di halaman ini:
+ *   <DefaultLayout>  → duidtin_ui_layout       (React, Next 14 + webpack + MF 0.24.1)
+ *   <RemoteMount>    → duidtin_feature_beranda (VUE 3, Rsbuild + MF 0.24.1)
+ *
+ * Karena beranda bukan React, dia tidak bisa dirender sebagai komponen. Yang
+ * di-expose remote itu fungsi `mount(el)`; `RemoteMount` yang menyediakan
+ * elemennya dan memanggil fungsi itu. Selebihnya halaman ini tidak tahu — dan
+ * tidak perlu tahu — bahwa isinya Vue.
  */
-const BerandaContainer = dynamic(
-  () =>
-    loadRemote("duidtin_feature_beranda/base") as Promise<{
-      default: ComponentType<Record<string, never>>;
-    }>,
-  { ssr: false },
-);
-
-const HomePage = () => <BerandaContainer />;
+const HomePage = () => <RemoteMount modul="duidtin_feature_beranda/base" />;
 
 /**
  * `getLayout` dijadikan komponen supaya boleh memakai hook — `userName` dan

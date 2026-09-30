@@ -50,14 +50,14 @@ Module Federation composes applications **at runtime through a contract**, not a
 ### 4. `duidtin-feature-beranda` — the home page
 
 - **Port** — 3003
-- **Framework** — Next.js 16.2.9
-- **Bundler** — **Rspack** (`next-rspack` 16.2.9)
-- **MF plugin** — `@module-federation/enhanced` 2.9.0
-- **React** — 18.3.1 (must match the host)
+- **Framework** — **Vue 3.5** — the only repo that is not React
+- **Bundler** — **Rsbuild 1.x** (no Next: neither routing nor SSR is needed)
+- **MF plugin** — `@module-federation/rsbuild-plugin` 0.24.1
+- **React** — **not installed**; design-system components are used through the `<dtn-*>` Web Component wrappers
 - **Styling** — Tailwind v4, prefix `fber` (BEM + `@apply`, the same as the other repos)
-- **Path** — `basePath: "/beranda"`
+- **Path** — `/beranda` (`server.base` + `assetPrefix`)
 - **Role** — the home page: balance summary, approval queue, shortcuts. The first feature remote, so this repo is what makes PHASE 2 in the host actually run
-- **Note** — Turbopack (Next 16's default) does not support MF, hence Rspack. `shared` must be written by hand — `enhanced` does not auto-share React the way `nextjs-mf` does
+- **Note** — what it exposes is **not a component** but a `mount(el)` function, because React cannot render a Vue component. The host calls it through `components/federation/remote-mount.tsx`. The session stays single through `@duidtin/auth/vue` — the very same store as the host
 
 ### 5. `duidtin-feature-auth` — login
 
@@ -87,11 +87,11 @@ The three most striking differences above are deliberate, not accidental:
 
 - **The design system uses no Next at all.** It is only a component library — no routing, no SSR needed. Rslib produces a leaner bundle for that job.
 - **The layout uses Next** because it will eventually bridge application context (auth, role-based menus), not merely render components.
-- **Beranda uses Next 16 + Rspack** because Turbopack (Next 16's default) does not support Module Federation, while `nextjs-mf` does not support Next 15+. Rspack is the middle ground.
+- **Beranda uses Vue, not React.** This is the experiment that goes furthest: proving a remote may differ in framework, not merely in bundler. The components are still the same design-system components — through the `<dtn-*>` wrappers — and the session is still one store. Rsbuild was chosen over Vite so that the MF version matches the design system's exactly, 0.24.1.
 
 ### Shared package: `@duidtin/auth`
 
-**Core + React done (22 tests passing). Used by the host (store, guard, session-expired modal) and by `duidtin-feature-auth` (login + re-login); layout and beranda are not wired yet.** A package in [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), not a remote, so it has no Vercel project.
+**Core + React + Vue done (25 tests passing). Used by the host (store, guard, session-expired modal), by `duidtin-feature-auth` (login + re-login), and by `duidtin-feature-beranda` (the greeting comes from the session, through the `/vue` subpath); the layout is not wired yet.** A package in [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), not a remote, so it has no Vercel project.
 
 ```
 host boot — _app.tsx, before federationInit()
@@ -285,7 +285,7 @@ graph TD
   H["🏠 duidtin-ui — HOST<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1"]
 
   H -- "remoteEntry.js" --> L["🧭 duidtin-ui-layout<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1"]
-  H -- "remoteEntry.js" --> B["🏦 duidtin-feature-beranda<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x"]
+  H -- "remoteEntry.js" --> B["🏦 duidtin-feature-beranda<br/>Vue 3.5 · Rsbuild · @module-federation/rsbuild-plugin 0.24.1"]
   H -- "remoteEntry.js" --> A["🔐 duidtin-feature-auth<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x"]
 
   L -- "loadRemote" --> DS["🎨 duidtin-ui-design-system<br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · @module-federation/rsbuild-plugin 0.24.1 · MF 0.24.1"]

@@ -1,4 +1,4 @@
-import { createElement, createRef, type ComponentType } from "react";
+import { createElement, type ComponentType } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 /**
@@ -61,14 +61,15 @@ export const buatElemen = (nama: string, Komponen: ComponentType<never>, opsi: O
     #wadah?: HTMLSpanElement;
     #anak?: HTMLSpanElement;
     #root?: Root;
-    #slot = createRef<HTMLSpanElement>();
 
     connectedCallback() {
       if (!this.#root) {
         // anak asli dibungkus SATU span permanen, jadi posisinya bisa dipindah
         // tanpa pernah lepas dari dokumen — elemen bersarang tidak ikut unmount
         this.#anak = document.createElement("span");
-        this.#anak.style.display = "contents";
+        // Disembunyikan dulu. Yang memunculkannya `#taruhSlot` di bawah, dan itu
+        // baru dipanggil React kalau komponennya memang merender slot-nya.
+        this.#anak.style.display = "none";
         this.#anak.dataset.dtnAnak = "";
         this.#anak.append(...this.childNodes);
         this.append(this.#anak);
@@ -122,26 +123,36 @@ export const buatElemen = (nama: string, Komponen: ComponentType<never>, opsi: O
     }
 
     #render() {
-      const slot = createElement("span", { ref: this.#slot, style: { display: "contents" } });
+      const slot = createElement("span", { ref: this.#taruhSlot, style: { display: "contents" } });
 
       this.#root?.render(createElement(Komponen as ComponentType<Record<string, unknown>>, this.#props(), slot));
-
-      // React merender asinkron; tempatkan pembungkus anak setelah slot-nya ada
-      queueMicrotask(() => this.#tempatkanAnak());
     }
 
     /**
-     * Komponen bisa TIDAK merender slot-nya — mis. `DataState` saat memuat atau gagal
-     * menampilkan fallback, bukan children. Dalam keadaan itu anak asli disembunyikan,
-     * bukan dihapus, supaya muncul lagi begitu komponennya merender slot.
+     * Callback ref, DIPANGGIL REACT SAAT COMMIT — bukan setelah `render()` kembali.
+     *
+     * Versi sebelumnya membaca `ref.current` di dalam `queueMicrotask` setelah
+     * `render()`. Itu terlalu cepat: root React 18 merender secara asinkron, jadi
+     * saat microtask-nya jalan slot-nya belum ada dan anak asli disembunyikan
+     * selamanya — `<dtn-badge>Data contoh</dtn-badge>` tampil kosong. Yang lolos
+     * cuma elemen yang kebetulan kena perubahan atribut sesudahnya, karena render
+     * kedua menemukan slot dari commit pertama.
+     *
+     * Identitasnya stabil (field, bukan fungsi baru tiap render), jadi React cuma
+     * memanggilnya kalau slot-nya benar-benar muncul atau hilang.
+     *
+     * Komponen bisa TIDAK merender slot-nya — mis. `DataState` yang menampilkan
+     * keadaan kosong/gagal, bukan children. Untuk itu React memanggil callback ini
+     * dengan `null`, dan anak asli disembunyikan (bukan dihapus) supaya muncul lagi
+     * begitu komponennya merender slot.
      */
-    #tempatkanAnak() {
+    #taruhSlot = (slot: HTMLSpanElement | null) => {
       if (!this.#anak) return;
 
-      if (this.#slot.current) {
+      if (slot) {
         this.#anak.style.display = "contents";
 
-        if (this.#anak.parentNode !== this.#slot.current) this.#slot.current.append(this.#anak);
+        if (this.#anak.parentNode !== slot) slot.append(this.#anak);
 
         return;
       }
@@ -149,7 +160,7 @@ export const buatElemen = (nama: string, Komponen: ComponentType<never>, opsi: O
       this.#anak.style.display = "none";
 
       if (this.#anak.parentNode !== this) this.append(this.#anak);
-    }
+    };
   }
 
   customElements.define(nama, ElemenDuidtin);

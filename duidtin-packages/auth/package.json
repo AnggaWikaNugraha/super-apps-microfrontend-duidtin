@@ -10,6 +10,10 @@
     "./react": {
       "types": "./dist/react.d.ts",
       "default": "./dist/react.js"
+    },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "default": "./dist/vue.js"
     }
   },
   "files": [
@@ -25,10 +29,14 @@
     "zustand": "^5.0.15"
   },
   "peerDependencies": {
-    "react": ">=18"
+    "react": ">=18",
+    "vue": ">=3.4"
   },
   "peerDependenciesMeta": {
     "react": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     }
   },
@@ -36,6 +44,7 @@
     "@happy-dom/global-registrator": "^20.0.0",
     "@types/bun": "^1.4.2",
     "@types/react": "^18.3.27",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vue": "^3.5.24"
   }
 }

@@ -2,7 +2,7 @@
 
 **English** · [Bahasa Indonesia](README.id.md)
 
-> **Status: core + React done, 22 tests passing. Used by `duidtin-ui` (store + guard + session-expired modal) and `duidtin-feature-auth` (login & re-login); layout and beranda are not wired yet.** The session architecture lives in [README.be.id.md](../../README.be.id.md); package distribution in the [root README](../../README.md).
+> **Status: core + React + Vue done, 25 tests passing. Used by `duidtin-ui` (store + guard + session-expired modal) and `duidtin-feature-auth` (login & re-login); layout is not wired yet.** The session architecture lives in [README.be.id.md](../../README.be.id.md); package distribution in the [root README](../../README.md).
 
 Session logic for every duidtin repo. Not a Module Federation remote — an ordinary package you `import`.
 
@@ -17,8 +17,8 @@ BOOT — the host, _app.tsx, before federationInit()
     ├─ listen for "storage"        ← another tab logs in/out
     └─ window.__DUIDTIN_AUTH__ = store
 
-REMOTE — layout, beranda, auth
-  getAuthStore()                   ← borrow the host's store
+REMOTE — layout, beranda (Vue), auth
+  getAuthStore()                   ← borrow the host's store, whatever the framework
     └─ no global (repo opened on its own) → installAuthStore() right here
 
 LOGIN
@@ -65,10 +65,11 @@ Four statuses, and the differences matter:
 | `storage.ts` | read/write/clear `localStorage["duidtin:sesi"]` and `localStorage["duidtin:pengguna-terakhir"]` |
 | `config.ts` | `configureAuth({ baseUrl })` |
 | `types.ts` | a mirror of the API contract |
-| `react.ts` | `useAuth()` — the only file that touches React |
-| `index.ts` | the package's export surface; the `/react` subpath points at `react.ts` |
-| `tests/` | `auth.test.ts` (22 tests) + `helpers.ts` (a fake axios adapter) + `setup.ts` (the mock DOM, loaded through `bunfig.toml`) |
-| `bunfig.toml` | `[test] preload` for the mock DOM, and **`[install] peer = false`** — React is an optional peer; if bun installed it here, a consumer's bundler could resolve a SECOND React through this package and the page would die with `Invalid hook call` |
+| `react.ts` | `useAuth()` for React — the only file that touches React |
+| `vue.ts` | `useAuth()` for Vue — the same store, handed back as refs |
+| `index.ts` | the package's export surface; the `/react` and `/vue` subpaths point at the two files above |
+| `tests/` | `auth.test.ts` (25 tests) + `helpers.ts` (a fake axios adapter) + `setup.ts` (the mock DOM, loaded through `bunfig.toml`) |
+| `bunfig.toml` | `[test] preload` for the mock DOM, and **`[install] peer = false`** — React and Vue are optional peers; if bun installed them here, a consumer's bundler could resolve a SECOND React through this package and the page would die with `Invalid hook call` |
 | `tsconfig.build.json` | used by `bun run build`; emits `dist/` with ESM + `.d.ts` |
 
 `skipAuth: true` is used by every auth endpoint in `api.ts`: their token is passed by hand, and `/auth/refresh` must never go through the interceptor — if it did, a refused refresh would trigger another refresh.
@@ -86,6 +87,7 @@ Four statuses, and the differences matter:
 | | `readSession()`, `readLastUser()`, `SESSION_KEY`, `LAST_USER_KEY` | direct storage access — used by the host and the tests to inspect state without going through the store |
 | | `AuthError`, `Session`, `User`, `ErrorCode`, `AuthState`, `AuthStore`, … | types; type names are English, field names still follow `duidtin-api`'s JSON (`pengguna`, `nama`, `kode`) |
 | `@duidtin/auth/react` | `useAuth()` | `{ status, user, isLoggedIn, sesiKedaluwarsa, penggunaTerakhir, login, logout, logoutAll, refreshProfile }` |
+| `@duidtin/auth/vue` | `useAuth()` | the same keys, except the first five are **refs** (`status.value`); the actions are plain functions |
 
 `penggunaTerakhir` = the last user's `{ nama, email }`, used to prefill the re-login modal. It survives an expired session and is **dropped on an explicit logout** — so an email is never left behind on a shared computer.
 
@@ -103,6 +105,12 @@ installAuthStore();
 import { useAuth } from "@duidtin/auth/react";
 
 const { user, isLoggedIn, logout } = useAuth();
+```
+```ts
+// ANY component (Vue) — the SAME store React reads
+import { useAuth } from "@duidtin/auth/vue";
+
+const { user, isLoggedIn, logout } = useAuth();   // user.value, isLoggedIn.value
 ```
 ```ts
 // FETCHING DATA, in any repo

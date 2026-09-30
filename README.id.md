@@ -50,14 +50,14 @@ Module Federation menyatukan aplikasi **saat runtime lewat kontrak**, bukan saat
 ### 4. `duidtin-feature-beranda` — beranda
 
 - **Port** — 3003
-- **Framework** — Next.js 16.2.9
-- **Bundler** — **Rspack** (`next-rspack` 16.2.9)
-- **Plugin MF** — `@module-federation/enhanced` 2.9.0
-- **React** — 18.3.1 (wajib sama dengan host)
+- **Framework** — **Vue 3.5** — satu-satunya repo yang bukan React
+- **Bundler** — **Rsbuild 1.x** (tanpa Next: tidak butuh routing maupun SSR)
+- **Plugin MF** — `@module-federation/rsbuild-plugin` 0.24.1
+- **React** — **tidak dipasang**; komponen design-system dipakai lewat pembungkus Web Component `<dtn-*>`
 - **Styling** — Tailwind v4, prefix `fber` (pola BEM + `@apply`, sama dengan repo lain)
-- **Path** — `basePath: "/beranda"`
+- **Path** — `/beranda` (`server.base` + `assetPrefix`)
 - **Peran** — beranda: ringkasan saldo, antrean persetujuan, pintasan. Feature remote pertama, jadi repo ini yang bikin FASE 2 di host benar-benar jalan
-- **Catatan** — Turbopack (bawaan Next 16) tidak mendukung MF, jadi ditukar Rspack. `shared` harus ditulis manual — `enhanced` tidak otomatis menshare React seperti `nextjs-mf`
+- **Catatan** — yang di-expose **bukan komponen** tapi fungsi `mount(el)`, karena React tidak bisa merender komponen Vue. Host memanggilnya lewat `components/federation/remote-mount.tsx`. Sesi tetap satu lewat `@duidtin/auth/vue` — store yang sama dengan host
 
 ### 5. `duidtin-feature-auth` — login
 
@@ -87,11 +87,11 @@ Tiga perbedaan paling mencolok di atas bukan kebetulan, tapi memang dibiarkan be
 
 - **Design-system tidak pakai Next sama sekali.** Dia cuma pustaka komponen — tidak butuh routing, tidak butuh SSR. Rslib menghasilkan bundel lebih ramping untuk keperluan itu.
 - **Layout pakai Next** karena nanti perlu menjembatani context aplikasi (auth, menu per peran), bukan sekadar merender komponen.
-- **Beranda pakai Next 16 + Rspack** karena Turbopack (bawaan Next 16) tidak mendukung Module Federation, sedangkan `nextjs-mf` tidak mendukung Next 15+. Rspack jalan tengahnya.
+- **Beranda pakai Vue, bukan React.** Ini eksperimen yang paling jauh: membuktikan remote boleh beda framework, bukan cuma beda bundler. Komponennya tetap komponen design-system yang sama — lewat pembungkus `<dtn-*>` — dan sesinya tetap satu store. Rsbuild dipilih (bukan Vite) supaya versi MF-nya sama persis dengan design-system, 0.24.1.
 
 ### Paket bersama: `@duidtin/auth`
 
-**Inti + React selesai (22 tes lolos). Dipakai host (store, guard, modal sesi berakhir) dan `duidtin-feature-auth` (login + login ulang); layout dan beranda belum.** Paket di [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), bukan remote, jadi tidak punya project Vercel.
+**Inti + React + Vue selesai (25 tes lolos). Dipakai host (store, guard, modal sesi berakhir), `duidtin-feature-auth` (login + login ulang), dan `duidtin-feature-beranda` (sapaan dari sesi, lewat subpath `/vue`); layout belum.** Paket di [`duidtin-packages/auth`](duidtin-packages/auth/README.id.md), bukan remote, jadi tidak punya project Vercel.
 
 ```
 boot host — _app.tsx, sebelum federationInit()
@@ -287,7 +287,7 @@ graph TD
   H["🏠 duidtin-ui — HOST<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1"]
 
   H -- "remoteEntry.js" --> L["🧭 duidtin-ui-layout<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1"]
-  H -- "remoteEntry.js" --> B["🏦 duidtin-feature-beranda<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x"]
+  H -- "remoteEntry.js" --> B["🏦 duidtin-feature-beranda<br/>Vue 3.5 · Rsbuild · @module-federation/rsbuild-plugin 0.24.1"]
   H -- "remoteEntry.js" --> A["🔐 duidtin-feature-auth<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x"]
 
   L -- "loadRemote" --> DS["🎨 duidtin-ui-design-system<br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · @module-federation/rsbuild-plugin 0.24.1 · MF 0.24.1"]

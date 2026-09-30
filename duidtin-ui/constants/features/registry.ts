@@ -36,7 +36,9 @@ export const featureRegistry: Record<string, FeatureMetadata> = {
   },
   duidtin_feature_beranda: {
     name: "duidtin_feature_beranda",
-    entryPath: "/beranda/_next/static/chunks/remoteEntry.js",
+    // Rsbuild, bukan Next — jadi tanpa segmen `_next/static/chunks`. Pola yang
+    // sama dengan design-system, yang juga bukan Next.
+    entryPath: "/beranda/static/remoteEntry.js",
     devOrigin: "http://localhost:3003",
     routes: ["/"],
   },
