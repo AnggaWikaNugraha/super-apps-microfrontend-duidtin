@@ -117,8 +117,10 @@ for (const nama of readdirSync(KOMPONEN, { withFileTypes: true })
 
   for (const b of bagian) {
     const kebab = b.replace(/[A-Z]/g, (h) => `-${h.toLowerCase()}`).replace(/^-/, "");
+    const propsBagian = sesuaian.propsBagian?.[b];
+    const opsiBagian = propsBagian ? `, { props: { ${daftarProp(propsBagian)} } }` : "";
 
-    baris.push(`buatElemen("dtn-${nama}-${kebab}", ${Komponen}.${b} as never);`);
+    baris.push(`buatElemen("dtn-${nama}-${kebab}", ${Komponen}.${b} as never${opsiBagian});`);
   }
 
   elemen[`dtn-${nama}`] = Object.keys(props).map((k) => k.replace(/[A-Z]/g, (h) => `-${h.toLowerCase()}`)).sort();
@@ -126,7 +128,9 @@ for (const nama of readdirSync(KOMPONEN, { withFileTypes: true })
   for (const b of bagian) {
     const kebab = b.replace(/[A-Z]/g, (h) => `-${h.toLowerCase()}`).replace(/^-/, "");
 
-    elemen[`dtn-${nama}-${kebab}`] = [];
+    elemen[`dtn-${nama}-${kebab}`] = Object.keys(sesuaian.propsBagian?.[b] ?? {})
+      .map((k) => k.replace(/[A-Z]/g, (h) => `-${h.toLowerCase()}`))
+      .sort();
   }
 
   baris.push("", "export default NAMA_ELEMEN;", "");

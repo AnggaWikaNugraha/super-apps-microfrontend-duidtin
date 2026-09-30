@@ -2,36 +2,28 @@
   "name": "duidtin-feature-beranda",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "style": "bun run scripts/build-styles.ts",
-    "tipe": "bun run scripts/ambil-tipe-design-system.ts",
-    "predev": "bun run style && bun run tipe",
-    "dev": "MF_PUBLIC_PATH=http://localhost:3003/beranda next dev --port 3003",
-    "prebuild": "bun run style && bun run tipe",
-    "build": "next build",
-    "start": "next start --port 3003",
-    "check-types": "tsc --noEmit"
+    "dev": "MF_PUBLIC_PATH=http://localhost:3003/beranda/ rsbuild dev",
+    "prebuild": "(cd ../duidtin-packages/auth && bun install && bun run build) && bun install",
+    "build": "rsbuild build",
+    "preview": "rsbuild preview",
+    "check-types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@module-federation/enhanced": "^2.7.0",
-    "@module-federation/runtime": "^2.7.0",
-    "@tanstack/react-query": "^5.102.8",
-    "next": "16.2.9",
-    "next-rspack": "16.2.9",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "@duidtin/auth": "file:../duidtin-packages/auth",
+    "@module-federation/runtime": "^0.24.1",
+    "@tanstack/vue-query": "^5.102.8",
+    "vue": "^3.5.24",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "^4.3.3",
-    "@types/bun": "^1.4.1",
-    "@types/node": "^22",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "fflate": "^0.8.3",
-    "react-aria-components": "1.18.0",
-    "tailwind-variants": "^3.2.2",
+    "@module-federation/rsbuild-plugin": "^0.24.1",
+    "@rsbuild/core": "^1.5.16",
+    "@rsbuild/plugin-vue": "^1.1.1",
+    "@tailwindcss/postcss": "^4.1.18",
     "tailwindcss": "4.1.18",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vue-tsc": "^2.2.12"
   }
 }

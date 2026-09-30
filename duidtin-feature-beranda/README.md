@@ -2,214 +2,265 @@
 
 **English** · [Bahasa Indonesia](README.id.md)
 
-![Login](docs/beranda.png)
+![Home](docs/beranda.png)
 
-The home page (corporate dashboard), exposed as a Module Federation remote and rendered by the `duidtin-ui` host at route `/`.
+The home page (a corporate dashboard) exposed as a Module Federation remote and rendered by the `duidtin-ui` host at route `/`.
 
-This repo is **deliberately built on a different stack from every other duidtin repo** — Next 16 + Rspack + Module Federation 2.x, while the host, layout and design system are still Next 14 / Rslib on MF 0.24.1. The point is to prove Module Federation's central claim: each remote may bring its own toolchain, as long as the contract lines up.
+This is **the only duidtin repo that is not React** — Vue 3 + Rsbuild, while the host, the layout and feature-auth are all React. The point is to prove Module Federation's strongest claim: a remote may bring its own **framework**, not merely its own toolchain. And the components are still the same design-system components, used through the `<dtn-*>` Web Component wrappers.
 
 ## Getting started
 
-This repo consumes `duidtin-ui-design-system` and is only visible through the host, so three servers must be running:
+This repo consumes `duidtin-ui-design-system`. To see the home page inside the layout, four servers must be running:
 
 1. `../duidtin-ui-design-system/` → `bun run dev:producer` (`:3001`)
 2. `../duidtin-ui-layout/` → `bun run dev` (`:3002`)
-3. This folder → `bun install` then `bun run dev` (`:3003`)
+3. This folder → `bun install`, then `bun run dev` (`:3003`)
 4. `../duidtin-ui/` → `bun run dev` (`:3000`) ← **open this one**
 
-Opening `http://localhost:3003/beranda` only shows a guard page, not the dashboard.
+Unlike the Next version, `http://localhost:3003/beranda` now shows **the real home page**, not a placeholder — only the design system on `:3001` needs to be up. See [The host contract](#the-host-contract).
 
-## Current status
+## Where it stands
 
-Verified working in a browser:
+Verified in a real browser (through the host on `:3000` and standalone on `:3003`, zero console errors):
 
-- `./base` is rendered by the host through `loadRemote("duidtin_feature_beranda/base")` at route `/`.
-- **MF 0.24.1 and 2.x are proven to talk to each other** — the most important result here, and previously unknown.
-- `Card`, `Button`, `Badge` and `Alert` are pulled at runtime from `duidtin_ui_design_system`, so the chain is: host (0.24.1) → beranda (2.x) → design system (0.24.1).
-- This is the first feature remote, so **PHASE 2 in the host finally runs for real** — before this, `featureRegistry` was empty and the loop did zero iterations.
-- Design-system types are generated into `@mf-types/` automatically — cross-repo `dts` works across MF versions too.
-
-- Five blocks; four of them are data-driven by **three queries** — `rekening` feeds two blocks and TanStack merges it into a single request. Each block owns its loading/error state, so a failing block does not take down blocks whose query is different.
-- **Three layers of error handling**, all proven working (see below).
+- `./base` returns a `mount(el)` function; the React host calls it through `components/federation/remote-mount.tsx`. **Vue renders inside a React tree with no framework adaptor at all.**
+- All five blocks render: 5 `<dtn-card>`, 10 `<dtn-badge>` (every label intact), 3 accounts, 4 table rows.
+- **The Vue `useAuth()` reads the session store the React host installed** — the heading says "Selamat datang, Angga." with no props passed down by the host. This is the most direct proof that `@duidtin/auth` really is framework-agnostic.
+- The Zustand stores work from Vue: the eye icon hides the balance, the activity filter cuts 4 rows down to 1.
+- `press` from `<dtn-button>` is caught by Vue (`@press`), and `:is-disabled` reaches the React component inside — the Refresh button turns into "Memperbarui" and goes disabled.
+- `?gagal=rekening,aktivitas` → 3 blocks fail with a "Coba lagi" button, the global banner appears, the approvals block keeps rendering.
+- `?lambat=20` → skeletons appear with the right number of lines (2 / 5 / 5 / 5).
 
 Not there yet:
 
-- A real backend. The data is dummy, but shaped like a real API response — only `services/api/client.ts` needs replacing later.
-- Auth and roles. Every shortcut is still `isDisabled`.
-- i18n and container (Docker) config. For Vercel, `vercel.json` holds only `ignoreCommand`; the build uses the Next.js defaults set in the dashboard.
+- A real backend. The data is dummy but already shaped like an API response — only `services/api/client.ts` needs replacing.
+- Roles. Every shortcut is still disabled.
+- i18n and container config (Docker).
 
-## Coding rules for feature repos
+## House rules for feature repos
 
-Three rules that apply across every `duidtin-feature-*` repo. Their purpose is to keep feature repos thin and uniform.
+Three rules that hold across every `duidtin-feature-*` repo, to keep feature repos thin and uniform. Here the word is "composable", but the rule is identical to the React repos.
 
-### 1. Every action and per-section logic goes through a custom hook
+### 1. Every action and every piece of per-section logic lives in a composable
 
-Components **only render**. No `useQuery`, no handlers, no calculations inside them. One section = one hook.
+Components **only render**. No `useQuery`, no handlers, no calculations inside them. One section = one composable.
 
-```tsx
-// ❌ don't
-const RingkasanSaldo = () => {
-  const { data, isPending } = useQuery({ queryKey: …, queryFn: … });
-  const total = (data ?? []).reduce((a, b) => a + b.saldo, 0);
-  …
-};
+```vue
+<!-- ❌ don't -->
+<script setup lang="ts">
+const { data } = useQuery({ queryKey: …, queryFn: … });
+const total = computed(() => (data.value ?? []).reduce((a, b) => a + b.saldo, 0));
+</script>
 
-// ✅ do
-const RingkasanSaldo = () => {
-  const { total, jumlahRekening, isLoading, isError, retry } = useRingkasanSaldo();
-  …
-};
+<!-- ✅ do this -->
+<script setup lang="ts">
+const { total, jumlahRekening, isLoading, isError, retry } = useRingkasanSaldo();
+</script>
 ```
 
-**Why:** the component becomes readable at a glance; the logic can be tested without rendering; and when the data source changes (dummy → a real API), the JSX is not touched at all.
+**Why:** the component can be read at a glance; the logic can be tested without rendering; and when the data source changes (dummy → real API) the template is never touched.
 
-### 2. State goes into Zustand, not `useState` in components
+### 2. State goes in Zustand, not a `ref` in the component
 
-**Why:** state used across blocks (a period filter, a selected account) never needs lifting through props. And specifically in an MFE, state that lives in a store survives the host *unmounting* and *remounting* the remote — with `useState` it is all lost.
+**Why:** state used across blocks (period filter, selected account) needs no prop drilling. And in an MFE specifically, state that lives in a store survives the host unmounting and remounting the remote — with a component `ref`, all of it is lost.
 
-### 3. UI comes from the design system; never build local reusable components
+The store is `zustand/vanilla` (the main package ships React hooks), with a six-line bridge in [`utils/zustand-vue.ts`](utils/zustand-vue.ts). `@duidtin/auth/vue` uses the same pattern.
 
-If a needed component does not exist yet, **create it in `duidtin-ui-design-system` first** — not in the feature repo.
+### 3. UI comes from the design system; do not build local reusable components
 
-| Belongs in the feature repo | Belongs in the design system |
+If a component does not exist yet, **build it in `duidtin-ui-design-system`** — not in the feature repo.
+
+| Allowed in a feature repo | Belongs in the design system |
 |---|---|
-| Compositions specific to this feature (the beranda blocks) | UI primitives (button, card, skeleton) |
-| The feature's hooks & stores | Patterns used across features (empty state, error boundary) |
+| Compositions specific to this feature (the home blocks) | UI primitives (button, card, skeleton) |
+| The feature's composables & stores | Patterns used across features (empty state, data state) |
 
-**Why:** a reusable component built locally will be duplicated in every feature, and the design system loses its purpose.
+**Why:** a reusable component built locally gets duplicated in every feature, and the design system loses its purpose.
 
-### Current state: all three are now followed
+### Where it stands: all three are followed
 
-| Rule | How it looks in this repo |
+| Rule | How it shows up here |
 |---|---|
-| 1 | `hooks/use-*.ts` — one hook per block. The components in `blocks/` only render |
-| 2 | `stores/error-global.ts` — Zustand, no `useState` in any component |
-| 3 | `Skeleton`, `EmptyState`, `ErrorBoundary`, `DataState` all come from the design system |
+| 1 | `composables/use-*.ts` — one per block. The components in `blocks/` only render |
+| 2 | `stores/error-global.ts`, `stores/tampilan-beranda.ts` — Zustand, no `ref` state in components |
+| 3 | `<dtn-card>`, `<dtn-badge>`, `<dtn-button>`, `<dtn-alert>`, `<dtn-skeleton>`, `<dtn-data-state>` all come from the design system |
 
-What used to be `BlockState` in this repo has moved to the design system as `DataState` — it was exactly the kind of component rule 3 forbids building locally.
+**One agreed exception, and one forced on us:**
 
-**One agreed exemption:**
+- `buatQueryClient()` is called inside `mount()`, not at module level. That is not application state but an **instance holder** — if it were global, a stale cache would cling on when the host remounts this remote.
+- `containers/beranda/components/error-boundary.vue` is **a local component even though rule 3 forbids it**. The reason is in [the error section](#three-layers-of-error-handling): the design system's `ErrorBoundary` cannot be wrapped as a Web Component, and Vue's mechanism is a different thing entirely.
 
-```tsx
-const [queryClient] = useState(buatQueryClient);
-```
-
-This is not application state but an **instance holder**, and it is React Query's own documented pattern. Moving it into a store would actually be wrong: a single global QueryClient would be shared across mounts, so a stale cache would linger when the host remounts this remote. Exempt from rule 2.
-
-**A pleasant side effect of rule 2:** `QueryCache.onError` lives outside React, so it cannot use hooks. With a store it simply calls `useErrorGlobal.getState().setPesan(...)`. The previous listener-registration mechanism disappeared entirely.
+**A pleasant side effect of rule 2:** `QueryCache.onError` lives outside any component, so it cannot use a composable. With a store it simply calls `storeErrorGlobal.getState().setPesan(...)`.
 
 ## The stack — and why it differs
 
 | | Choice | Reason |
 |---|---|---|
-| Framework | Next.js 16.2.9 | exploration; also aligns with `qcash-ui-dashboard-dhe` |
-| Bundler | **Rspack** (`next-rspack` 16.2.9) | Turbopack (Next 16's default) **does not support** Module Federation |
-| MF plugin | `@module-federation/enhanced` 2.9.0 | `nextjs-mf` stops at Next 14, no Next 15+ support |
-| React | 18.3.1 | **must** match the host — it is shared as a singleton |
-| Styling | Tailwind v4, prefix `fber` | BEM + `@apply`, the same pattern as the layout (`lyt`) and host (`app`) |
-| Data | TanStack Query 5 | a `QueryClient` owned by this repo, not shared from the host |
-| Port / basePath | 3003 / `/beranda` | |
+| Framework | **Vue 3.5** | proves a remote may differ in framework, not just in bundler |
+| Bundler | **Rsbuild 1.x** | no Next: the home page needs neither routing nor SSR, it is only rendered by the host |
+| MF plugin | `@module-federation/rsbuild-plugin` **0.24.1** | **exactly** the design system's version — the remote this repo talks to most |
+| UI components | `<dtn-*>` Web Components | the design system's React components, used with no React on this side |
+| React | **not installed** | see [Why there is no React](#why-there-is-no-react-in-the-dependencies) |
+| Data | `@tanstack/vue-query` 5 | its own `QueryClient` |
+| Session | `@duidtin/auth` + the `/vue` subpath | the very same store as the host |
+| Styling | Tailwind v4, prefix `fber` | BEM + `@apply`, same as the layout (`lyt`) and the host (`app`) |
+| Port / base | 3003 / `/beranda` | |
 
-## Folder structure
+## Folder layout
 
 ```
 duidtin-feature-beranda/
-  hooks/                 # RULE 1 — one hook per block
-    use-ringkasan-saldo.ts
-    use-rekening-perusahaan.ts
-    use-antrean-persetujuan.ts
-    use-aktivitas-terakhir.ts
-  stores/
-    error-global.ts      # RULE 2 — Zustand, not useState
+  expose/
+    base.ts              # WHAT IS EXPOSED as "./base" — mount(el) → unmount
+  entry/
+    dev.ts               # dev-page entry; the async boundary MF asks for
+    dev-app.ts           # calls the same mount() the host calls
   containers/beranda/
-    index.tsx            # EXPOSED as "./base"
-  scripts/
-    build-styles.ts      # compiles Tailwind → a string, see the styling section
-  components/remote/
-    design-system.tsx    # loadRemote bridge to duidtin_ui_design_system
+    index.vue            # the page frame: 5 blocks + 3 error layers
+    blocks/*.vue         # RULE 1 — components only render
+    components/
+      error-boundary.vue # onErrorCaptured, standing in for React's ErrorBoundary
+      page-heading.vue   # uses the Vue useAuth()
+      global-error-banner.vue
+      icon.vue · format.ts
+  composables/           # RULE 1 — one per block
+    use-ringkasan-saldo.ts · use-rekening-perusahaan.ts
+    use-antrean-persetujuan.ts · use-aktivitas-terakhir.ts · use-page-heading.ts
+  stores/                # RULE 2 — zustand/vanilla
+    error-global.ts · tampilan-beranda.ts
   services/
-    federation.ts        # ← remote registration, see "Snags" item 4
-  constants/federation.ts
-  types/global.d.ts      # window.__DUIDTIN_REMOTE_ENTRY__ (set by the host)
-  utils/index.ts         # getBaseFederationUrl()
-  pages/
-    _app.tsx             # DELIBERATELY empty
-    index.tsx            # guard page
+    federation.ts        # registers the design system + loads the <dtn-*> wrappers
+    query-client.ts · api/client.ts · api/beranda.ts
+  utils/
+    index.ts             # getBaseFederationUrl()
+    zustand-vue.ts       # store → ref bridge
+  types/
+    global.d.ts          # window.__DUIDTIN_REMOTE_ENTRY__ (filled by the host)
+    dtn-elements.d.ts    # <dtn-*> types for vue-tsc
   styles/
-    globals.css          # @import tailwindcss prefix(fber) + beranda.css
+    globals.css          # @import tailwindcss prefix(fber) + beranda.css — exposed as "./globals"
     beranda.css          # BEM classes + @apply
-    global.exposes.ts    # GENERATED, exposed as "./globals" — gitignored
-  next.config.ts
-  vercel.json            # ignoreCommand only: skip the Vercel build when this folder is unchanged
+  index.html             # the dev page
+  rsbuild.config.ts · postcss.config.mjs
+  vercel.json            # buildCommand + outputDirectory + ignoreCommand
 ```
+
+## The host contract
+
+The host is a React application. React cannot render a Vue component, nor the other way round. The only thing that crosses the boundary is **DOM**, so the contract is inverted: what is exposed is not a component but a function.
+
+```ts
+// expose/base.ts — the remote's side
+export const mount = (el: HTMLElement): (() => void) => { … };
+
+// components/federation/remote-mount.tsx — the host's side
+const lepas = mount(wadah.current);   // inside useEffect
+return () => lepas();                 // on cleanup
+```
+
+All the host knows is "here is an empty `<div>`, call this function". A Svelte or Angular remote later will use the same `RemoteMount` with not one line changed in the host.
+
+The consequence to remember: **everything that must run in both situations goes in `expose/base.ts`**, not in `entry/`. When the host renders this remote, `entry/` is never executed. This is the expensive lesson from the React version, which once put the remote registration in `pages/_app.tsx` and made every design-system component disappear **without a single error message**.
+
+## Components: `<dtn-*>`, not React components
+
+```
+services/federation.ts
+  init({ name: "duidtin_feature_beranda", remotes: [design-system] })
+  ├─ loadRemote("duidtin_ui_design_system/globals")                  → --dtn-* tokens + ui-* classes
+  └─ loadRemote("duidtin_ui_design_system/component-wrapper/semua")  → customElements.define("dtn-card", …)
+        └─▶ from then on <dtn-card> works in any Vue template like a plain HTML tag
+```
+
+`./components/<n>` is **not used** here — those are React components. What is used is `./component-wrapper/semua`, a module whose only job is a side effect: registering the elements. Inside each element a React root runs the original component, with exactly the same CSS classes.
+
+| Thing | Shape |
+|---|---|
+| Props | kebab-case attributes — `:is-disabled="isFetching"`, `:lines="5"` |
+| Events | bubbling `CustomEvent` — `@press`, `@retry` |
+| Content | ordinary light-DOM children — `<dtn-badge>Data contoh</dtn-badge>` |
+| Types | `types/dtn-elements.d.ts`, written by hand (see below) |
+
+Three things to be aware of:
+
+**1. `isCustomElement` is mandatory.** In `rsbuild.config.ts` the Vue compiler is told that `dtn-*` is an element, not a component. Without it Vue warns "Failed to resolve component" and — more importantly — passes values as DOM properties rather than attributes, so the wrapper's `attributeChangedCallback` never fires.
+
+**2. Props that are ReactNodes cannot cross.** `DataState`'s `loadingFallback` is a React element; there is no attribute form of it. So the LOADING state is handled by `v-if` in Vue, and `<dtn-data-state>` covers what can actually be expressed as attributes: empty and error.
+
+**3. The types are hand-written, not from `@mf-types`.** The design system's type archive holds **React** types (`ComponentProps<typeof Button>`), which mean nothing in a Vue template. So `scripts/ambil-tipe-design-system.ts`, `fflate`, and the `react-aria-components` + `tailwind-variants` devDependencies are all gone from this repo, replaced by `types/dtn-elements.d.ts` declaring `GlobalComponents`. The price: when a variant is added in the design system, that file has to follow by hand.
+
+### Why there is no React in the dependencies
+
+Even though `<dtn-*>` runs React inside. The key is on the design system's side: it shares `react` and `react-dom` as singletons **with a fallback**, so
+
+```
+rendered by the host → the share scope already holds the host's React → that one is used
+opened standalone    → the share scope is empty                      → the design system's own copy
+```
+
+That is why `shared: {}` in `rsbuild.config.ts` really is empty, and this repo carries zero lines of React. It is a conclusion that only became clear after reading the design system's `mf-manifest.json` — the initial assumption was the opposite, that React had to be supplied from here.
+
+## Session: the Vue `useAuth()`
+
+```ts
+import { useAuth } from "@duidtin/auth/vue";
+
+const { user } = useAuth();   // user.value, or {{ user?.nama }} in a template
+```
+
+The store is the `zustand/vanilla` one the host parks on `window.__DUIDTIN_AUTH__`. The only difference from the React version is how it subscribes (~25 lines in the auth package); the statuses, the expiry timer, `localStorage` and the axios interceptors are identical. Logging in through the host's React modal changes the greeting here, with no props involved.
+
+The auth package is installed via `file:../duidtin-packages/auth`, and its `dist` is not in git — hence the `prebuild` that builds it first, exactly as the host does.
 
 ## Module Federation config
 
-No wrapper plugin like `nextjs-mf` — the plugin is installed by hand in the `webpack()` hook:
-
 ```ts
-import withRspack from "next-rspack";
-import { ModuleFederationPlugin } from "@module-federation/enhanced/rspack";
-
-webpack(config, { isServer }) {
-  config.cache = false;
-  if (!isServer) {                       // the MF container only matters in the browser
-    config.optimization.runtimeChunk = false;
-    config.output.uniqueName = "duidtin_feature_beranda";
-    config.output.chunkLoadingGlobal = "webpackChunkduidtin_feature_beranda";
-    config.plugins.push(new ModuleFederationPlugin({ ... }));
-  }
-  return config;
-}
-export default withRspack(nextConfig);
+pluginModuleFederation({
+  name: "duidtin_feature_beranda",
+  filename: "static/remoteEntry.js",
+  exposes: {
+    "./base": "./expose/base.ts",
+    "./globals": "./styles/globals.css",   // CSS directly, not compiled into a string
+  },
+  shared: {},                               // see "Why there is no React"
+  dts: false,                               // nothing consumes this remote's types
+})
 ```
 
-### Three deliberate departures from `qcash-ui-dashboard-dhe`
+The host registry's `entryPath` changes with it: `/beranda/static/remoteEntry.js`, without the `_next/static/chunks` segment — the same shape as the design system, which is also not Next.
 
-This config follows dhe's, but **three things are intentionally different**:
+**Build-time `remotes` stays empty.** The design system is registered at runtime only — the lesson from `duidtin-ui-layout`: when the same name is registered both at build time and at runtime, the build-time one wins and the runtime one is silently dropped, so the dev URL gets baked all the way into production.
 
-**1. An absolute `assetPrefix`, not `output.publicPath = "auto"`.**
-dhe uses `"auto"` and that is correct **there**, because its remote is proxied through the host's origin (`scripts/dev-host-compat.mjs`). The duidtin host proxies nothing, so `"auto"` would make chunks be requested from `:3000` and 404 — exactly the snag `duidtin-ui-layout` already hit. Here it is `assetPrefix: process.env.MF_PUBLIC_PATH`, set to `http://localhost:3003/beranda` in dev and left empty in production.
-
-**2. `shared` is written by hand.**
-`nextjs-mf` (used by the host and layout) quietly shares `react`/`react-dom`, which is why they can write `shared: {}`. `enhanced` does **not**:
-
-```ts
-shared: {
-  react:       { singleton: true, requiredVersion: false },
-  "react-dom": { singleton: true, requiredVersion: false },
-}
-```
-
-Drop those lines and React is duplicated, producing an immediate `Invalid hook call`.
-
-**3. Build-time `remotes` is left empty.**
-dhe registers `qui` in its config. Here `remotes` is empty and registration happens only at runtime — the lesson from snag 7 in `duidtin-ui-layout`: if the same name is registered at build time **and** at runtime, the build-time one wins and the runtime one is silently discarded, so the dev URL gets baked all the way into production.
+**`dev.hmr` and `dev.liveReload` are off.** The rsbuild dev client that gets injected into `remoteEntry.js` calls `location.reload()` on the **consumer's** page — the host page then reloads forever and the remote component never gets a chance to render. Same reason as the design system.
 
 ### Loaded from the production host during dev
 
-Beranda can be developed without running the host, layout or design system: run `bun run dev` in this repo, then open `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_feature_beranda@3003`. Details in the host README, section *Dev without running every server*. Two things in this repo make it work:
+Run `bun run dev` here, then open `https://super-apps-duidtin.vercel.app/?remote-lokal=duidtin_feature_beranda@3003`. Details in the host README, section *Dev without running every server*.
 
-- **`allowedDevOrigins: ["super-apps-duidtin.vercel.app"]`** in `next.config.ts`. Next 16 answers cross-site script requests to `/_next/*` with a 403 unless the Referer hostname is on this list. Tested: the production host's Referer → 200, another domain → 403. It only has an effect in dev.
-- **`ensureDesignSystemRegistered()` uses the host's `window.__DUIDTIN_REMOTE_ENTRY__`** when present. The MF runtime here (2.x) has its own registry, so without it beranda would register the design system at a URL it computes itself and would ignore the host's `?remote-lokal` override or publish mode. Opened on its own at `:3003`, that variable is empty and the old path is used.
+> **Requires a redeployed host.** `entryPath` is baked into the host bundle, so a production host that has not been updated still asks for `/beranda/_next/static/chunks/remoteEntry.js` — a Next path that no longer exists here, which shows up as `remote offline`. And even if it did resolve, the old host still renders `./base` as a React component, while it is now a `mount()` function. Until the new host is live, use the local host (`:3000`).
 
-## A dual role
+Two things here make it work:
 
-This repo is a **remote for the host**, and at the same time a **consumer of another remote**:
+- **`server.headers: { "Access-Control-Allow-Origin": "*" }`** in `rsbuild.config.ts`. Simpler than the Next version, which needed an `allowedDevOrigins` hostname list because Next 16 answers cross-site `/_next/*` script requests with a 403.
+- **`siapkanDesignSystem()` uses the host's `window.__DUIDTIN_REMOTE_ENTRY__`** when present. The MF runtime here is its own instance, so without it the home page would register the design system at a URL it computed itself and would miss the host's `?remote-lokal` override and publish mode.
+
+## A double role
+
+This repo is **a remote to the host** and at the same time **a consumer of another remote**:
 
 ```
-duidtin-ui (host, MF 0.24.1)
-  └─▶ loadRemote("duidtin_feature_beranda/base")
-        └─▶ containers/beranda/index.tsx        (MF 2.x)
-              └─▶ loadRemote("duidtin_ui_design_system/components/card")
-                    └─▶ duidtin-ui-design-system  (MF 0.24.1)
+duidtin-ui (host, React, MF 0.24.1)
+  └─▶ loadRemote("duidtin_feature_beranda/base") → mount(el)
+        └─▶ the Vue app                          (MF 0.24.1)
+              └─▶ loadRemote("duidtin_ui_design_system/component-wrapper/semua")
+                    └─▶ duidtin-ui-design-system (React inside a Web Component)
 ```
 
-Two repo boundaries and two MF version crossings inside a single render tree.
+Two repo boundaries, two framework switches (React → Vue → React), in one DOM tree.
 
-## Styling — Tailwind, but by a detour
+## Styling — Tailwind, prefix `fber`
 
-Tailwind v4 with the `fber` prefix, using the same BEM + `@apply` pattern as the layout (`lyt`) and the host (`app`). Colours come from the design system's `var(--dtn-*)` tokens, so Tailwind here only handles layout and sizing:
+The same BEM + `@apply` pattern as the layout (`lyt`) and the host (`app`). Colours come from the design system's `var(--dtn-*)` tokens, so Tailwind here only handles layout and sizing:
 
 ```css
 .fber-page {
@@ -217,97 +268,60 @@ Tailwind v4 with the `fber` prefix, using the same BEM + `@apply` pattern as the
 }
 ```
 
-Two easily-confused forms:
+Two forms that are easy to confuse:
 
 | | Form | Appears in |
 |---|---|---|
-| Class names | hyphen — `fber-page`, `fber-saldo__value` | JSX and the DOM |
-| Tailwind utilities | colon — `fber:flex`, `fber:gap-5` | only inside `@apply` |
+| Class name | hyphen — `fber-page`, `fber-saldo__value` | templates and the DOM |
+| Tailwind utility | colon — `fber:flex`, `fber:gap-5` | only inside `@apply` |
 
-The second is Tailwind v4's native form for `prefix(fber)`.
+The second is Tailwind v4's own format for `prefix(fber)`.
 
-### Why the CSS cannot simply be `import`ed
+### What went away along with Next
 
-**Next forbids importing global CSS from any file other than `pages/_app.tsx`** — and an MF-exposed module (`./globals`) is plainly not `_app.tsx`. Each repo works around this differently:
-
-| Repo | Its workaround |
-|---|---|
-| `duidtin-ui-layout` | a custom webpack rule (`style-loader`/`css-loader`/`postcss-loader`) |
-| `qcash-ui-dashboard-dhe` | compile the CSS into a string, inject it manually via `<style>` |
-| **this repo** | **same as dhe** — compiled into a string by `@tailwindcss/cli` |
-
-The pipeline:
+The Next version had to compile Tailwind into a **string** through `scripts/build-styles.ts`, because Next forbids importing global CSS from any file other than `pages/_app.tsx` — and an MF-exposed module is clearly not `_app.tsx`. Rsbuild has no such rule:
 
 ```
-styles/globals.css                        @import tailwindcss prefix(fber)
-  └─▶ scripts/build-styles.ts             runs automatically via predev/prebuild
-        └─▶ styles/global.exposes.ts      GENERATED — the CSS as a string
-              └─▶ ensureGlobalsStylesheet()   injects <style id="…-globals">
-                    └─▶ called by the host in PHASE 2 via loadRemote(".../globals")
+styles/globals.css  →  exposes: { "./globals": "./styles/globals.css" }
 ```
 
-`styles/global.exposes.ts` is a **generated file** — never edit it by hand, and it is not committed. If the CSS looks stale, run `bun run style`.
-
-## Types from the design system (`@mf-types`)
-
-Remote component props are **not re-declared** here. They come from the design system's type archive:
-
-```
-design-system build → @mf-types.zip  (contains node_modules/@duidtin/ui)
-        │
-bun run tipe                              ← runs automatically via predev & prebuild
-  └─ download + unpack into @mf-types/duidtin_ui_design_system/
-        │
-import type { Button } from "@mf-types/duidtin_ui_design_system/components/button";
-export type ButtonProps = ComponentProps<typeof Button>;
-```
-
-| Item | Detail |
-|---|---|
-| Archive source | `MF_TYPES_URL`, defaults to the design system's production domain |
-| Download failure | **a warning, not an error** — the build continues with the committed copy |
-| `@mf-types/` | **committed** (like qcash), so builds do not depend on the network |
-| devDependencies `react-aria-components` + `tailwind-variants` | types only, never bundled — without them the props loosen back to `any` |
-| Versions of those two | must track the design system's; drift makes the types disagree |
-
-Why bother: hand-written interfaces drift silently. New variants never arrive, removed variants stay "allowed", and callback signatures can be wrong without anyone noticing.
+One config file, zero generator scripts, zero generated files to gitignore. Tailwind comes in through `postcss.config.mjs`, which Rsbuild picks up on its own.
 
 ## Application & data flow
 
-Four flows, all traced from the code: how beranda reaches the screen, how a single query turns into a figure on screen, what happens when the user presses something, and what happens when the API fails. The reasoning behind each decision lives in [Data](#data-tanstack-query--a-fake-api) and [Three layers of error handling](#three-layers-of-error-handling).
-
-### 1. Application flow — from the host to rendered blocks
+### 1. Application flow — from the host to a rendered block
 
 ```
 Browser opens localhost:3000/
   └─▶ host duidtin-ui — pages/index.tsx
         │  the host's PHASE 2 has already warmed the container:
-        │    loadRemote("duidtin_feature_beranda/globals")
-        │      → styles/global.exposes.ts → ensureGlobalsStylesheet() → <style> fber-*
+        │    loadRemote("duidtin_feature_beranda/globals")   → <style> fber-*
         │
-        │  dynamic(() => loadRemote("duidtin_feature_beranda/base"), { ssr: false })
+        │  <RemoteMount modul="duidtin_feature_beranda/base" />
         ▼
-      containers/beranda/index.tsx                     ← exposed as "./base"
-        ├─ import components/remote/design-system.tsx
-        │    └─ module scope: ensureDesignSystemRegistered()
-        │         ├─ init({ name: "duidtin_feature_beranda", remotes: [design-system] })
-        │         └─ loadRemote("duidtin_ui_design_system/globals")   → --dtn-* tokens + ui-*
-        ├─ useState(buatQueryClient)                   → a QueryClient owned by this repo
-        └─ <QueryClientProvider>
-             ├─ <PageHeading>                          → usePageHeading()
-             ├─ <GlobalErrorBanner>                    → useErrorGlobal store
-             ├─ ErrorBoundary › <RingkasanSaldo>       → useRingkasanSaldo()
-             ├─ ErrorBoundary › <Pintasan>             → static, no hook & no query
-             ├─ ErrorBoundary › <RekeningPerusahaan>   → useRekeningPerusahaan()
-             ├─ ErrorBoundary › <AntreanPersetujuan>   → useAntreanPersetujuan()
-             └─ ErrorBoundary › <AktivitasTerakhir>    → useAktivitasTerakhir()
+      expose/base.ts — mount(el)
+        ├─ siapkanDesignSystem()                      ← AWAITED before the app mounts
+        │    ├─ init({ name: "duidtin_feature_beranda", remotes: [design-system] })
+        │    ├─ loadRemote(".../globals")                  → --dtn-* tokens + ui-* classes
+        │    └─ loadRemote(".../component-wrapper/semua")  → <dtn-*> registered
+        ├─ createApp(Beranda)
+        ├─ app.use(VueQueryPlugin, { queryClient: buatQueryClient() })
+        └─ app.mount(el)
+             └─▶ containers/beranda/index.vue
+                  ├─ <PageHeading>                    → usePageHeading() + useAuth()
+                  ├─ <GlobalErrorBanner>              → the error-global store
+                  ├─ ErrorBoundary › <RingkasanSaldo>     → useRingkasanSaldo()
+                  ├─ ErrorBoundary › <Pintasan>           → static, no query
+                  ├─ ErrorBoundary › <RekeningPerusahaan> → useRekeningPerusahaan()
+                  ├─ ErrorBoundary › <AntreanPersetujuan> → useAntreanPersetujuan()
+                  └─ ErrorBoundary › <AktivitasTerakhir>  → useAktivitasTerakhir()
 ```
 
-`pages/_app.tsx` does not appear in this tree because it is **never executed** when the host loads this remote. That is why remote registration and the `QueryClientProvider` sit on a path the container imports.
+The design system is **awaited** before the app mounts. An unregistered `<dtn-*>` element would in fact upgrade itself the moment `customElements.define` runs, so rendering first would not break anything — it would just flash unstyled content for an instant. Waiting costs less than that flash, especially since the container is usually already warm from PHASE 2.
 
 ### 2. Data flow — one query from mock to screen
 
-Example: the `rekening` query feeding the balance summary block.
+Example: the `rekening` query feeding the Balance summary block.
 
 ```
 mocks/beranda.ts
@@ -321,101 +335,95 @@ services/api/client.ts — apiGet(endpoint, data)
   ├─ endpoint listed in ?gagal=… → throw new ApiError(endpoint, 503)
   └─ return data                                    → Promise<Rekening[]>
   │
-TanStack Query
+TanStack Vue Query
   useQuery({ queryKey: ["beranda", "rekening"], queryFn: ambilRekening })
-  cached per queryKey · retry 1 · staleTime 60 seconds · no refetch on window focus
+  cache per queryKey · retry 1 · staleTime 60s · no refetch on window focus
   │
-hooks/use-ringkasan-saldo.ts           ← does the processing; the component computes nothing
-  data ?? []  →
-    total                = Σ IDR balances  → 1,228,550,000
-    totalValas           = Σ USD balances  → 55,950,000
+composables/use-ringkasan-saldo.ts     ← does the work; the component calculates nothing
+  computed(() => data.value ?? [])  →
+    total                = Σ IDR balances → 1,228,550,000
+    totalValas           = Σ USD balances → 55,950,000
     jumlahRekening       = 3
     jumlahRekeningRupiah = 2 · jumlahRekeningValas = 1
     isLoading = isPending · isError · isEmpty · retry()
   + from the tampilan-beranda store: terlihat, toggleSaldo
   │
-containers/beranda/blocks/ringkasan-saldo.tsx   ← only renders
-  <DataState isLoading isError isEmpty onRetry={retry} loadingFallback={<Skeleton…/>}>
-    terlihat ? rupiah(total) : "••••••••"
+containers/beranda/blocks/ringkasan-saldo.vue   ← only renders
+  v-if="isLoading" → <dtn-skeleton> + <dtn-skeleton-lines :lines="2">
+  v-else           → <dtn-data-state :is-empty :is-error @retry>
+                       {{ terlihat ? rupiah(total) : "••••••••" }}
 ```
 
-IDR and USD balances are **not summed** — they are shown separately, because adding different currencies needs an exchange rate.
+Everything is `computed`, not a plain variable: vue-query's `data` is a ref, so a calculation read once would freeze at its first value (usually `undefined`).
+
+IDR and USD balances are **not added together** — they are shown separately, because summing currencies needs an exchange rate.
 
 The full query-to-block map:
 
-| `queryKey` | Function | `?gagal=` | Hook | Block |
+| `queryKey` | Function | `?gagal=` | Composable | Block |
 |---|---|---|---|---|
 | `["beranda", "rekening"]` | `ambilRekening` | `rekening` | `useRingkasanSaldo`, `useRekeningPerusahaan` | Balance summary, Company accounts |
 | `["beranda", "persetujuan"]` | `ambilPersetujuan` | `persetujuan` | `useAntreanPersetujuan` | Approval queue |
 | `["beranda", "aktivitas"]` | `ambilAktivitas` | `aktivitas` | `useAktivitasTerakhir` | Recent activity |
 
-The first row matters most: two hooks share one `queryKey`, so TanStack merges them into **a single request** — and they always fail or succeed together.
+The first row matters most: two composables use the same `queryKey`, so TanStack collapses them into **one request** — and they always fail or succeed together.
 
-### 3. User action flow
+### 3. User-action flow
 
 ```
-Click the eye icon — balance summary
-  toggleSaldo()                               hook → store
-  └─▶ useTampilanBeranda: saldoTerlihat = !saldoTerlihat
-        └─▶ subscribed components re-render → "••••••••"
+Click the eye icon — Balance summary
+  toggleSaldo()                               composable → store
+  └─▶ storeTampilanBeranda: saldoTerlihat = !saldoTerlihat
+        └─▶ bacaStore() updates the ref → template re-renders → "••••••••"
   No request. The state survives the host remounting this remote.
 
-Click the All / In / Out filter — recent activity
+Click a filter Semua / Masuk / Keluar — Recent activity
   setFilter("masuk")                          = pilihFilterAktivitas
   └─▶ store: filterAktivitas = "masuk"
-        └─▶ hook: ditampilkan = aktivitas.filter(item.arah === filter)
-              └─▶ "Menampilkan N dari 4 transaksi"
+        └─▶ computed: ditampilkan = aktivitas.filter(item.arah === filter)
+              └─▶ "Menampilkan 1 dari 4 transaksi"
   No request — it filters data already in the cache.
 
 Click Refresh — PageHeading
-  perbarui()
-  └─▶ queryClient.invalidateQueries({ queryKey: ["beranda"] })
-        └─▶ all three queries prefixed "beranda" refetch at once
-  useIsFetching({ queryKey: ["beranda"] }) > 0 → the button reads "Memperbarui", disabled
+  <dtn-button @press="perbarui">
+  └─▶ React Aria onPress → bubbling CustomEvent("press") → the Vue handler
+        └─▶ queryClient.invalidateQueries({ queryKey: ["beranda"] })
+              └─▶ all three "beranda"-prefixed queries refetch together
+  useIsFetching(...) > 0 → :is-disabled → the is-disabled attribute → the React component goes disabled
 ```
 
-On **Refresh**, no skeleton appears. `isPending` is only `true` when there is no data at all; during a refetch the old data stays on screen until the new data arrives.
+On **Refresh** no skeleton appears. `isPending` is only `true` when there is no data at all; during a refetch the old data stays on screen until the new data arrives.
 
-### 4. Failure flow — one endpoint goes down
+### 4. Failure flow — one dead endpoint
 
 ```
 localhost:3000/?gagal=rekening
   apiGet("rekening") → throw ApiError("rekening", 503)
-  └─▶ TanStack retries 1× → still failing
+  └─▶ TanStack retries once → still failing
         │
         ├─▶ QueryCache.onError                 once per failed query
         │     ├─ console.error("[beranda] query gagal: rekening")
-        │     └─ useErrorGlobal.getState().setPesan("Sebagian data gagal dimuat (rekening)…")
+        │     └─ storeErrorGlobal.getState().setPesan("Sebagian data gagal dimuat (rekening)…")
         │           └─▶ <GlobalErrorBanner> appears · "Tutup" → bersihkan()
         │
-        └─▶ hook: isError = true
-              ├─ Balance summary   → <DataState> error + "Coba lagi" → refetch()
+        └─▶ composable: isError = true
+              ├─ Balance summary   → <dtn-data-state> error + "Coba lagi" → refetch()
               └─ Company accounts  → the same, because the queryKey is the same
-            Approval queue & Recent activity stay up — different queryKeys.
+            Approval queue & Recent activity keep rendering — different queryKeys.
 
 A component crashes while rendering — a bug, not the API
-  └─▶ that block's own <ErrorBoundary title="…"> catches it → other blocks stay up
+  └─▶ that block's own <ErrorBoundary title="…"> catches it → the other blocks stay up
 ```
 
-`QueryCache.onError` lives outside React, so it writes to the store through `getState()` — not through a hook.
+`QueryCache.onError` lives outside any component, so it writes to the store through `getState()`.
 
 ## Data: TanStack Query + a fake API
 
 ### Why the `QueryClient` belongs to this repo
 
-It is not shared from the host. The consequence is that the cache is not shared between feature remotes — if two features later fetch the same data, both fetch it separately. The trade is independence: the host needs to know nothing about React Query, and this repo can change versions without disturbing anyone.
+It is not shared from the host. The consequence: the cache is not shared between feature remotes — if two features ever fetch the same data, both will fetch it. The trade is independence: the host needs to know nothing about TanStack Query, and this repo can change versions without disturbing anyone.
 
-If the cache ever needs sharing, the way is to make `@tanstack/react-query` a shared singleton in the MF config — exactly the pattern React uses today.
-
-### The provider lives IN THE CONTAINER, not `_app.tsx`
-
-```tsx
-// containers/beranda/index.tsx
-const [queryClient] = useState(buatQueryClient);
-return <QueryClientProvider client={queryClient}>…</QueryClientProvider>;
-```
-
-Same reason as remote registration: `_app.tsx` is **never executed** when beranda is loaded by the host. A provider placed there only runs when `:3003` is opened directly.
+Here that trade has no alternative anyway: the host uses `@tanstack/react-query`, this repo `@tanstack/vue-query`. Two different packages, so not even a share scope could unify them.
 
 ### The fake API
 
@@ -425,60 +433,56 @@ services/api/client.ts  transport: delay + failure simulation
 services/api/beranda.ts query functions + queryKeys
 ```
 
-All data access goes through `apiGet()`, so when a backend arrives only that function's body changes — the components stay untouched.
+All data access goes through `apiGet()`, so when the backend is ready only that function's body changes — the components stay untouched.
 
 **Two URL parameters for states that are hard to catch:**
 
 | Parameter | Effect |
 |---|---|
 | `?gagal=aktivitas` | force that endpoint to fail. Several at once: `?gagal=aktivitas,persetujuan` |
-| `?lambat=30` | slow every endpoint 30× so the skeletons are actually visible |
+| `?lambat=30` | slow every endpoint down 30× so the skeletons are actually visible |
 
-Deliberately deterministic through the URL, **not random failure** — random failures are maddening during development and impossible to demo.
+Deliberately deterministic through the URL, **not random failure** — random failure is maddening during development and impossible to demo.
 
 ## Three layers of error handling
 
 | Layer | Handles | Where |
 |---|---|---|
-| 1. `BlockState` | a **failed query** — per block | `containers/beranda/components/block-state.tsx` |
-| 2. `ErrorBoundary` | a **render crash** — per block | from the design system, wrapping each block |
-| 3. `GlobalErrorBanner` | every failed query, centrally | via `QueryCache.onError` |
+| 1. `<dtn-data-state>` | a **failed query** — per block | from the design system |
+| 2. `<ErrorBoundary>` | a **crash while rendering** — per block | `containers/beranda/components/error-boundary.vue` |
+| 3. `<GlobalErrorBanner>` | every failed query, in one place | through `QueryCache.onError` |
 
-Layers 1 and 2 handle genuinely different failures: a failed query is not a crashed component. Both are installed **per block**, not per page, so one troubled block does not take its neighbours down.
+Layers 1 and 2 handle different failures: a failed query is not a crashed component. Both are installed **per block**, not per page, so one troubled block does not take the others down.
 
-Layer 3 is the safety net: the user still learns something is wrong even when the failing block happens to be off-screen.
+Layer 2 is the only one that does **not** come from the design system, and that is not an oversight. `ErrorBoundary` is deliberately left unwrapped: a React error boundary only catches errors inside its own React tree, while children slotted through the light DOM are not part of that tree — the element would *look* like it works while catching nothing. Vue has its own mechanism, and a simpler one: a single `onErrorCaptured`, no class component. The fallback markup uses the same design-system CSS classes, so it still looks uniform.
 
-> Known limitation: the global banner shows only the **most recent** message. If two endpoints fail at once, only one is named. Enough to signal "something is wrong", not to enumerate everything.
+> Known limitation: the global banner shows only the **last** message. If two endpoints fail at once, only one is named. Enough to say "something is off", not to list everything.
 
-The host also has a `RemoteErrorBoundary`, but that wraps the ENTIRE application — one crash replaces the whole page. This one is finer-grained.
+The host also has a `RemoteErrorBoundary`, but that wraps the WHOLE application — one crash replaces the entire page. This one is finer-grained.
 
-## Snags we hit (and why the fixes look like that)
+## Snags hit (and why the fixes look like this)
 
-1. **`reactCompiler: { target: "18" }` killed the dev server.** Copied from dhe, it turns out to require `babel-plugin-react-compiler`: `Failed to load the babel-plugin-react-compiler`. Removed — it is an optional optimisation, and React 18 runs on Next 16 without it.
+1. **`<dtn-badge>Data contoh</dtn-badge>` rendered EMPTY — and this was a design-system bug, not one here.**
+   The wrapper moves the original children into the slot React renders, and it read `ref.current` from a `queueMicrotask` scheduled right after `render()`. That is too early: a React 18 root renders asynchronously, so when the microtask ran the slot did not exist yet and the children were hidden **forever**. The only elements that escaped were those that happened to get an attribute change afterwards — `<dtn-button>` looked correct purely because its `is-disabled` changed and the second render found the slot from the first commit.
+   The fix in `component-wrapper/utils/inti.ts`: swap `createRef` for a **callback ref** with a stable identity, which React calls exactly at commit time. It closes the opposite case too — a component that renders no slot (e.g. `DataState` when empty or failed) receives `ref(null)`, so its children are hidden correctly.
 
-2. **`withRspack` and `--webpack` cannot be combined.** Next 16 defaults to Turbopack, so the first instinct is to add `--webpack`. The result: `Cannot call withRspack and pass the --webpack flag. Please configure only one bundler.` The `withRspack` wrapper alone is enough, with no flag.
+2. **`lines` sat on the wrong element.** `<dtn-skeleton-lines>` ignored `lines` because the wrapper codegen only knew props for the parent element; `lines` ended up on `<dtn-skeleton>`, which does not use it. Fix: `propsBagian` in the design system's `peta.ts`, so compound parts may declare their own props. `:lines="5"` now really produces five bars.
 
-3. **The banner prints `(Turbopack)` while Rspack is actually running.** Misleading — the banner is printed before the config is loaded. To confirm Rspack really engaged, look for `[Module Federation Manifest Plugin] Manifest Link:` in the log. If it is absent, the `webpack()` hook never ran and the MF plugin was never installed.
+3. **The assumption that "Vue must supply React" turned out to be wrong.** The original plan installed `react` + `react-dom` here and shared them as singletons, on the grounds that `<dtn-*>` needs React. Reading the design system's `mf-manifest.json` settled it: it already shares both **with its own fallback**. So the empty `shared: {}` is correct and this repo carries zero React — over 1 MB lighter than planned.
 
-4. **`init()` in `pages/_app.tsx` is never executed — the most deceptive one.**
-   First attempt: static text appeared, but **every design-system component was missing**, with no error at all.
-   The cause: when beranda is loaded as a remote, the host only fetches the `./base` module. `_app.tsx` is this repo's own Next application entry and is **never run** in the host's context. So registration placed there only works when `:3003` is opened directly.
-   `duidtin-ui-layout` escapes this trap not by being right, but because it has build-time `remotes` — which is precisely its own snag 7.
-   The fix: registration moved into [`services/federation.ts`](services/federation.ts), called at **module scope** from the bridge file the container imports. That path definitely runs both through the host and standalone.
+4. **The MF plugin tried to emit type declarations and failed.** `[ Module Federation DTS ] Failed to generate type declaration` — `tsc` cannot emit `.d.ts` from `.vue` files. Since nothing consumes this remote's types (the host uses the `mount(el)` contract), `dts: false` is the right answer, not something to patch around.
 
-5. **This repo's MF runtime is a SEPARATE instance from the host's.** A consequence of item 4: the host already registered `duidtin_ui_design_system` in its registry, yet beranda still has to register it again. What instances share is the **shared scope** (React), not the remote registry.
+5. **`isCustomElement` is not optional.** Without it Vue treats `dtn-card` as an unregistered component. Beyond the console warning there is a subtler effect: values are passed as DOM properties rather than attributes — and the wrapper only observes attributes.
 
-6. **`bun run dev` hangs with no message at all — at the `predev` step.** The log stops at `$ bun run scripts/build-styles.ts` and the dev server never starts.
-   The cause: the script originally called `bun x @tailwindcss/cli`. The package is named `@tailwindcss/cli`, but its binary is named `tailwindcss` — they differ. `bun x` does not recognise it as an installed package and silently runs `bun add @tailwindcss/cli@latest --no-cache --force`, downloading from the internet. On a slow or blocked network, that hangs forever.
-   The fix: call the local binary directly, `./node_modules/.bin/tailwindcss`. Style build time went from *never finishing* to about 1.7 seconds, with no network.
+6. **A plain `.click()` on the inner `<dtn-button>` does work.** The first guess was that pointer events would have to be simulated, since React Aria uses `usePress`. Not so: one `click()` already produces a bubbling `CustomEvent("press")` that reaches the Vue handler. Verified over CDP.
 
 ## Next steps
 
-- Fill the "pending approval" and "recent activity" blocks once the Payroll and Statement features exist.
-- Wire the shortcuts to real routes (all of them are `isDisabled` today).
-- Auth and roles: a maker should see different shortcuts from a checker.
-- Real data replacing the sample figures.
+- Real home-page endpoints in `duidtin-api` (`rekening`, `persetujuan`, `aktivitas`) replacing `mocks/beranda.ts`.
+- Fill the "Approval queue" and "Recent activity" blocks once Payroll and Statements exist.
+- Wire the shortcuts to real routes (all disabled today).
+- Roles: a maker sees different shortcuts from a checker.
 
-## Business Banking refresh
+## Business Banking revamp
 
-The dashboard now emphasizes IDR balances, separate USD balances, account details, pending approvals, and a filterable transaction table. `saldo` is displayed in the account's native currency; currencies are never summed without a conversion rate. The header refreshes all dashboard queries. Balance visibility and transaction filters live in `stores/tampilan-beranda.ts`, with actions exposed through each section's hook. Shortcut actions remain disabled until their feature routes are available.
+The home page leads with the IDR balance, a separate USD balance, an account breakdown, the approval queue, and a transaction table filtered by direction. `saldo` is shown in each account's own currency; balances in different currencies are not summed without a rate. The Refresh button reloads every home-page query. Summary-balance visibility and the transaction filter live in `stores/tampilan-beranda.ts`, with the actions exposed through each section's composable. The shortcuts stay disabled until their feature routes exist.

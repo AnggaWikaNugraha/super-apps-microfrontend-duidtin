@@ -30,8 +30,8 @@ declare global {
       "dtn-empty-state-action": Atribut;
       "dtn-line-chart": Atribut & { "category-key"?: string; "data"?: string; "height"?: string; "series"?: string; "show-legend"?: string };
       "dtn-pie-chart": Atribut & { "data"?: string; "height"?: string; "show-legend"?: string };
-      "dtn-skeleton": Atribut & { "lines"?: string; "variant"?: string };
-      "dtn-skeleton-lines": Atribut;
+      "dtn-skeleton": Atribut & { "variant"?: string };
+      "dtn-skeleton-lines": Atribut & { "lines"?: string };
       "dtn-spinner": Atribut & { "color"?: string; "size"?: string };
     }
   }

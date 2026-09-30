@@ -1,7 +1,4 @@
 node_modules
-.next
-next-env.d.ts
+dist
 *.tsbuildinfo
-styles/global.exposes.ts
 .DS_Store
-.mf
