@@ -281,37 +281,9 @@ Flag mengatur tampilan, bukan akses. Fitur yang menyangkut data sensitif tetap h
 
 Siapa memuat siapa, dan dengan stack apa — keadaan repo saat ini.
 
-```
-Pengguna
-   │
-   ▼
-duidtin-ui — HOST                         Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1
-   │                                      shell tipis — tidak merender UI-nya sendiri
-   │
-   │  dimuat runtime lewat remoteEntry.js
-   ├─▶ duidtin-ui-layout                  Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1
-   ├─▶ duidtin-feature-beranda            Vue 3.5 · Rsbuild · rsbuild-plugin 0.24.1
-   │                                      ↑ satu-satunya remote yang bukan React
-   ├─▶ duidtin-feature-auth               Next 16.2 · Rspack (next-rspack) · enhanced 2.x · MF 2.x
-   │        │
-   │        └─ loadRemote, dari ketiganya
-   │             ▼
-   │           duidtin-ui-design-system   Turborepo: apps/producer + packages/ui
-   │                                      Rslib 0.19 · rsbuild-plugin 0.24.1 · MF 0.24.1
-   │
-   └─ import saat build, dari host + beranda + auth
-        ▼
-      @duidtin/auth                       file:../duidtin-packages/auth
-        │                                 paket biasa, BUKAN remote — tiap repo bundel salinannya
-        │                                 tsc saja, tanpa bundler · zustand 5 (vanilla) + axios 1
-        │
-        └─ HTTPS + Bearer
-             ▼
-           duidtin-api                    Express 5 · Mongoose 8.24.4 (dikunci) · Zod 4
-                                          JWT HS256 · bcryptjs · MongoDB Atlas
-```
+![Arsitektur micro-frontend duidtin](docs/arsitektur.svg)
 
-Panah penuh = **Module Federation**, dimuat saat runtime. `import saat build` = ketergantungan biasa lewat `file:` — `@duidtin/auth` bukan remote, jadi tiap repo mem-bundle salinannya sendiri dan yang mereka bagi cuma store di `window`. Rincian stack tiap repo ada di [Enam repo, enam project Vercel](#enam-repo-enam-project-vercel) di atas.
+Panah penuh = **Module Federation**, dimuat saat runtime. `import saat build` = ketergantungan biasa lewat `file:` — `@duidtin/auth` bukan remote, jadi tiap repo mem-bundle salinannya sendiri dan yang mereka bagi cuma store di `window`. Rincian stack tiap repo ada di [Enam repo, enam project Vercel](#enam-repo-enam-project-vercel) di atas. Gambarnya dihasilkan [`docs/buat-arsitektur.py`](docs/buat-arsitektur.py) — ubah datanya di sana lalu jalankan `python3 docs/buat-arsitektur.py .`, jangan sunting SVG-nya langsung.
 
 Tiga hal yang tidak terlihat di gambar tapi menentukan:
 

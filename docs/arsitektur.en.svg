@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 660" width="1000" height="660" role="img" aria-label="duidtin micro-frontend architecture">
+  <defs><marker id="ujung" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#94a3b8"/></marker></defs>
+  <rect width="1000" height="660" fill="#ffffff"/>
+  <rect x="440" y="18" width="120" height="30" rx="15" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="500" y="38" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#475569">User</text>
+  <path d="M500 48 L500 74" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ujung)"/>
+  <g><rect x="330" y="76" width="340" height="93" rx="10" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+  <path d="M330 106 h340 v-20 a10 10 0 0 0 -10 -10 h-320 a10 10 0 0 0 -10 10 z" fill="#dbeafe"/>
+  <text x="500.0" y="96" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1e40af">duidtin-ui — HOST</text>
+  <text x="500.0" y="121" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">Next 14.2 · webpack 5 · nextjs-mf 8.8.54</text>
+  <text x="500.0" y="138" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">MF runtime 0.24.1</text>
+  <text x="500.0" y="155" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">a thin shell — renders no UI of its own</text>
+  </g>
+  <rect x="24" y="196" width="952" height="152" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="44" y="341" text-anchor="start" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#64748b">loaded at runtime via remoteEntry.js</text>
+  <g><rect x="44" y="228" width="290" height="93" rx="10" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+  <path d="M44 258 h290 v-20 a10 10 0 0 0 -10 -10 h-270 a10 10 0 0 0 -10 10 z" fill="#dbeafe"/>
+  <text x="189.0" y="248" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1e40af">duidtin-ui-layout</text>
+  <text x="189.0" y="273" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">Next 14.2 · webpack 5</text>
+  <text x="189.0" y="290" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">nextjs-mf 8.8.54 · MF 0.24.1</text>
+  <text x="189.0" y="307" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">header + footer on every page</text>
+  </g>
+  <path d="M500 169 C500 195 189 198 189 224" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ujung)"/>
+  <g><rect x="355" y="228" width="290" height="93" rx="10" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+  <path d="M355 258 h290 v-20 a10 10 0 0 0 -10 -10 h-270 a10 10 0 0 0 -10 10 z" fill="#dcfce7"/>
+  <text x="500.0" y="248" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#166534">duidtin-feature-beranda</text>
+  <text x="500.0" y="273" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">Vue 3.5 · Rsbuild</text>
+  <text x="500.0" y="290" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">rsbuild-plugin 0.24.1 · MF 0.24.1</text>
+  <text x="500.0" y="307" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">the only one that is not React</text>
+  </g>
+  <path d="M500 169 C500 195 500 198 500 224" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ujung)"/>
+  <g><rect x="666" y="228" width="290" height="93" rx="10" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+  <path d="M666 258 h290 v-20 a10 10 0 0 0 -10 -10 h-270 a10 10 0 0 0 -10 10 z" fill="#dbeafe"/>
+  <text x="811.0" y="248" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#1e40af">duidtin-feature-auth</text>
+  <text x="811.0" y="273" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">Next 16.2 · Rspack (next-rspack)</text>
+  <text x="811.0" y="290" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">enhanced 2.x · MF 2.x</text>
+  <text x="811.0" y="307" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">login + session-expired modal</text>
+  </g>
+  <path d="M500 169 C500 195 811 198 811 224" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ujung)"/>
+  <g><rect x="120" y="420" width="340" height="93" rx="10" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+  <path d="M120 450 h340 v-20 a10 10 0 0 0 -10 -10 h-320 a10 10 0 0 0 -10 10 z" fill="#ffedd5"/>
+  <text x="290.0" y="440" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#9a3412">duidtin-ui-design-system</text>
+  <text x="290.0" y="465" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">Turborepo: apps/producer + packages/ui</text>
+  <text x="290.0" y="482" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">Rslib 0.19 · rsbuild-plugin 0.24.1 · MF 0.24.1</text>
+  <text x="290.0" y="499" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">React + &lt;dtn-*&gt; elements</text>
+  </g>
+  <path d="M290 348 L290 416" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ujung)"/>
+  <text x="300" y="385" text-anchor="start" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#64748b">loadRemote — from all three</text>
+  <g><rect x="560" y="420" width="340" height="93" rx="10" fill="#fefce8" stroke="#fde047" stroke-width="1.5"/>
+  <path d="M560 450 h340 v-20 a10 10 0 0 0 -10 -10 h-320 a10 10 0 0 0 -10 10 z" fill="#fef9c3"/>
+  <text x="730.0" y="440" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#854d0e">@duidtin/auth</text>
+  <text x="730.0" y="465" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">file:../duidtin-packages/auth</text>
+  <text x="730.0" y="482" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">a plain package, NOT a remote</text>
+  <text x="730.0" y="499" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">tsc only · zustand 5 (vanilla) + axios 1</text>
+  </g>
+  <path d="M730 348 L730 416" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ujung)"/>
+  <text x="740" y="385" text-anchor="start" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#64748b">imported at build time — host, beranda, auth</text>
+  <g><rect x="560" y="556" width="340" height="93" rx="10" fill="#faf5ff" stroke="#d8b4fe" stroke-width="1.5"/>
+  <path d="M560 586 h340 v-20 a10 10 0 0 0 -10 -10 h-320 a10 10 0 0 0 -10 10 z" fill="#f3e8ff"/>
+  <text x="730.0" y="576" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#6b21a8">duidtin-api</text>
+  <text x="730.0" y="601" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">Express 5 · Mongoose 8.24.4 (pinned)</text>
+  <text x="730.0" y="618" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">Zod 4 · JWT HS256 · bcryptjs</text>
+  <text x="730.0" y="635" text-anchor="middle" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#64748b">MongoDB Atlas</text>
+  </g>
+  <path d="M730 513 L730 552" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ujung)"/>
+  <text x="740" y="540" text-anchor="start" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#64748b">HTTPS + Bearer</text>
+  </svg>
