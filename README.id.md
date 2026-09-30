@@ -127,7 +127,8 @@ tab lain
 |---|---|
 | `@duidtin/auth` | `configureAuth({ baseUrl })`, `installAuthStore()`, `getAuthStore()`, `http` (instance axios), `login()`, `logout()`, `logoutAll()`, `refreshProfile()` |
 | `@duidtin/auth/react` | `useAuth()` → `{ user, status, isLoggedIn, sesiKedaluwarsa, penggunaTerakhir, login, logout, logoutAll, refreshProfile }` |
-| `/vue`, `/svelte`, `/angular` | menyusul; inti tanpa framework, jadi pembungkusnya belasan baris |
+| `@duidtin/auth/vue` | `useAuth()` → kunci yang sama, tapi berupa **ref** (`status.value`); dipakai `duidtin-feature-beranda` |
+| `/svelte`, `/angular` | menyusul; inti tanpa framework, jadi pembungkusnya ±25 baris — persis seperti `/vue` |
 
 - Store sesi **hanya dibuat host**; remote meminjam objeknya (`getState`, `subscribe`, aksi) — tanpa kelas dan tanpa React, jadi aman lintas framework dan bundler.
 - Store bisnis tetap milik tiap remote.
@@ -280,25 +281,9 @@ Flag mengatur tampilan, bukan akses. Fitur yang menyangkut data sensitif tetap h
 
 Siapa memuat siapa, dan dengan stack apa — keadaan repo saat ini.
 
-```mermaid
-graph TD
-  U["👤 Pengguna"] --> H
+![Arsitektur micro-frontend duidtin](docs/arsitektur.svg)
 
-  H["🏠 duidtin-ui — HOST<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1"]
-
-  H -- "remoteEntry.js" --> L["🧭 duidtin-ui-layout<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1"]
-  H -- "remoteEntry.js" --> B["🏦 duidtin-feature-beranda<br/>Vue 3.5 · Rsbuild · @module-federation/rsbuild-plugin 0.24.1"]
-  H -- "remoteEntry.js" --> A["🔐 duidtin-feature-auth<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x"]
-
-  L -- "loadRemote" --> DS["🎨 duidtin-ui-design-system<br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · @module-federation/rsbuild-plugin 0.24.1 · MF 0.24.1"]
-  B -- "loadRemote" --> DS
-  A -- "loadRemote" --> DS
-
-  H -. "import saat build (file:../duidtin-packages/auth)" .-> P["🔑 @duidtin/auth · paket, BUKAN remote<br/>tsc saja, tanpa bundler · zustand 5 (vanilla) + axios 1"]
-  A -. "import saat build (file:../duidtin-packages/auth)" .-> P
-
-  P == "HTTPS + Bearer" ==> API["🗄️ duidtin-api<br/>Express 5 · Mongoose 8.24.4 (dikunci) · Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas"]
-```
+Panah penuh = **Module Federation**, dimuat saat runtime. `import saat build` = ketergantungan biasa lewat `file:` — `@duidtin/auth` bukan remote, jadi tiap repo mem-bundle salinannya sendiri dan yang mereka bagi cuma store di `window`. Rincian stack tiap repo ada di [Enam repo, enam project Vercel](#enam-repo-enam-project-vercel) di atas. Gambarnya dihasilkan [`docs/buat-arsitektur.py`](docs/buat-arsitektur.py) — ubah datanya di sana lalu jalankan `python3 docs/buat-arsitektur.py .`, jangan sunting SVG-nya langsung.
 
 Tiga hal yang tidak terlihat di gambar tapi menentukan:
 
