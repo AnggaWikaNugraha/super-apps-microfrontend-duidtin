@@ -279,35 +279,35 @@ Flags control what is shown, not what is allowed. Features touching sensitive da
 Who loads whom, and on which stack — the repository as it stands today.
 
 ```mermaid
-%%{init: {'flowchart': {'wrappingWidth': 420}}}%%
-flowchart TD
+%%{init: {'theme':'base','themeVariables':{'fontSize':'13px','lineColor':'#94a3b8','edgeLabelBackground':'#ffffff'},'flowchart':{'wrappingWidth':330,'nodeSpacing':45,'rankSpacing':70,'curve':'basis'}}}%%
+flowchart LR
   U(["👤 User"]) --> H
 
-  H["🏠 duidtin-ui — HOST<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1"]
+  H["🏠 <b>duidtin-ui</b> — HOST<br/>Next 14.2 · webpack 5<br/>nextjs-mf 8.8.54 · MF runtime 0.24.1"]
 
-  subgraph RUNTIME ["remotes"]
-    direction LR
-    L["🧭 duidtin-ui-layout<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1"]
-    B["🏦 duidtin-feature-beranda<br/>Vue 3.5 · Rsbuild · @module-federation/rsbuild-plugin 0.24.1"]
-    A["🔐 duidtin-feature-auth<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x"]
+  subgraph RUNTIME ["loaded at runtime — remoteEntry.js"]
+    direction TB
+    L["🧭 <b>duidtin-ui-layout</b><br/>Next 14.2 · webpack 5<br/>nextjs-mf 8.8.54 · MF 0.24.1"]
+    B["🏦 <b>duidtin-feature-beranda</b><br/>Vue 3.5 · Rsbuild<br/>@module-federation/rsbuild-plugin 0.24.1"]
+    A["🔐 <b>duidtin-feature-auth</b><br/>Next 16.2 · Rspack (next-rspack)<br/>@module-federation/enhanced 2.x"]
   end
 
-  H -- "remoteEntry.js" --> L
-  H -- "remoteEntry.js" --> B
-  H -- "remoteEntry.js" --> A
+  H --> L
+  H --> B
+  H --> A
 
-  L & B & A -- "loadRemote" --> DS["🎨 duidtin-ui-design-system<br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · @module-federation/rsbuild-plugin 0.24.1 · MF 0.24.1"]
+  L & B & A -- "loadRemote" --> DS["🎨 <b>duidtin-ui-design-system</b><br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · rsbuild-plugin 0.24.1 · MF 0.24.1"]
 
-  H & B & A -. "imported at build time (file:../duidtin-packages/auth)" .-> P["🔑 @duidtin/auth · a package, NOT a remote<br/>tsc only, no bundler · zustand 5 (vanilla) + axios 1"]
+  H & B & A -. "import" .-> P["🔑 <b>@duidtin/auth</b> — a package, NOT a remote<br/>file:../duidtin-packages/auth<br/>tsc only, no bundler<br/>zustand 5 (vanilla) + axios 1"]
 
-  P == "HTTPS + Bearer" ==> API[("🗄️ duidtin-api<br/>Express 5 · Mongoose 8.24.4 (pinned) · Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas")]
+  P == "HTTPS + Bearer" ==> API[("🗄️ <b>duidtin-api</b><br/>Express 5 · Mongoose 8.24.4 (pinned)<br/>Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas")]
 
-  classDef user fill:#f1f5f9,stroke:#94a3b8,color:#0f172a
-  classDef next fill:#1f2937,stroke:#111827,color:#ffffff
-  classDef rs fill:#ffedd5,stroke:#ea580c,color:#7c2d12
-  classDef vue fill:#dcfce7,stroke:#16a34a,color:#14532d
-  classDef pkg fill:#fef9c3,stroke:#ca8a04,color:#713f12
-  classDef backend fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+  classDef user fill:#f8fafc,stroke:#cbd5e1,color:#334155
+  classDef next fill:#1f2937,stroke:#0f172a,color:#f8fafc
+  classDef rs fill:#fff7ed,stroke:#f97316,color:#7c2d12
+  classDef vue fill:#f0fdf4,stroke:#22c55e,color:#14532d
+  classDef pkg fill:#fefce8,stroke:#eab308,color:#713f12
+  classDef backend fill:#faf5ff,stroke:#a855f7,color:#581c87
 
   class U user
   class H,L,A next
@@ -316,7 +316,7 @@ flowchart TD
   class P pkg
   class API backend
 
-  style RUNTIME fill:#f8fafc,stroke:#cbd5e1,color:#334155
+  style RUNTIME fill:#ffffff,stroke:#e2e8f0,color:#64748b
 ```
 
 **Colour = toolchain**, not role: ⬛ black Next.js · 🟧 orange Rsbuild/Rslib · 🟩 green Vue · 🟨 yellow plain package · 🟪 purple backend. Beranda is the only green one — the only remote that is not React. Dashed = a **build-time** dependency (`file:`), not Module Federation — `@duidtin/auth` is a plain `import`, every repo bundles its own copy, and all they share is the store on `window`. Per-repo stack details are in [Six repos, six Vercel projects](#six-repos-six-vercel-projects) above.

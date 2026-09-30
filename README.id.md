@@ -281,35 +281,35 @@ Flag mengatur tampilan, bukan akses. Fitur yang menyangkut data sensitif tetap h
 Siapa memuat siapa, dan dengan stack apa — keadaan repo saat ini.
 
 ```mermaid
-%%{init: {'flowchart': {'wrappingWidth': 420}}}%%
-flowchart TD
+%%{init: {'theme':'base','themeVariables':{'fontSize':'13px','lineColor':'#94a3b8','edgeLabelBackground':'#ffffff'},'flowchart':{'wrappingWidth':330,'nodeSpacing':45,'rankSpacing':70,'curve':'basis'}}}%%
+flowchart LR
   U(["👤 Pengguna"]) --> H
 
-  H["🏠 duidtin-ui — HOST<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1"]
+  H["🏠 <b>duidtin-ui</b> — HOST<br/>Next 14.2 · webpack 5<br/>nextjs-mf 8.8.54 · MF runtime 0.24.1"]
 
-  subgraph RUNTIME ["remote"]
-    direction LR
-    L["🧭 duidtin-ui-layout<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1"]
-    B["🏦 duidtin-feature-beranda<br/>Vue 3.5 · Rsbuild · @module-federation/rsbuild-plugin 0.24.1"]
-    A["🔐 duidtin-feature-auth<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x"]
+  subgraph RUNTIME ["dimuat runtime — remoteEntry.js"]
+    direction TB
+    L["🧭 <b>duidtin-ui-layout</b><br/>Next 14.2 · webpack 5<br/>nextjs-mf 8.8.54 · MF 0.24.1"]
+    B["🏦 <b>duidtin-feature-beranda</b><br/>Vue 3.5 · Rsbuild<br/>@module-federation/rsbuild-plugin 0.24.1"]
+    A["🔐 <b>duidtin-feature-auth</b><br/>Next 16.2 · Rspack (next-rspack)<br/>@module-federation/enhanced 2.x"]
   end
 
-  H -- "remoteEntry.js" --> L
-  H -- "remoteEntry.js" --> B
-  H -- "remoteEntry.js" --> A
+  H --> L
+  H --> B
+  H --> A
 
-  L & B & A -- "loadRemote" --> DS["🎨 duidtin-ui-design-system<br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · @module-federation/rsbuild-plugin 0.24.1 · MF 0.24.1"]
+  L & B & A -- "loadRemote" --> DS["🎨 <b>duidtin-ui-design-system</b><br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · rsbuild-plugin 0.24.1 · MF 0.24.1"]
 
-  H & B & A -. "import saat build (file:../duidtin-packages/auth)" .-> P["🔑 @duidtin/auth · paket, BUKAN remote<br/>tsc saja, tanpa bundler · zustand 5 (vanilla) + axios 1"]
+  H & B & A -. "import" .-> P["🔑 <b>@duidtin/auth</b> — paket, BUKAN remote<br/>file:../duidtin-packages/auth<br/>tsc saja, tanpa bundler<br/>zustand 5 (vanilla) + axios 1"]
 
-  P == "HTTPS + Bearer" ==> API[("🗄️ duidtin-api<br/>Express 5 · Mongoose 8.24.4 (dikunci) · Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas")]
+  P == "HTTPS + Bearer" ==> API[("🗄️ <b>duidtin-api</b><br/>Express 5 · Mongoose 8.24.4 (dikunci)<br/>Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas")]
 
-  classDef pengguna fill:#f1f5f9,stroke:#94a3b8,color:#0f172a
-  classDef next fill:#1f2937,stroke:#111827,color:#ffffff
-  classDef rs fill:#ffedd5,stroke:#ea580c,color:#7c2d12
-  classDef vue fill:#dcfce7,stroke:#16a34a,color:#14532d
-  classDef paket fill:#fef9c3,stroke:#ca8a04,color:#713f12
-  classDef backend fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+  classDef pengguna fill:#f8fafc,stroke:#cbd5e1,color:#334155
+  classDef next fill:#1f2937,stroke:#0f172a,color:#f8fafc
+  classDef rs fill:#fff7ed,stroke:#f97316,color:#7c2d12
+  classDef vue fill:#f0fdf4,stroke:#22c55e,color:#14532d
+  classDef paket fill:#fefce8,stroke:#eab308,color:#713f12
+  classDef backend fill:#faf5ff,stroke:#a855f7,color:#581c87
 
   class U pengguna
   class H,L,A next
@@ -318,7 +318,7 @@ flowchart TD
   class P paket
   class API backend
 
-  style RUNTIME fill:#f8fafc,stroke:#cbd5e1,color:#334155
+  style RUNTIME fill:#ffffff,stroke:#e2e8f0,color:#64748b
 ```
 
 **Warna = toolchain**, bukan peran: ⬛ hitam Next.js · 🟧 oranye Rsbuild/Rslib · 🟩 hijau Vue · 🟨 kuning paket biasa · 🟪 ungu backend. Beranda satu-satunya yang hijau — satu-satunya remote yang bukan React. Garis putus-putus = ketergantungan **build time** (`file:`), bukan Module Federation — `@duidtin/auth` di-`import` biasa, tiap repo mem-bundle salinannya sendiri, dan yang mereka bagi cuma store di `window`. Rincian stack tiap repo ada di [Enam repo, enam project Vercel](#enam-repo-enam-project-vercel) di atas.
