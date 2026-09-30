@@ -177,7 +177,7 @@ Verified in a browser with four local servers (host, layout, design system, auth
 
 ## Architecture flow
 
-Four phases that run at **different times**. The easiest confusion: PHASE 2 and PHASE 3 both run on every navigation, but only PHASE 3 puts anything on screen.
+Five phases that run at **different times**. The two easiest to confuse: PHASE 2 and PHASE 3 both run on every navigation, but only PHASE 3 puts anything on screen. And PHASE 0 runs long before the browser is involved — anything decided there needs a redeploy to change.
 
 ```
 PHASE 0  Build time         → once, during `next build`
@@ -186,6 +186,44 @@ PHASE 2  Per-route preload   → on every navigation (warm-up, NOT render)
 PHASE 3  The actual render   → on every navigation (THIS is what appears on screen)
 PHASE 4  Error handling      → any time something fails, in any phase
 ```
+
+### PHASE 0 — Build time (`next.config.mjs` → `module-federation.config.mjs`)
+
+What is decided here **cannot be changed without a redeploy**. Four things get locked into the bundle:
+
+```
+bun run build
+  │
+  ├─▶ prebuild: (cd ../duidtin-packages/auth && bun install && bun run build) && bun install
+  │     @duidtin/auth is installed through `file:`, and its `dist/` is not in git
+  │     → it must be built FIRST, or the host build fails to resolve the import
+  │
+  └─▶ next build
+        ├─▶ rewrites()              reads REMOTE_*_URL → the proxy rules are WRITTEN into the bundle
+        │     env empty → the rule is never created → that path 404s
+        │
+        ├─▶ NEXT_PUBLIC_API_URL     baked into the configureAuth() call in _app.tsx
+        │
+        ├─▶ resolve.alias           react + react-dom → the HOST's node_modules, for every requester
+        │     without it: "Can't resolve 'react' in …/duidtin-packages/auth/node_modules/zustand/esm"
+        │
+        └─▶ NextFederationPlugin(federationConfig)
+              name: "duidtin_ui" · filename: "static/chunks/remoteEntry.js"
+              remotes: {}   ← EMPTY, resolved in PHASE 1
+              exposes: {}   ← permanently empty, the host is only a consumer
+              shared:  {}   ← nextjs-mf already shares react/react-dom/next on its own
+```
+
+Three consequences that bite often:
+
+| What changed | Is a restart enough? |
+|---|---|
+| `REMOTE_*_URL` | ❌ **redeploy** — rewrites are locked at build time |
+| `NEXT_PUBLIC_API_URL` | ❌ **redeploy** — the value is baked into `configureAuth()` |
+| The remote list in `registry.ts` | ❌ redeploy too, but not because of MF: it is ordinary code that gets bundled |
+| A remote's URL during dev (`?remote-lokal`) | ✅ runtime, kept in `localStorage` — that is what layer B in PHASE 1 is for |
+
+That empty `remotes: {}` is what makes the last row possible: if the remote list lived in this config, adding one remote would mean rebuilding the host. Because it is empty, the list is decided by ordinary JS in PHASE 1 — and that code is free to read `window.location`, `localStorage`, anything, at the moment the page opens.
 
 ### PHASE 1 — Boot (`pages/_app.tsx` → `services/federation/init.ts`)
 
@@ -951,8 +989,11 @@ Browser opens "/"
                           │       → { default: ƒ }
                           │     normalised into { default: ComponentType }
                           │
-                          └─▶ <HomePage />  containing <Card> and <Button>
-                                └─ each remote component mounts → its own loader runs
+                          └─▶ <HomePage /> → <RemoteMount modul="duidtin_feature_beranda/base" />
+                                ├─ (on MOUNT) the loader runs inside useEffect:
+                                │     loadRemote("duidtin_feature_beranda/base")
+                                │       → { mount: ƒ }        ← a FUNCTION, not a component
+                                └─ mount(<div>) → a Vue app is mounted; its contents belong to the remote
 ```
 
 This is the phase that **actually puts components on screen**, and it is **entirely independent of `registry.ts`** — the strings are written by hand, one page file at a time.

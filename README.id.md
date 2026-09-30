@@ -148,22 +148,23 @@ tab lain
 | auth | `https://super-apps-duidtin-feature-auth.vercel.app` | `/login` di host sudah merender formnya |
 | api | `https://super-apps-duidtin-api-eta.vercel.app` | `/health` → `db: "terhubung"`, login 200 |
 
-Yang masih menggantung: `NEXT_PUBLIC_API_URL` belum diisi di project host dan auth, jadi halaman login produksi masih menembak `http://localhost:4000`.
+Yang masih menggantung: `REMOTE_BERANDA_URL` belum diisi di project host, jadi `/beranda/*` menjawab 404 dan beranda tidak muncul di produksi. Rewrite dikunci saat build, jadi mengisi env-nya harus diikuti redeploy host.
 
 ### Topologi: satu domain, dibedakan path
 
 ```
 https://super-apps-duidtin.vercel.app/                                  → project host
 https://super-apps-duidtin.vercel.app/layout/_next/static/…             → project layout
-https://super-apps-duidtin.vercel.app/beranda/_next/static/…            → project beranda
+https://super-apps-duidtin.vercel.app/beranda/static/…                  → project beranda (Rsbuild, tanpa _next)
 https://super-apps-duidtin.vercel.app/design-system/static/…            → project design-system
 https://super-apps-duidtin.vercel.app/auth/_next/static/…               → project auth
 ```
 
 **Backend TIDAK ikut pola ini.** `duidtin-api` diakses langsung ke domainnya sendiri
 (`https://super-apps-duidtin-api-eta.vercel.app`), bukan lewat rewrite `/api`. Konsekuensinya
-dua: URL-nya diisi lewat env `NEXT_PUBLIC_API_URL` di tiap bundle yang memanggilnya, dan
-origin host harus terdaftar di `CORS_ORIGINS` milik API.
+dua: URL-nya diisi lewat env di tiap bundle yang memanggilnya (`NEXT_PUBLIC_API_URL` di repo
+Next, `PUBLIC_API_URL` di repo Rsbuild), dan origin host harus terdaftar di `CORS_ORIGINS`
+milik API.
 
 Topologi ini **sudah dikunci oleh kode**, bukan pilihan bebas. Di ketiga repo Next, `getBaseFederationUrl()` memulangkan `window.location.origin` saat bukan localhost, jadi di produksi host mencari semua remote di domain yang sama dengan dirinya. Kalau tiap remote dipublish ke domainnya sendiri, host langsung rusak.
 
@@ -177,7 +178,7 @@ Satu origin juga yang membuat sesi sederhana: `localStorage` otomatis dipakai be
 | `REMOTE_LAYOUT_URL` | URL `*.vercel.app` layout | `/layout/:path*` → `…/layout/:path*` |
 | `REMOTE_BERANDA_URL` | URL `*.vercel.app` beranda | `/beranda/:path*` → `…/beranda/:path*` |
 | `REMOTE_AUTH_URL` | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
-| `NEXT_PUBLIC_API_URL` | URL `duidtin-api` | **tanpa rewrite** — dibaca `configureAuth()` di bundle host. Remote yang memanggil API mengisinya sendiri juga (`duidtin-feature-auth`) |
+| `NEXT_PUBLIC_API_URL` | URL `duidtin-api` | **tanpa rewrite** — dibaca `configureAuth()` di bundle host. Tiap remote yang memanggil API mengisinya sendiri: `duidtin-feature-auth` memakai nama yang sama, `duidtin-feature-beranda` memakai **`PUBLIC_API_URL`** karena bundler-nya Rsbuild, bukan Next |
 
 - **Design-system membuang prefiksnya**, karena bukan Next dan tanpa `basePath`: berkasnya ada di root domain Vercel-nya. Layout dan beranda tetap membawa prefiks.
 - **Dev lokal:** env kosong → rewrites tidak aktif → remote diakses langsung lewat port masing-masing.
@@ -300,9 +301,9 @@ Keadaan tiap bagian sekarang:
 |---|---|---|
 | host, layout, design-system | ✅ | ✅ live |
 | remote auth | ✅ login + modal sesi berakhir | ✅ live, `/login` di host sudah merender formnya |
-| beranda | ✅ tampilan, **data masih mock** | ⚠️ `REMOTE_BERANDA_URL` belum benar → `/beranda/*` 404 |
-| `duidtin-api` | ✅ auth lengkap, endpoint data belum ada | ✅ live, `/health` → `db: "terhubung"` |
-| sambungan FE → API | — | ⚠️ `NEXT_PUBLIC_API_URL` belum diisi di host & auth → login produksi masih ke `localhost:4000` |
+| beranda | ✅ Vue, **data dari `duidtin-api`** | ⚠️ project-nya live, tapi `REMOTE_BERANDA_URL` di host belum diisi → `/beranda/*` 404 |
+| `duidtin-api` | ✅ auth + data beranda (`rekening`, `persetujuan`, `aktivitas`) | ✅ live, `/health` → `db: "terhubung"` |
+| sambungan FE → API | — | ✅ host, auth, dan beranda sudah menunjuk API produksi (dicek langsung di bundle-nya) |
 
 ## Alur Arsitektur
 

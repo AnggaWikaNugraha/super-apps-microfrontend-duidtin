@@ -177,7 +177,7 @@ Terverifikasi di browser dengan empat server lokal (host, layout, design-system,
 
 ## Alur Arsitektur
 
-Empat fase yang jalan di **waktu berbeda**. Yang paling gampang ketuker: FASE 2 dan FASE 3 sama-sama jalan tiap pindah halaman, tapi cuma FASE 3 yang naruh komponen ke layar.
+Lima fase yang jalan di **waktu berbeda**. Dua yang paling gampang ketuker: FASE 2 dan FASE 3 sama-sama jalan tiap pindah halaman, tapi cuma FASE 3 yang naruh komponen ke layar. Dan FASE 0 jalan jauh sebelum browser terlibat — apa pun yang diputuskan di sana butuh deploy ulang untuk diubah.
 
 ```
 FASE 0  Build time         → sekali, saat `next build`
@@ -186,6 +186,44 @@ FASE 2  Preload per route   → tiap pindah halaman (warm-up, BUKAN render)
 FASE 3  Render sebenarnya   → tiap pindah halaman (INI yang muncul di layar)
 FASE 4  Error handling      → kapan aja, kalau ada yang gagal di fase manapun
 ```
+
+### FASE 0 — Build time (`next.config.mjs` → `module-federation.config.mjs`)
+
+Yang diputuskan di sini **tidak bisa diubah tanpa deploy ulang**. Empat hal ikut terkunci ke dalam bundle:
+
+```
+bun run build
+  │
+  ├─▶ prebuild: (cd ../duidtin-packages/auth && bun install && bun run build) && bun install
+  │     @duidtin/auth dipasang lewat `file:`, dan `dist/`-nya tidak masuk git
+  │     → harus dibangun DULU, kalau tidak import-nya gagal saat build host
+  │
+  └─▶ next build
+        ├─▶ rewrites()              baca REMOTE_*_URL → aturan proxy DITULIS ke bundle
+        │     env kosong → aturannya tidak dibuat sama sekali → path itu 404
+        │
+        ├─▶ NEXT_PUBLIC_API_URL     ditanam ke pemanggilan configureAuth() di _app.tsx
+        │
+        ├─▶ resolve.alias           react + react-dom → node_modules HOST, siapa pun yang minta
+        │     tanpa ini: "Can't resolve 'react' in …/duidtin-packages/auth/node_modules/zustand/esm"
+        │
+        └─▶ NextFederationPlugin(federationConfig)
+              name: "duidtin_ui" · filename: "static/chunks/remoteEntry.js"
+              remotes: {}   ← KOSONG, di-resolve FASE 1
+              exposes: {}   ← KOSONG permanen, host cuma consumer
+              shared:  {}   ← nextjs-mf sudah otomatis share react/react-dom/next
+```
+
+Tiga akibat yang sering menggigit:
+
+| Yang diubah | Cukup restart? |
+|---|---|
+| `REMOTE_*_URL` | ❌ **redeploy** — rewrite dikunci saat build |
+| `NEXT_PUBLIC_API_URL` | ❌ **redeploy** — nilainya ke-bake di `configureAuth()` |
+| Daftar remote di `registry.ts` | ❌ redeploy juga, tapi bukan karena MF: isinya kode biasa yang ikut ter-bundle |
+| URL remote saat dev (`?remote-lokal`) | ✅ runtime, disimpan di `localStorage` — itu gunanya lapis B di FASE 1 |
+
+`remotes: {}` yang kosong itulah yang membuat perbedaan terakhir mungkin: kalau daftar remote ditulis di config ini, menambah satu remote berarti rebuild host. Karena kosong, yang menentukan cuma kode JS biasa di FASE 1 — dan kode itu boleh membaca `window.location`, `localStorage`, apa pun, saat halaman dibuka.
 
 ### FASE 1 — Boot (`pages/_app.tsx` → `services/federation/init.ts`)
 
@@ -963,8 +1001,11 @@ Browser buka "/"
                           │       → { default: ƒ }
                           │     dinormalkan jadi { default: ComponentType }
                           │
-                          └─▶ <HomePage />  di dalamnya ada <Card> <Button>
-                                └─ tiap komponen remote mount → loader-nya sendiri jalan
+                          └─▶ <HomePage /> → <RemoteMount modul="duidtin_feature_beranda/base" />
+                                ├─ (saat MOUNT) loader jalan di dalam useEffect:
+                                │     loadRemote("duidtin_feature_beranda/base")
+                                │       → { mount: ƒ }        ← FUNGSI, bukan komponen
+                                └─ mount(<div>) → app Vue dipasang; isinya milik remote
 ```
 
 Ini fase yang **beneran naruh komponen ke layar**, dan dia **total independen dari `registry.ts`** — string-nya ditulis manual per file halaman.

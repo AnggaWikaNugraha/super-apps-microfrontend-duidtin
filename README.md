@@ -148,22 +148,23 @@ other tabs
 | auth | `https://super-apps-duidtin-feature-auth.vercel.app` | the host's `/login` already renders its form |
 | api | `https://super-apps-duidtin-api-eta.vercel.app` | `/health` → `db: "terhubung"`, login 200 |
 
-Still outstanding: `NEXT_PUBLIC_API_URL` is not set on the host and auth projects, so the production login page still calls `http://localhost:4000`.
+Still outstanding: `REMOTE_BERANDA_URL` is not set on the host project, so `/beranda/*` answers 404 and the home page never appears in production. Rewrites are baked at build time, so setting the env must be followed by a host redeploy.
 
 ### Topology: one domain, told apart by path
 
 ```
 https://super-apps-duidtin.vercel.app/                                  → host project
 https://super-apps-duidtin.vercel.app/layout/_next/static/…             → layout project
-https://super-apps-duidtin.vercel.app/beranda/_next/static/…            → beranda project
+https://super-apps-duidtin.vercel.app/beranda/static/…                  → beranda project (Rsbuild, no _next)
 https://super-apps-duidtin.vercel.app/design-system/static/…            → design-system project
 https://super-apps-duidtin.vercel.app/auth/_next/static/…               → auth project
 ```
 
 **The backend does NOT follow this pattern.** `duidtin-api` is reached directly on its own
 domain (`https://super-apps-duidtin-api-eta.vercel.app`), not through an `/api` rewrite. Two
-consequences: its URL is supplied through the `NEXT_PUBLIC_API_URL` env in every bundle that
-calls it, and the host's origin must be listed in the API's `CORS_ORIGINS`.
+consequences: its URL is supplied through an env var in every bundle that calls it
+(`NEXT_PUBLIC_API_URL` in the Next repos, `PUBLIC_API_URL` in the Rsbuild one), and the
+host's origin must be listed in the API's `CORS_ORIGINS`.
 
 This topology is **already locked in by the code**, not a free choice. In all three Next repos, `getBaseFederationUrl()` returns `window.location.origin` whenever it is not on localhost, so in production the host looks for every remote on its own domain. Publish each remote to its own domain and the host breaks immediately.
 
@@ -298,9 +299,9 @@ Where each piece stands today:
 |---|---|---|
 | host, layout, design system | ✅ | ✅ live |
 | auth remote | ✅ login + session-expired modal | ✅ live, the host's `/login` already renders its form |
-| beranda | ✅ UI, **data still mocked** | ⚠️ `REMOTE_BERANDA_URL` is wrong → `/beranda/*` 404 |
-| `duidtin-api` | ✅ auth complete, no data endpoints yet | ✅ live, `/health` → `db: "terhubung"` |
-| FE → API wiring | — | ⚠️ `NEXT_PUBLIC_API_URL` is unset on host & auth → production login still calls `localhost:4000` |
+| beranda | ✅ Vue, **data from `duidtin-api`** | ⚠️ its project is live, but `REMOTE_BERANDA_URL` on the host is unset → `/beranda/*` 404 |
+| `duidtin-api` | ✅ auth + home-page data (`rekening`, `persetujuan`, `aktivitas`) | ✅ live, `/health` → `db: "terhubung"` |
+| FE → API wiring | — | ✅ host, auth and beranda all point at the production API (verified in their bundles) |
 
 ## Architecture flow
 
