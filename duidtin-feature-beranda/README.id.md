@@ -10,14 +10,17 @@ Repo ini **satu-satunya repo duidtin yang bukan React** — Vue 3 + Rsbuild, sem
 
 ## Cara mulai
 
-Repo ini konsumen `duidtin-ui-design-system`. Untuk melihat beranda di dalam layout, empat server harus nyala:
+Repo ini konsumen `duidtin-ui-design-system` dan `duidtin-api`. Untuk melihat beranda berisi data, lima server harus nyala:
 
-1. `../duidtin-ui-design-system/` → `bun run dev:producer` (`:3001`)
-2. `../duidtin-ui-layout/` → `bun run dev` (`:3002`)
-3. Folder ini → `bun install` lalu `bun run dev` (`:3003`)
-4. `../duidtin-ui/` → `bun run dev` (`:3000`) ← **buka ini**
+1. `../duidtin-api/` → `bun run db:lokal` lalu `bun run dev` (`:4000`)
+2. `../duidtin-ui-design-system/` → `bun run dev:producer` (`:3001`)
+3. `../duidtin-ui-layout/` → `bun run dev` (`:3002`)
+4. Folder ini → `bun install` lalu `bun run dev` (`:3003`)
+5. `../duidtin-ui/` → `bun run dev` (`:3000`) ← **buka ini**, lalu login
 
-Beda dari versi Next-nya, `http://localhost:3003/beranda` sekarang menampilkan **berandanya yang sebenarnya**, bukan halaman guard — cukup design-system di `:3001` yang nyala. Lihat bagian [Kontrak dengan host](#kontrak-dengan-host).
+Beda dari versi Next-nya, `http://localhost:3003/beranda` sekarang menampilkan **berandanya yang sebenarnya**, bukan halaman guard — cukup design-system di `:3001` yang nyala. Lihat [Kontrak dengan host](#kontrak-dengan-host).
+
+> **Halaman dev `:3003` tidak punya data.** Sejak datanya dari API, tiap request butuh sesi — dan sesi hidup di `localStorage` origin `:3000`, bukan `:3003`. Jadi di `:3003` keempat blok menampilkan keadaan **gagal** dengan pesan "Belum login", tanpa satu pun request terbuang (`http` menolaknya di klien). Itu tetap berguna untuk mengerjakan tata letak; untuk data sungguhan, buka lewat host. `?kosong=` juga tetap jalan di sana.
 
 ## Status saat ini
 
@@ -30,10 +33,12 @@ Sudah diverifikasi di browser sungguhan (host `:3000` dan berdiri sendiri `:3003
 - `press` dari `<dtn-button>` ditangkap Vue (`@press`), dan `:is-disabled` masuk sampai ke komponen React di dalamnya — tombol Perbarui berubah jadi "Memperbarui" dan nonaktif.
 - `?gagal=rekening,aktivitas` → 3 blok gagal dengan tombol "Coba lagi", banner global muncul, blok persetujuan tetap tampil.
 - `?lambat=20` → kerangka muncul dengan jumlah baris yang benar (2 / 5 / 5 / 5).
+- **Datanya dari `duidtin-api`, bukan lagi dummy.** Tiga request ke `localhost:4000/beranda/*`, semuanya `200` dengan header `Bearer`, dan `rekening` cuma **sekali** walau dipakai dua blok — dedup TanStack terbukti. Angkanya sama persis dengan data dummy yang digantikan: Rp 1.228.550.000.
+- `?kosong=rekening,persetujuan` → tiga blok menampilkan keadaan KOSONG. Ini jalur yang **belum pernah terbukti** selama datanya masih dummy, karena mock selalu berisi.
 
 Belum ada:
 
-- Backend sungguhan. Datanya dummy, tapi bentuknya sudah menyerupai respons API — yang perlu diganti nanti cuma `services/api/client.ts`.
+- Halaman daftar rekening/mutasi sendiri. Beranda cuma menampilkan ringkasannya.
 - Peran. Pintasan masih `disabled` semua.
 - i18n dan config container (Docker).
 
@@ -58,7 +63,7 @@ const { total, jumlahRekening, isLoading, isError, retry } = useRingkasanSaldo()
 </script>
 ```
 
-**Kenapa:** komponen jadi bisa dibaca sekilas; logikanya bisa diuji tanpa merender; dan waktu sumber datanya diganti (dummy → API sungguhan), template-nya tidak perlu disentuh sama sekali.
+**Kenapa:** komponen jadi bisa dibaca sekilas; logikanya bisa diuji tanpa merender; dan waktu sumber datanya diganti, template-nya tidak perlu disentuh sama sekali. Itu sudah terbukti sekali: penggantian dari data dummy ke `duidtin-api` cuma menyentuh `services/api/`, nol perubahan di `blocks/` maupun `composables/`.
 
 ### 2. State ke Zustand, bukan `ref` di komponen
 
@@ -102,6 +107,7 @@ Kalau komponen yang dibutuhkan belum ada, **buat dulu di `duidtin-ui-design-syst
 | Komponen UI | `<dtn-*>` Web Component | komponen React design-system, dipakai tanpa React di sisi ini |
 | React | **tidak dipasang** | lihat [Kenapa tidak ada React](#kenapa-tidak-ada-react-di-dependensi) |
 | Data | `@tanstack/vue-query` 5 | `QueryClient` milik repo ini sendiri |
+| API | `duidtin-api` lewat `http` dari `@duidtin/auth` | base URL dari `PUBLIC_API_URL`, diisi repo ini sendiri |
 | Sesi | `@duidtin/auth` + subpath `/vue` | store yang sama dengan host |
 | Styling | Tailwind v4, prefix `fber` | pola BEM + `@apply`, sama dengan layout (`lyt`) dan host (`app`) |
 | Port / base | 3003 / `/beranda` | |
@@ -130,7 +136,10 @@ duidtin-feature-beranda/
     error-global.ts · tampilan-beranda.ts
   services/
     federation.ts        # registrasi design-system + muat pembungkus <dtn-*>
-    query-client.ts · api/client.ts · api/beranda.ts
+    query-client.ts
+    api/client.ts        # apiGet() — http dari @duidtin/auth + sakelar dev
+    api/beranda.ts       # fungsi query + queryKeys
+    api/tipe.ts          # cerminan bentuk respons duidtin-api
   utils/
     index.ts             # getBaseFederationUrl()
     zustand-vue.ts       # jembatan store → ref
@@ -319,21 +328,25 @@ Browser buka localhost:3000/
 
 Design-system **ditunggu** sebelum app-nya dipasang. Elemen `<dtn-*>` yang belum terdaftar sebenarnya akan naik kelas sendiri begitu `customElements.define` jalan, jadi merender lebih dulu pun tidak rusak — cuma sekejap terlihat konten tanpa gaya. Menunggu lebih murah daripada kedipan itu, apalagi containernya biasanya sudah hangat dari FASE 2.
 
-### 2. Flow data — satu query dari mock sampai layar
+### 2. Flow data — satu query dari API sampai layar
 
 Contoh: query `rekening` menuju blok Ringkasan saldo.
 
 ```
-mocks/beranda.ts
-  rekeningDummy: Rekening[]            3 rekening — 2 IDR, 1 USD
+duidtin-api — GET /beranda/rekening
+  disaring perusahaanId dari klaim token   3 rekening — 2 IDR, 1 USD
   │
 services/api/beranda.ts
-  ambilRekening() → apiGet("rekening", rekeningDummy)
+  ambilRekening() → apiGet<Rekening[]>("rekening")
   │
-services/api/client.ts — apiGet(endpoint, data)
-  ├─ tunggu(acak(500, 1100) × pengaliLambat())     ← ?lambat=N
-  ├─ endpoint ada di ?gagal=… → throw new ApiError(endpoint, 503)
-  └─ return data                                    → Promise<Rekening[]>
+services/api/client.ts — apiGet(endpoint)
+  ├─ ?lambat=N   → tunggu N × 300ms dulu
+  ├─ ?gagal=…    → throw ApiError(endpoint, 503), tanpa memanggil API
+  ├─ ?kosong=…   → kembalikan [], tanpa memanggil API
+  ├─ http.get(`/beranda/${endpoint}`)              ← instance dari @duidtin/auth
+  │    ├─ tempel Bearer · refresh proaktif · tahan saat sesi kedaluwarsa
+  │    └─ tanpa sesi → ditolak di klien, tidak ada request terbuang
+  └─ AuthError → ApiError(endpoint, status, message)
   │
 TanStack Vue Query
   useQuery({ queryKey: ["beranda", "rekening"], queryFn: ambilRekening })
@@ -417,7 +430,7 @@ Komponen crash saat render — bug, bukan API
 
 `QueryCache.onError` hidup di luar komponen, jadi dia menulis ke store lewat `getState()`.
 
-## Data: TanStack Query + API palsu
+## Data: TanStack Query + `duidtin-api`
 
 ### Kenapa `QueryClient` milik repo ini sendiri
 
@@ -425,24 +438,35 @@ Bukan dibagi dari host. Konsekuensinya cache tidak dibagi antar feature remote �
 
 Di sini pertukaran itu bahkan tidak punya pilihan lain: host memakai `@tanstack/react-query`, repo ini `@tanstack/vue-query`. Dua paket berbeda, jadi share scope pun tidak bisa menyatukannya.
 
-### API palsu
+### Transport
 
 ```
-mocks/beranda.ts        data dummy, bentuknya seperti respons API sungguhan
-services/api/client.ts  transport: delay + simulasi gagal
+services/api/tipe.ts    cerminan bentuk respons duidtin-api
+services/api/client.ts  apiGet() — http dari @duidtin/auth + sakelar dev
 services/api/beranda.ts fungsi query + queryKeys
 ```
 
-Semua akses data lewat `apiGet()`, jadi begitu backend siap yang diganti cuma isi fungsi itu — komponennya tidak perlu disentuh.
+Nama endpoint-nya cukup nama blok (`"rekening"`), dan nama itu **sama di tiga tempat**: `queryKey`, nilai `?gagal=`, dan path `GET /beranda/rekening` di API. Jadi ketiganya tidak bisa melenceng satu dari yang lain.
 
-**Dua parameter URL untuk menguji keadaan yang susah ditangkap:**
+**Instance axios-nya datang dari `@duidtin/auth`**, bukan dibuat di sini — itu satu-satunya cara memanggil API dengan sesi. Yang dibawa instance itu: header `Bearer`, refresh proaktif saat access token hampir mati, penahanan request saat sesi kedaluwarsa lalu diulang setelah login ulang, dan penolakan di klien kalau tidak ada sesi sama sekali. Semuanya `AuthError`; `apiGet` mengubahnya jadi `ApiError` supaya sisa repo cuma mengenal satu jenis error — dan `QueryCache.onError` bisa menyebut endpoint mana yang gagal.
+
+**Base URL diisi repo ini sendiri**, di `expose/base.ts`:
+
+```ts
+configureAuth({ baseUrl: import.meta.env.PUBLIC_API_URL ?? "http://localhost:4000" });
+```
+
+Host memanggil `configureAuth()` juga, tapi nilainya tidak sampai ke sini: `baseUrl` itu variabel modul, dan `@duidtin/auth` sengaja **tidak** di-share lewat MF — tiap remote mem-bundle salinan paketnya sendiri. Yang dibagi lintas remote cuma STORE-nya, lewat `window.__DUIDTIN_AUTH__`. Nama env-nya `PUBLIC_API_URL`, bukan `NEXT_PUBLIC_API_URL` seperti repo lain, karena Rsbuild hanya meneruskan variabel berawalan `PUBLIC_`.
+
+**Tiga parameter URL untuk menguji keadaan yang susah ditangkap:**
 
 | Parameter | Efek |
 |---|---|
-| `?gagal=aktivitas` | paksa endpoint itu gagal. Bisa beberapa: `?gagal=aktivitas,persetujuan` |
-| `?lambat=30` | perlambat semua endpoint 30× supaya kerangka sempat terlihat |
+| `?gagal=aktivitas` | paksa endpoint itu gagal, tanpa memanggil API. Bisa beberapa: `?gagal=aktivitas,persetujuan` |
+| `?kosong=rekening` | paksa endpoint itu mengembalikan `[]` — satu-satunya cara melihat keadaan KOSONG tanpa menghapus data di database |
+| `?lambat=30` | tambah jeda 30 × 300ms supaya kerangka sempat terlihat; API lokal menjawab dalam puluhan milidetik |
 
-Sengaja deterministik lewat URL, **bukan gagal acak** — gagal acak bikin frustrasi saat development dan susah didemokan.
+Sengaja deterministik lewat URL, **bukan gagal acak** — gagal acak bikin frustrasi saat development dan susah didemokan. Ketiganya tetap ada walau datanya sudah sungguhan, karena tiga keadaan itu justru makin susah dimunculkan dari API yang sehat.
 
 ## Tiga lapis penanganan error
 
@@ -478,7 +502,6 @@ Host juga punya `RemoteErrorBoundary`, tapi itu membungkus SELURUH isi aplikasi 
 
 ## Langkah berikutnya
 
-- Endpoint beranda sungguhan di `duidtin-api` (`rekening`, `persetujuan`, `aktivitas`) menggantikan `mocks/beranda.ts`.
 - Isi blok "Menunggu persetujuan" dan "Aktivitas terakhir" begitu fitur Payroll dan Mutasi ada.
 - Sambungkan pintasan ke route sungguhan (sekarang semuanya nonaktif).
 - Peran: maker melihat pintasan berbeda dari checker.

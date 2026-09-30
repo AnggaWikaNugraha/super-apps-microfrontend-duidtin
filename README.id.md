@@ -78,7 +78,7 @@ Module Federation menyatukan aplikasi **saat runtime lewat kontrak**, bukan saat
 - **Stack** — Express 5 · Mongoose 8.24.4 (dikunci) · Zod 4 · JWT HS256 · bcryptjs
 - **Database** — MongoDB Atlas
 - **Path** — **tidak ada**: diakses langsung ke domainnya sendiri, bukan lewat rewrite host
-- **Peran** — API auth: `login`, `refresh`, `logout`, `logout-semua`, `me`. Endpoint data beranda belum ada
+- **Peran** — API auth (`login`, `refresh`, `logout`, `logout-semua`, `me`) + data beranda (`GET /beranda/rekening`, `/persetujuan`, `/aktivitas`, read-only, semuanya butuh sesi)
 - **Catatan** — satu-satunya bagian yang **bukan** Module Federation. FE memanggilnya lewat `NEXT_PUBLIC_API_URL`, dan origin FE harus terdaftar di `CORS_ORIGINS` milik API. Rinciannya di [README.be.id.md](README.be.id.md) dan [duidtin-api/README.id.md](duidtin-api/README.id.md)
 
 > Penamaan: `ui-*` untuk infrastruktur (host, design-system, layout), `feature-*` untuk fitur bisnis.

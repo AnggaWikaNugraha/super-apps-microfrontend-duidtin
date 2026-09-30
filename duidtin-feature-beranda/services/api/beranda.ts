@@ -1,12 +1,12 @@
-import { aktivitasDummy, persetujuanDummy, rekeningDummy } from "@/mocks/beranda";
 import { apiGet } from "./client";
 
-import type { Aktivitas, Persetujuan, Rekening } from "@/mocks/beranda";
+import type { Aktivitas, Persetujuan, Rekening } from "./tipe";
 
 /**
  * Kunci query dikumpulkan di satu tempat supaya invalidasi nggak salah ketik.
- * Nama endpoint-nya sama dengan yang dipakai `?gagal=` — jadi `?gagal=rekening`
- * mematikan query `rekening`.
+ * Nama endpoint-nya sama dengan yang dipakai `?gagal=` dan dengan path di API —
+ * jadi `?gagal=rekening` mematikan query `rekening` yang memanggil
+ * `GET /beranda/rekening`.
  */
 export const berandaKeys = {
   semua: ["beranda"] as const,
@@ -15,8 +15,8 @@ export const berandaKeys = {
   aktivitas: ["beranda", "aktivitas"] as const,
 };
 
-export const ambilRekening = (): Promise<Rekening[]> => apiGet("rekening", rekeningDummy);
+export const ambilRekening = (): Promise<Rekening[]> => apiGet<Rekening[]>("rekening");
 
-export const ambilPersetujuan = (): Promise<Persetujuan[]> => apiGet("persetujuan", persetujuanDummy);
+export const ambilPersetujuan = (): Promise<Persetujuan[]> => apiGet<Persetujuan[]>("persetujuan");
 
-export const ambilAktivitas = (): Promise<Aktivitas[]> => apiGet("aktivitas", aktivitasDummy);
+export const ambilAktivitas = (): Promise<Aktivitas[]> => apiGet<Aktivitas[]>("aktivitas");

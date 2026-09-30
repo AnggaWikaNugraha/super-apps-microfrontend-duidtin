@@ -3,7 +3,7 @@ import request from "supertest";
 import app from "../src/app.js";
 import { hubungkanDatabase } from "../src/db/koneksi.js";
 import { resetWaktu } from "../src/lib/waktu.js";
-import { isiDataSeed, kosongkanKoleksiAuth, PASSWORD_DEV } from "../scripts/data-seed.js";
+import { isiDataSeed, kosongkanKoleksi, PASSWORD_DEV } from "../scripts/data-seed.js";
 
 export const api = () => request(app);
 
@@ -11,7 +11,7 @@ export const api = () => request(app);
 export const siapkanData = async (): Promise<void> => {
   resetWaktu();
   await hubungkanDatabase();
-  await kosongkanKoleksiAuth();
+  await kosongkanKoleksi();
   await isiDataSeed();
 };
 

@@ -1,6 +1,6 @@
 # duidtin-api
 
-> **Status: Fase 1 (fondasi) dan Fase 2 (autentikasi) selesai dan lolos tes di lokal; belum di-deploy.** Cakupan tahap ini **autentikasi saja**. Arsitektur keseluruhan (posisi backend, strategi token, sesi lintas remote) ada di [README.be.id.md](../README.be.id.md). Versi Inggris dibuat setelah rencananya final.
+> **Status: Fase 1 (fondasi), Fase 2 (autentikasi), Fase 3 (deploy), dan Fase 4 (data beranda) selesai — 45 tes lolos.** Cakupannya sekarang **autentikasi + data baca beranda**; belum ada endpoint yang mengubah uang. Arsitektur keseluruhan (posisi backend, strategi token, sesi lintas remote) ada di [README.be.id.md](../README.be.id.md). Versi Inggris dibuat setelah rencananya final.
 
 Backend Express + MongoDB untuk super-app duidtin. Di-deploy sebagai project Vercel kelima dari repo `x-duidtin`.
 
@@ -49,12 +49,16 @@ duidtin-api/
       log.ts                # catatRequest: params/payload, method+url, response (disensor)
       validasi.ts           # validasiBody(skema Zod)
     models/
+      aktivitas.ts
       pembatas.ts
       pengguna.ts
       perusahaan.ts
+      persetujuan.ts
+      rekening.ts
       sesi.ts
     modules/
       auth/                 # auth.routes.ts, auth.service.ts, auth.schema.ts, README.id.auth.md
+      beranda/              # beranda.routes.ts, beranda.service.ts, README.id.beranda.md
       health/               # health.routes.ts, README.id.health.md
     types/express.d.ts      # tipe req.auth
   scripts/
@@ -67,6 +71,7 @@ duidtin-api/
     bantuan.ts
     app.test.ts             # health, 404, JSON rusak, CORS, seed, indeks
     auth.test.ts            # login, me, refresh, logout
+    beranda.test.ts         # rekening, persetujuan, aktivitas + isolasi antar perusahaan
   .env.example
   bunfig.toml               # preload tes
   package.json
@@ -144,14 +149,18 @@ Setiap instance function bisa melayani banyak request. Membuka koneksi baru per 
 - `bufferCommands: false` — kalau koneksi gagal, query langsung error, bukan menggantung sampai timeout.
 - Middleware memastikan koneksi siap sebelum route yang butuh database dijalankan; `/health` melaporkan statusnya.
 
-## Model data (auth)
+## Model data
 
-Empat koleksi. Nama koleksi ditulis eksplisit, karena secara bawaan Mongoose menjamakkan nama model dengan aturan bahasa Inggris (`Pengguna` → `penggunas`).
+Tujuh koleksi. Nama koleksi ditulis eksplisit, karena secara bawaan Mongoose menjamakkan nama model dengan aturan bahasa Inggris (`Pengguna` → `penggunas`).
 
 ```
-perusahaan 1 ─────── n pengguna 1 ─────── n sesi
-                                            └─ dikelompokkan per idLogin (satu kali login)
+perusahaan 1 ─┬─ n pengguna 1 ─── n sesi
+              │                     └─ dikelompokkan per idLogin (satu kali login)
+              ├─ n rekening 1 ──── n aktivitas
+              └─ n persetujuan ─── 1 pengguna (dibuatOlehId, maker-nya)
 ```
+
+Empat koleksi pertama milik auth dan dirinci di bawah; tiga sisanya (`rekening`, `persetujuan`, `aktivitas`) milik [modul `beranda`](src/modules/beranda/README.id.beranda.md). Semuanya membawa `perusahaanId` — itu yang menjadi batas otorisasi, dan nilainya selalu diambil dari klaim token, bukan dari request.
 
 ### `pengguna`
 
@@ -366,6 +375,7 @@ Dokumentasi per API — params, respons sukses, respons gagal, dan diagram alur 
 |---|---|---|
 | `health` | `GET /health` | [src/modules/health/README.id.health.md](src/modules/health/README.id.health.md) |
 | `auth` | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me` | [src/modules/auth/README.id.auth.md](src/modules/auth/README.id.auth.md) |
+| `beranda` | `GET /beranda/rekening`, `GET /beranda/persetujuan`, `GET /beranda/aktivitas` | [src/modules/beranda/README.id.beranda.md](src/modules/beranda/README.id.beranda.md) |
 
 Semua request dan respons memakai `Content-Type: application/json`.
 
@@ -381,7 +391,7 @@ request
   ├─▶ express.json()              body JSON rusak ─────────────────────────▶ 400 VALIDASI_GAGAL
   ├─▶ catatRequest                mencatat request + respons ke log (lihat Log request)
   │
-  ├─▶ router: /health atau /auth
+  ├─▶ router: /health, /auth, atau /beranda
   │     ├─▶ validasiBody(skema)   body tidak sesuai skema ────────────────▶ 400 VALIDASI_GAGAL + detail
   │     ├─▶ butuhLogin            (khusus endpoint Bearer) token bermasalah ▶ 401 TOKEN_*
   │     ├─▶ pastikanDatabase      gagal konek MongoDB ─────────────────────▶ 500 KESALAHAN_SERVER
@@ -403,7 +413,7 @@ bun run seed            # upsert: aman dijalankan berulang
 bun run seed -- --reset # kosongkan koleksi dulu, lalu isi ulang
 ```
 
-- **Idempotent.** Upsert berdasarkan `perusahaan.kode` dan `pengguna.email`. Password di-hash ulang setiap seed, jadi mengubah password dev cukup dengan menjalankan seed lagi.
+- **Idempotent.** Upsert berdasarkan kunci alami tiap koleksi: `perusahaan.kode`, `pengguna.email`, `rekening.nomor`, dan `kode` untuk persetujuan & aktivitas. Password di-hash ulang setiap seed, jadi mengubah password dev cukup dengan menjalankan seed lagi.
 - **`sesi` tidak di-seed.** Sesi hanya lahir dari login. `--reset` ikut mengosongkan `sesi`, jadi semua orang harus login ulang.
 - **Pengaman.** Sebelum menulis, script mencetak host database tujuan. `--reset` ditolak kecuali `SEED_IZINKAN_RESET=1`, supaya database produksi tidak terhapus karena salah `.env`.
 - **Tidak pernah dijalankan saat build.** Produksi di-seed sekali dari laptop dengan `MONGODB_URI` Atlas.
@@ -419,7 +429,17 @@ bun run seed -- --reset # kosongkan koleksi dulu, lalu isi ulang
 | Angga Wika | `angga@duidtin.test` | checker |
 | Admin Duitin | `admin@duidtin.test` | admin |
 
-Semua memakai password dev `Duidtin123!`. Domain `.test` dicadangkan (RFC 2606), jadi tidak mungkin milik orang sungguhan. Rina dan Bagus sengaja sama dengan pembuat persetujuan di mock beranda.
+Semua memakai password dev `Duidtin123!`. Domain `.test` dicadangkan (RFC 2606), jadi tidak mungkin milik orang sungguhan. Rina dan Bagus sengaja sama dengan pembuat persetujuan di data beranda.
+
+Data beranda — tiga rekening, tiga persetujuan menunggu, empat aktivitas:
+
+| Rekening | Nomor | Mata uang | Saldo |
+|---|---|---|---|
+| Operasional | `1420-0100-2233` | IDR | 842.150.000 |
+| Payroll | `1420-0100-7781` | IDR | 386.400.000 |
+| Valas | `1420-0200-1109` | USD | 55.950.000 |
+
+Nominalnya **sama persis** dengan `mocks/beranda.ts` yang digantikan, supaya layar sebelum dan sesudah penggantian bisa dibandingkan angka per angka. Yang berbeda: **waktunya relatif** terhadap saat seed dijalankan (`jamLalu` di `data-seed.ts`), bukan tanggal tetap seperti di mock — jadi beranda selalu terlihat baru, tidak menampilkan transaksi bulan lalu.
 
 ## Dev lokal
 
@@ -501,6 +521,15 @@ Selain tes, hasil `build:node` dijalankan di **Node 24** terhadap MongoDB lokal 
 
 **Selesai kalau:** `/health` produksi 200 dengan `db: "terhubung"`, login produksi dengan akun seed berhasil, dan preflight `OPTIONS` dari origin `https://super-apps-duidtin.vercel.app` lolos.
 
+### Fase 4 — Data beranda ✅ · [modul `beranda`](src/modules/beranda/README.id.beranda.md)
+- ☑ Model `rekening`, `persetujuan`, `aktivitas` — semuanya membawa `perusahaanId`
+- ☑ `GET /beranda/rekening`, `/persetujuan`, `/aktivitas`, bentuknya mengikuti tipe di `duidtin-feature-beranda`
+- ☑ Seed data dummy, idempotent, waktunya relatif
+- ☑ 10 tes: bentuk respons, urutan, batas 10, keadaan kosong, dan isolasi antar perusahaan dua arah
+
+**Selesai kalau:** ketiga endpoint menolak request tanpa token, dan pengguna perusahaan A tidak bisa melihat data perusahaan B walaupun mengirim request yang identik. ✅
+
 ### Berikutnya (belum dirinci)
-- **Data beranda** — model `rekening`, `transaksi`, `persetujuan` dan endpoint yang bentuknya mengikuti tipe di `duidtin-feature-beranda/mocks/beranda.ts`.
-- **Integrasi frontend** — helper sesi, remote `duidtin-feature-auth`, guard host, layout membaca sesi.
+- **Frontend memakai endpoint ini** — `services/api/client.ts` di `duidtin-feature-beranda` masih transport palsu; yang perlu diganti cuma berkas itu.
+- **Fitur Rekening** — halaman daftar/detail rekening sebagai fitur sendiri; beranda cuma menampilkan ringkasannya.
+- **Transaksi & maker-checker** — `POST /transfer`, aksi setuju/tolak pada `persetujuan`, dan `middleware/otorisasi.ts` untuk cek peran (kode `AKSES_DITOLAK` sudah disiapkan).

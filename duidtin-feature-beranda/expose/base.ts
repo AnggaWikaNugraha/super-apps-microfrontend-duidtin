@@ -1,3 +1,4 @@
+import { configureAuth } from "@duidtin/auth";
 import { VueQueryPlugin } from "@tanstack/vue-query";
 import { createApp, type App } from "vue";
 
@@ -26,6 +27,23 @@ import { buatQueryClient } from "@/services/query-client";
  * langsung. Ini pelajaran mahal dari versi React-nya: pernah bikin semua
  * komponen design-system hilang tanpa satu pun pesan error.
  */
+/**
+ * Base URL `duidtin-api` untuk bundle REPO INI.
+ *
+ * Host memanggil `configureAuth()` juga, tapi nilainya TIDAK sampai ke sini:
+ * `baseUrl` itu variabel modul, dan `@duidtin/auth` sengaja tidak di-share lewat
+ * Module Federation — tiap remote mem-bundle salinan paketnya sendiri. Yang
+ * dibagi lintas remote cuma STORE-nya, lewat `window.__DUIDTIN_AUTH__`.
+ *
+ * Nama env-nya `PUBLIC_API_URL`, bukan `NEXT_PUBLIC_API_URL` seperti repo lain:
+ * Rsbuild hanya meneruskan variabel berawalan `PUBLIC_`. Itu sebabnya paket auth
+ * menolak membaca env sendiri — namanya berbeda tiap bundler.
+ *
+ * Dipanggil di modul, bukan di dalam `mount()`: sekali saja cukup, dan modul ini
+ * pasti dieksekusi baik lewat host maupun lewat halaman dev.
+ */
+configureAuth({ baseUrl: import.meta.env.PUBLIC_API_URL ?? "http://localhost:4000" });
+
 export const mount = (el: HTMLElement): (() => void) => {
   let app: App | undefined;
   let dibatalkan = false;

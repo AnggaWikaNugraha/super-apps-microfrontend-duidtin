@@ -1,12 +1,12 @@
 /**
  *   bun run seed            upsert, aman dijalankan berulang
- *   bun run seed -- --reset kosongkan koleksi auth dulu (butuh SEED_IZINKAN_RESET=1)
+ *   bun run seed -- --reset kosongkan semua koleksi dulu (butuh SEED_IZINKAN_RESET=1)
  */
 import mongoose from "mongoose";
 
 import { env } from "../src/config/env.js";
 import { hubungkanDatabase, putuskanDatabase } from "../src/db/koneksi.js";
-import { isiDataSeed, kosongkanKoleksiAuth, PASSWORD_DEV, PENGGUNA_SEED } from "./data-seed.js";
+import { isiDataSeed, kosongkanKoleksi, PASSWORD_DEV, PENGGUNA_SEED } from "./data-seed.js";
 
 // host saja: buang skema dan user:password supaya kredensial tidak tercetak
 const hostTujuan = env.mongodbUri
@@ -27,13 +27,16 @@ await hubungkanDatabase();
 console.log(`[seed] terhubung ke database "${mongoose.connection.name}"`);
 
 if (reset) {
-  await kosongkanKoleksiAuth();
-  console.log("[seed] koleksi pengguna, perusahaan, dan sesi dikosongkan");
+  await kosongkanKoleksi();
+  console.log("[seed] semua koleksi dikosongkan: pengguna, perusahaan, sesi, pembatas, rekening, persetujuan, aktivitas");
 }
 
 const jumlah = await isiDataSeed();
 
-console.log(`[seed] selesai: ${jumlah.perusahaan} perusahaan, ${jumlah.pengguna} pengguna`);
+console.log(
+  `[seed] selesai: ${jumlah.perusahaan} perusahaan, ${jumlah.pengguna} pengguna, ` +
+    `${jumlah.rekening} rekening, ${jumlah.persetujuan} persetujuan, ${jumlah.aktivitas} aktivitas`,
+);
 console.log(`[seed] akun: ${PENGGUNA_SEED.map((p) => p.email).join(", ")} — password ${PASSWORD_DEV}`);
 
 await putuskanDatabase();

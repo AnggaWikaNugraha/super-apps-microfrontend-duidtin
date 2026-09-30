@@ -4,6 +4,7 @@ import { corsMiddleware } from "./middleware/cors.js";
 import { penanganError, tidakDitemukan } from "./middleware/error.js";
 import { catatRequest } from "./middleware/log.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
+import { berandaRouter } from "./modules/beranda/beranda.routes.js";
 import { healthRouter } from "./modules/health/health.routes.js";
 
 /**
@@ -20,6 +21,7 @@ app.use(catatRequest);
 
 app.use("/health", healthRouter);
 app.use("/auth", authRouter);
+app.use("/beranda", berandaRouter);
 
 app.use(tidakDitemukan);
 app.use(penanganError);

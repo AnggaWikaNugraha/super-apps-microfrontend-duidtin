@@ -78,7 +78,7 @@ Module Federation composes applications **at runtime through a contract**, not a
 - **Stack** — Express 5 · Mongoose 8.24.4 (pinned) · Zod 4 · JWT HS256 · bcryptjs
 - **Database** — MongoDB Atlas
 - **Path** — **none**: reached directly on its own domain, not through a host rewrite
-- **Role** — the auth API: `login`, `refresh`, `logout`, `logout-semua`, `me`. Beranda's data endpoints do not exist yet
+- **Role** — the auth API (`login`, `refresh`, `logout`, `logout-semua`, `me`) plus the home-page data (`GET /beranda/rekening`, `/persetujuan`, `/aktivitas` — read-only, all require a session)
 - **Note** — the only part that is **not** Module Federation. The frontend calls it through `NEXT_PUBLIC_API_URL`, and the frontend's origin must be listed in the API's `CORS_ORIGINS`. Details in [README.be.id.md](README.be.id.md) and [duidtin-api/README.id.md](duidtin-api/README.id.md)
 
 > Naming: `ui-*` for infrastructure (host, design system, layout), `feature-*` for business features.

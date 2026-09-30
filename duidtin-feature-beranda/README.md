@@ -10,14 +10,17 @@ This is **the only duidtin repo that is not React** — Vue 3 + Rsbuild, while t
 
 ## Getting started
 
-This repo consumes `duidtin-ui-design-system`. To see the home page inside the layout, four servers must be running:
+This repo consumes `duidtin-ui-design-system` and `duidtin-api`. To see the home page with data, five servers must be running:
 
-1. `../duidtin-ui-design-system/` → `bun run dev:producer` (`:3001`)
-2. `../duidtin-ui-layout/` → `bun run dev` (`:3002`)
-3. This folder → `bun install`, then `bun run dev` (`:3003`)
-4. `../duidtin-ui/` → `bun run dev` (`:3000`) ← **open this one**
+1. `../duidtin-api/` → `bun run db:lokal`, then `bun run dev` (`:4000`)
+2. `../duidtin-ui-design-system/` → `bun run dev:producer` (`:3001`)
+3. `../duidtin-ui-layout/` → `bun run dev` (`:3002`)
+4. This folder → `bun install`, then `bun run dev` (`:3003`)
+5. `../duidtin-ui/` → `bun run dev` (`:3000`) ← **open this one**, then log in
 
 Unlike the Next version, `http://localhost:3003/beranda` now shows **the real home page**, not a placeholder — only the design system on `:3001` needs to be up. See [The host contract](#the-host-contract).
+
+> **The dev page on `:3003` has no data.** Now that the data comes from the API, every request needs a session — and the session lives in `localStorage` on the `:3000` origin, not `:3003`. So on `:3003` all four blocks show the **error** state with "Belum login", without a single wasted request (`http` rejects them client-side). That is still useful for layout work; for real data, open it through the host. `?kosong=` still works there too.
 
 ## Where it stands
 
@@ -30,10 +33,12 @@ Verified in a real browser (through the host on `:3000` and standalone on `:3003
 - `press` from `<dtn-button>` is caught by Vue (`@press`), and `:is-disabled` reaches the React component inside — the Refresh button turns into "Memperbarui" and goes disabled.
 - `?gagal=rekening,aktivitas` → 3 blocks fail with a "Coba lagi" button, the global banner appears, the approvals block keeps rendering.
 - `?lambat=20` → skeletons appear with the right number of lines (2 / 5 / 5 / 5).
+- **The data comes from `duidtin-api`, no longer from mocks.** Three requests to `localhost:4000/beranda/*`, all `200` with a `Bearer` header, and `rekening` is fetched **once** even though two blocks use it — TanStack's dedup proven. The figures match the dummy data they replaced exactly: Rp 1,228,550,000.
+- `?kosong=rekening,persetujuan` → three blocks show the EMPTY state. That path had **never been proven** while the data was dummy, because the mocks were never empty.
 
 Not there yet:
 
-- A real backend. The data is dummy but already shaped like an API response — only `services/api/client.ts` needs replacing.
+- Its own account-list / statement pages. The home page only shows the summary.
 - Roles. Every shortcut is still disabled.
 - i18n and container config (Docker).
 
@@ -58,7 +63,7 @@ const { total, jumlahRekening, isLoading, isError, retry } = useRingkasanSaldo()
 </script>
 ```
 
-**Why:** the component can be read at a glance; the logic can be tested without rendering; and when the data source changes (dummy → real API) the template is never touched.
+**Why:** the component can be read at a glance; the logic can be tested without rendering; and when the data source changes the template is never touched. That has been proven once already: swapping dummy data for `duidtin-api` touched only `services/api/`, with zero changes in `blocks/` or `composables/`.
 
 ### 2. State goes in Zustand, not a `ref` in the component
 
@@ -102,6 +107,7 @@ If a component does not exist yet, **build it in `duidtin-ui-design-system`** �
 | UI components | `<dtn-*>` Web Components | the design system's React components, used with no React on this side |
 | React | **not installed** | see [Why there is no React](#why-there-is-no-react-in-the-dependencies) |
 | Data | `@tanstack/vue-query` 5 | its own `QueryClient` |
+| API | `duidtin-api` through `http` from `@duidtin/auth` | base URL from `PUBLIC_API_URL`, set by this repo itself |
 | Session | `@duidtin/auth` + the `/vue` subpath | the very same store as the host |
 | Styling | Tailwind v4, prefix `fber` | BEM + `@apply`, same as the layout (`lyt`) and the host (`app`) |
 | Port / base | 3003 / `/beranda` | |
@@ -130,7 +136,10 @@ duidtin-feature-beranda/
     error-global.ts · tampilan-beranda.ts
   services/
     federation.ts        # registers the design system + loads the <dtn-*> wrappers
-    query-client.ts · api/client.ts · api/beranda.ts
+    query-client.ts
+    api/client.ts        # apiGet() — http from @duidtin/auth + the dev switches
+    api/beranda.ts       # query functions + queryKeys
+    api/tipe.ts          # mirror of duidtin-api's response shapes
   utils/
     index.ts             # getBaseFederationUrl()
     zustand-vue.ts       # store → ref bridge
@@ -319,21 +328,25 @@ Browser opens localhost:3000/
 
 The design system is **awaited** before the app mounts. An unregistered `<dtn-*>` element would in fact upgrade itself the moment `customElements.define` runs, so rendering first would not break anything — it would just flash unstyled content for an instant. Waiting costs less than that flash, especially since the container is usually already warm from PHASE 2.
 
-### 2. Data flow — one query from mock to screen
+### 2. Data flow — one query from the API to the screen
 
 Example: the `rekening` query feeding the Balance summary block.
 
 ```
-mocks/beranda.ts
-  rekeningDummy: Rekening[]            3 accounts — 2 IDR, 1 USD
+duidtin-api — GET /beranda/rekening
+  filtered by perusahaanId from the token claims   3 accounts — 2 IDR, 1 USD
   │
 services/api/beranda.ts
-  ambilRekening() → apiGet("rekening", rekeningDummy)
+  ambilRekening() → apiGet<Rekening[]>("rekening")
   │
-services/api/client.ts — apiGet(endpoint, data)
-  ├─ tunggu(acak(500, 1100) × pengaliLambat())     ← ?lambat=N
-  ├─ endpoint listed in ?gagal=… → throw new ApiError(endpoint, 503)
-  └─ return data                                    → Promise<Rekening[]>
+services/api/client.ts — apiGet(endpoint)
+  ├─ ?lambat=N   → wait N × 300ms first
+  ├─ ?gagal=…    → throw ApiError(endpoint, 503), without calling the API
+  ├─ ?kosong=…   → return [], without calling the API
+  ├─ http.get(`/beranda/${endpoint}`)              ← the instance from @duidtin/auth
+  │    ├─ attach Bearer · proactive refresh · hold while the session is expired
+  │    └─ no session → rejected client-side, no wasted request
+  └─ AuthError → ApiError(endpoint, status, message)
   │
 TanStack Vue Query
   useQuery({ queryKey: ["beranda", "rekening"], queryFn: ambilRekening })
@@ -417,7 +430,7 @@ A component crashes while rendering — a bug, not the API
 
 `QueryCache.onError` lives outside any component, so it writes to the store through `getState()`.
 
-## Data: TanStack Query + a fake API
+## Data: TanStack Query + `duidtin-api`
 
 ### Why the `QueryClient` belongs to this repo
 
@@ -425,24 +438,35 @@ It is not shared from the host. The consequence: the cache is not shared between
 
 Here that trade has no alternative anyway: the host uses `@tanstack/react-query`, this repo `@tanstack/vue-query`. Two different packages, so not even a share scope could unify them.
 
-### The fake API
+### The transport
 
 ```
-mocks/beranda.ts        dummy data, shaped like a real API response
-services/api/client.ts  transport: delay + failure simulation
+services/api/tipe.ts    mirror of duidtin-api's response shapes
+services/api/client.ts  apiGet() — http from @duidtin/auth + the dev switches
 services/api/beranda.ts query functions + queryKeys
 ```
 
-All data access goes through `apiGet()`, so when the backend is ready only that function's body changes — the components stay untouched.
+The endpoint is just the block's name (`"rekening"`), and that name is **the same in three places**: the `queryKey`, the `?gagal=` value, and the `GET /beranda/rekening` path in the API. So none of the three can drift from the others.
 
-**Two URL parameters for states that are hard to catch:**
+**The axios instance comes from `@duidtin/auth`**, it is not created here — that is the only way to call the API with a session. What the instance brings: the `Bearer` header, a proactive refresh when the access token is nearly dead, holding requests while the session is expired and replaying them after a re-login, and rejecting client-side when there is no session at all. Everything it throws is an `AuthError`; `apiGet` turns that into an `ApiError` so the rest of the repo knows only one error type — and so `QueryCache.onError` can name which endpoint failed.
+
+**The base URL is set by this repo**, in `expose/base.ts`:
+
+```ts
+configureAuth({ baseUrl: import.meta.env.PUBLIC_API_URL ?? "http://localhost:4000" });
+```
+
+The host calls `configureAuth()` too, but its value never reaches here: `baseUrl` is module state, and `@duidtin/auth` is deliberately **not** shared through MF — every remote bundles its own copy of the package. The only thing shared across remotes is the STORE, through `window.__DUIDTIN_AUTH__`. The env var is `PUBLIC_API_URL`, not `NEXT_PUBLIC_API_URL` as in the other repos, because Rsbuild only forwards variables prefixed with `PUBLIC_`.
+
+**Three URL parameters for states that are hard to catch:**
 
 | Parameter | Effect |
 |---|---|
-| `?gagal=aktivitas` | force that endpoint to fail. Several at once: `?gagal=aktivitas,persetujuan` |
-| `?lambat=30` | slow every endpoint down 30× so the skeletons are actually visible |
+| `?gagal=aktivitas` | force that endpoint to fail, without calling the API. Several at once: `?gagal=aktivitas,persetujuan` |
+| `?kosong=rekening` | force that endpoint to return `[]` — the only way to see the EMPTY state without deleting data from the database |
+| `?lambat=30` | add a 30 × 300ms delay so the skeletons are actually visible; the local API answers in tens of milliseconds |
 
-Deliberately deterministic through the URL, **not random failure** — random failure is maddening during development and impossible to demo.
+Deliberately deterministic through the URL, **not random failure** — random failure is maddening during development and impossible to demo. All three stay even now that the data is real, because those three states are precisely the ones a healthy API makes hardest to reach.
 
 ## Three layers of error handling
 
@@ -478,7 +502,6 @@ The host also has a `RemoteErrorBoundary`, but that wraps the WHOLE application 
 
 ## Next steps
 
-- Real home-page endpoints in `duidtin-api` (`rekening`, `persetujuan`, `aktivitas`) replacing `mocks/beranda.ts`.
 - Fill the "Approval queue" and "Recent activity" blocks once Payroll and Statements exist.
 - Wire the shortcuts to real routes (all disabled today).
 - Roles: a maker sees different shortcuts from a checker.

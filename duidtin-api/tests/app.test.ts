@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 
+import { AktivitasModel } from "../src/models/aktivitas.js";
 import { PenggunaModel } from "../src/models/pengguna.js";
+import { RekeningModel } from "../src/models/rekening.js";
 import { PerusahaanModel } from "../src/models/perusahaan.js";
 import { SesiModel } from "../src/models/sesi.js";
 import { isiDataSeed } from "../scripts/data-seed.js";
@@ -47,19 +49,24 @@ describe("seed", () => {
   test("dijalankan dua kali tidak menggandakan data", async () => {
     const hasil = await isiDataSeed();
 
-    expect(hasil).toEqual({ perusahaan: 1, pengguna: 4 });
+    expect(hasil).toEqual({ perusahaan: 1, pengguna: 4, rekening: 3, persetujuan: 3, aktivitas: 4 });
   });
 
   test("indeks unik dan TTL terbentuk", async () => {
     const indeksSesi = await SesiModel.collection.indexes();
     const indeksPengguna = await PenggunaModel.collection.indexes();
     const indeksPerusahaan = await PerusahaanModel.collection.indexes();
+    const indeksRekening = await RekeningModel.collection.indexes();
+    const indeksAktivitas = await AktivitasModel.collection.indexes();
 
     expect(indeksSesi.find((i) => i.key.tokenHash)?.unique).toBe(true);
     expect(indeksSesi.find((i) => i.key.kedaluwarsaPada)?.expireAfterSeconds).toBe(0);
     expect(indeksSesi.some((i) => i.key.idLogin)).toBe(true);
     expect(indeksPengguna.find((i) => i.key.email)?.unique).toBe(true);
     expect(indeksPerusahaan.find((i) => i.key.kode)?.unique).toBe(true);
+    expect(indeksRekening.find((i) => i.key.nomor)?.unique).toBe(true);
+    // beranda selalu meminta "terbaru milik satu perusahaan" — indeks gabungannya wajib ada
+    expect(indeksAktivitas.some((i) => i.key.perusahaanId === 1 && i.key.waktu === -1)).toBe(true);
   });
 });
 

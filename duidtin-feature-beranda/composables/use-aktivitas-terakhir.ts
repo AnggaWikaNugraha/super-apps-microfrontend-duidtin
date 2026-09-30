@@ -4,7 +4,7 @@ import { computed } from "vue";
 import { ambilAktivitas, berandaKeys } from "@/services/api/beranda";
 import { useTampilanBeranda } from "@/stores/tampilan-beranda";
 
-import type { Aktivitas } from "@/mocks/beranda";
+import type { Aktivitas } from "@/services/api/tipe";
 
 /** Pemetaan status → warna badge ditaruh di composable, bukan di komponen. */
 const WARNA_STATUS: Record<Aktivitas["status"], "success" | "warning" | "danger"> = {
