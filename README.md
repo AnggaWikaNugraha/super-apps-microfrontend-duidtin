@@ -303,7 +303,7 @@ flowchart TD
   P == "HTTPS + Bearer" ==> API[("🗄️ <b>duidtin-api</b><br/>Express 5 · Mongoose 8.24.4<br/>Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas")]
 
   classDef user fill:#f8fafc,stroke:#cbd5e1,color:#334155
-  classDef next fill:#1f2937,stroke:#0f172a,color:#f8fafc
+  classDef next fill:#eff6ff,stroke:#3b82f6,color:#1e40af
   classDef rs fill:#fff7ed,stroke:#f97316,color:#7c2d12
   classDef vue fill:#f0fdf4,stroke:#22c55e,color:#14532d
   classDef pkg fill:#fefce8,stroke:#eab308,color:#713f12
@@ -319,7 +319,7 @@ flowchart TD
   style RUNTIME fill:#ffffff,stroke:#e2e8f0,color:#64748b
 ```
 
-**Colour = toolchain**, not role: ⬛ black Next.js · 🟧 orange Rsbuild/Rslib · 🟩 green Vue · 🟨 yellow plain package · 🟪 purple backend. Beranda is the only green one — the only remote that is not React. Dashed = a **build-time** dependency (`file:`), not Module Federation — `@duidtin/auth` is a plain `import`, every repo bundles its own copy, and all they share is the store on `window`. Per-repo stack details are in [Six repos, six Vercel projects](#six-repos-six-vercel-projects) above.
+Dashed = a **build-time** dependency (`file:`), not Module Federation — `@duidtin/auth` is a plain `import`, every repo bundles its own copy, and all they share is the store on `window`. Per-repo stack details are in [Six repos, six Vercel projects](#six-repos-six-vercel-projects) above.
 
 Three things the picture cannot show, yet decide everything:
 

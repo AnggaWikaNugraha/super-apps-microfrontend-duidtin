@@ -305,7 +305,7 @@ flowchart TD
   P == "HTTPS + Bearer" ==> API[("🗄️ <b>duidtin-api</b><br/>Express 5 · Mongoose 8.24.4<br/>Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas")]
 
   classDef pengguna fill:#f8fafc,stroke:#cbd5e1,color:#334155
-  classDef next fill:#1f2937,stroke:#0f172a,color:#f8fafc
+  classDef next fill:#eff6ff,stroke:#3b82f6,color:#1e40af
   classDef rs fill:#fff7ed,stroke:#f97316,color:#7c2d12
   classDef vue fill:#f0fdf4,stroke:#22c55e,color:#14532d
   classDef paket fill:#fefce8,stroke:#eab308,color:#713f12
@@ -321,7 +321,7 @@ flowchart TD
   style RUNTIME fill:#ffffff,stroke:#e2e8f0,color:#64748b
 ```
 
-**Warna = toolchain**, bukan peran: ⬛ hitam Next.js · 🟧 oranye Rsbuild/Rslib · 🟩 hijau Vue · 🟨 kuning paket biasa · 🟪 ungu backend. Beranda satu-satunya yang hijau — satu-satunya remote yang bukan React. Garis putus-putus = ketergantungan **build time** (`file:`), bukan Module Federation — `@duidtin/auth` di-`import` biasa, tiap repo mem-bundle salinannya sendiri, dan yang mereka bagi cuma store di `window`. Rincian stack tiap repo ada di [Enam repo, enam project Vercel](#enam-repo-enam-project-vercel) di atas.
+Garis putus-putus = ketergantungan **build time** (`file:`), bukan Module Federation — `@duidtin/auth` di-`import` biasa, tiap repo mem-bundle salinannya sendiri, dan yang mereka bagi cuma store di `window`. Rincian stack tiap repo ada di [Enam repo, enam project Vercel](#enam-repo-enam-project-vercel) di atas.
 
 Tiga hal yang tidak terlihat di gambar tapi menentukan:
 
