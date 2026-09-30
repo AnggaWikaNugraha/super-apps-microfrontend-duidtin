@@ -127,7 +127,8 @@ other tabs
 |---|---|
 | `@duidtin/auth` | `configureAuth({ baseUrl })`, `installAuthStore()`, `getAuthStore()`, `http` (instance axios), `login()`, `logout()`, `logoutAll()`, `refreshProfile()` |
 | `@duidtin/auth/react` | `useAuth()` → `{ user, status, isLoggedIn, sesiKedaluwarsa, penggunaTerakhir, login, logout, logoutAll, refreshProfile }` |
-| `/vue`, `/svelte`, `/angular` | later; the core is framework-free, so each wrapper is a dozen lines |
+| `@duidtin/auth/vue` | `useAuth()` → the same keys, but as **refs** (`status.value`); used by `duidtin-feature-beranda` |
+| `/svelte`, `/angular` | later; the core is framework-free, so each wrapper is ~25 lines — exactly like `/vue` |
 
 - The session store is **created by the host only**; remotes borrow the object (`getState`, `subscribe`, actions) — no classes, no React, so it is safe across frameworks and bundlers.
 - Business stores stay with each remote.
@@ -278,48 +279,37 @@ Flags control what is shown, not what is allowed. Features touching sensitive da
 
 Who loads whom, and on which stack — the repository as it stands today.
 
-```mermaid
-%%{init: {'flowchart': {'wrappingWidth': 420}}}%%
-flowchart TD
-  U(["👤 User"]) --> H
-
-  H["🏠 duidtin-ui — HOST<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1"]
-
-  subgraph RUNTIME ["remotes"]
-    direction LR
-    L["🧭 duidtin-ui-layout<br/>Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1"]
-    B["🏦 duidtin-feature-beranda<br/>Vue 3.5 · Rsbuild · @module-federation/rsbuild-plugin 0.24.1"]
-    A["🔐 duidtin-feature-auth<br/>Next 16.2 · Rspack (next-rspack) · @module-federation/enhanced 2.x"]
-  end
-
-  H -- "remoteEntry.js" --> L
-  H -- "remoteEntry.js" --> B
-  H -- "remoteEntry.js" --> A
-
-  L & B & A -- "loadRemote" --> DS["🎨 duidtin-ui-design-system<br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · @module-federation/rsbuild-plugin 0.24.1 · MF 0.24.1"]
-
-  H & B & A -. "imported at build time (file:../duidtin-packages/auth)" .-> P["🔑 @duidtin/auth · a package, NOT a remote<br/>tsc only, no bundler · zustand 5 (vanilla) + axios 1"]
-
-  P == "HTTPS + Bearer" ==> API[("🗄️ duidtin-api<br/>Express 5 · Mongoose 8.24.4 (pinned) · Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas")]
-
-  classDef user fill:#f1f5f9,stroke:#94a3b8,color:#0f172a
-  classDef next fill:#eff6ff,stroke:#3b82f6,color:#1e40af
-  classDef rs fill:#ffedd5,stroke:#ea580c,color:#7c2d12
-  classDef vue fill:#dcfce7,stroke:#16a34a,color:#14532d
-  classDef pkg fill:#fef9c3,stroke:#ca8a04,color:#713f12
-  classDef backend fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
-
-  class U user
-  class H,L,A next
-  class DS rs
-  class B vue
-  class P pkg
-  class API backend
-
-  style RUNTIME fill:#f8fafc,stroke:#cbd5e1,color:#334155
+```
+User
+   │
+   ▼
+duidtin-ui — HOST                         Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF runtime 0.24.1
+   │                                      a thin shell — renders no UI of its own
+   │
+   │  loaded at runtime via remoteEntry.js
+   ├─▶ duidtin-ui-layout                  Next 14.2 · webpack 5 · nextjs-mf 8.8.54 · MF 0.24.1
+   ├─▶ duidtin-feature-beranda            Vue 3.5 · Rsbuild · rsbuild-plugin 0.24.1
+   │                                      ↑ the only remote that is not React
+   ├─▶ duidtin-feature-auth               Next 16.2 · Rspack (next-rspack) · enhanced 2.x · MF 2.x
+   │        │
+   │        └─ loadRemote, from all three
+   │             ▼
+   │           duidtin-ui-design-system   Turborepo: apps/producer + packages/ui
+   │                                      Rslib 0.19 · rsbuild-plugin 0.24.1 · MF 0.24.1
+   │
+   └─ imported at build time, from host + beranda + auth
+        ▼
+      @duidtin/auth                       file:../duidtin-packages/auth
+        │                                 a plain package, NOT a remote — each repo bundles its own copy
+        │                                 tsc only, no bundler · zustand 5 (vanilla) + axios 1
+        │
+        └─ HTTPS + Bearer
+             ▼
+           duidtin-api                    Express 5 · Mongoose 8.24.4 (pinned) · Zod 4
+                                          JWT HS256 · bcryptjs · MongoDB Atlas
 ```
 
-Dashed = a **build-time** dependency (`file:`), not Module Federation — `@duidtin/auth` is a plain `import`, every repo bundles its own copy, and all they share is the store on `window`. Per-repo stack details are in [Six repos, six Vercel projects](#six-repos-six-vercel-projects) above.
+Solid arrows = **Module Federation**, loaded at runtime. `imported at build time` = an ordinary `file:` dependency — `@duidtin/auth` is not a remote, so every repo bundles its own copy and all they share is the store on `window`. Per-repo stack details are in [Six repos, six Vercel projects](#six-repos-six-vercel-projects) above.
 
 Three things the picture cannot show, yet decide everything:
 
