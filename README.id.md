@@ -281,28 +281,28 @@ Flag mengatur tampilan, bukan akses. Fitur yang menyangkut data sensitif tetap h
 Siapa memuat siapa, dan dengan stack apa — keadaan repo saat ini.
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables':{'fontSize':'13px','lineColor':'#94a3b8','edgeLabelBackground':'#ffffff'},'flowchart':{'wrappingWidth':330,'nodeSpacing':45,'rankSpacing':70,'curve':'basis'}}}%%
-flowchart LR
+%%{init: {'theme':'base','themeVariables':{'fontSize':'13px','lineColor':'#94a3b8','edgeLabelBackground':'#ffffff'},'flowchart':{'wrappingWidth':235,'nodeSpacing':55,'rankSpacing':60,'curve':'basis'}}}%%
+flowchart TD
   U(["👤 Pengguna"]) --> H
 
-  H["🏠 <b>duidtin-ui</b> — HOST<br/>Next 14.2 · webpack 5<br/>nextjs-mf 8.8.54 · MF runtime 0.24.1"]
+  H["🏠 <b>duidtin-ui</b> — HOST<br/>Next 14.2 · webpack 5<br/>nextjs-mf 8.8.54<br/>MF runtime 0.24.1"]
 
-  subgraph RUNTIME ["dimuat runtime — remoteEntry.js"]
-    direction TB
-    L["🧭 <b>duidtin-ui-layout</b><br/>Next 14.2 · webpack 5<br/>nextjs-mf 8.8.54 · MF 0.24.1"]
-    B["🏦 <b>duidtin-feature-beranda</b><br/>Vue 3.5 · Rsbuild<br/>@module-federation/rsbuild-plugin 0.24.1"]
-    A["🔐 <b>duidtin-feature-auth</b><br/>Next 16.2 · Rspack (next-rspack)<br/>@module-federation/enhanced 2.x"]
+  subgraph RUNTIME ["remote · remoteEntry.js"]
+    direction LR
+    L["🧭 <b>duidtin-ui-layout</b><br/>Next 14.2 · webpack 5<br/>nextjs-mf 8.8.54<br/>MF 0.24.1"]
+    B["🏦 <b>duidtin-feature-beranda</b><br/>Vue 3.5 · Rsbuild<br/>rsbuild-plugin 0.24.1<br/>MF 0.24.1"]
+    A["🔐 <b>duidtin-feature-auth</b><br/>Next 16.2 · Rspack<br/>enhanced 2.x<br/>MF 2.x"]
   end
 
   H --> L
   H --> B
   H --> A
 
-  L & B & A -- "loadRemote" --> DS["🎨 <b>duidtin-ui-design-system</b><br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · rsbuild-plugin 0.24.1 · MF 0.24.1"]
+  L & B & A -- "loadRemote" --> DS["🎨 <b>duidtin-ui-design-system</b><br/>Turborepo: apps/producer + packages/ui<br/>Rslib 0.19 · rsbuild-plugin 0.24.1<br/>MF 0.24.1"]
 
-  H & B & A -. "import" .-> P["🔑 <b>@duidtin/auth</b> — paket, BUKAN remote<br/>file:../duidtin-packages/auth<br/>tsc saja, tanpa bundler<br/>zustand 5 (vanilla) + axios 1"]
+  H & B & A -. "import" .-> P["🔑 <b>@duidtin/auth</b><br/>paket, BUKAN remote<br/>file:../duidtin-packages/auth<br/>tsc saja · zustand 5 + axios 1"]
 
-  P == "HTTPS + Bearer" ==> API[("🗄️ <b>duidtin-api</b><br/>Express 5 · Mongoose 8.24.4 (dikunci)<br/>Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas")]
+  P == "HTTPS + Bearer" ==> API[("🗄️ <b>duidtin-api</b><br/>Express 5 · Mongoose 8.24.4<br/>Zod 4 · JWT HS256 · bcryptjs<br/>MongoDB Atlas")]
 
   classDef pengguna fill:#f8fafc,stroke:#cbd5e1,color:#334155
   classDef next fill:#1f2937,stroke:#0f172a,color:#f8fafc
