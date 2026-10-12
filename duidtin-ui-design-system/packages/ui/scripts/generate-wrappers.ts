@@ -62,6 +62,7 @@ const daftarProp = (props: Record<string, string>): string =>
     .join(", ");
 
 const dilewati: string[] = [];
+const dirakit: string[] = [];
 const dibuat: string[] = [];
 /** nama elemen → daftar atribut, dipakai menulis deklarasi JSX */
 const elemen: Record<string, string[]> = {};
@@ -72,6 +73,28 @@ for (const nama of readdirSync(KOMPONEN, { withFileTypes: true })
   .sort()) {
   const sesuaian = peta[nama] ?? {};
   const folder = join(WRAPPER, nama);
+
+  if (sesuaian.rakit) {
+    dirakit.push(nama);
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(
+      join(folder, "index.ts"),
+      `// BERKAS HASIL GENERATE — jangan diedit tangan (bun run gen:wrapper).\n` +
+        `//\n` +
+        `// <dtn-${nama}> dirakit TANGAN di ./rakitan.tsx — berkas itu tidak pernah ditimpa\n` +
+        `// codegen, karena susunan bagian compound-nya tidak bisa disimpulkan otomatis.\n` +
+        `//\n` +
+        `// ${sesuaian.rakit.replace(/(.{92}\S*)\s+/g, "$1\n// ")}\n` +
+        `\nimport "./rakitan";\n` +
+        `\nexport const NAMA_ELEMEN = "dtn-${nama}";\n` +
+        `\nexport default NAMA_ELEMEN;\n`,
+    );
+
+    elemen[`dtn-${nama}`] = Object.keys(sesuaian.props ?? {})
+      .map((k) => k.replace(/[A-Z]/g, (h) => `-${h.toLowerCase()}`))
+      .sort();
+    continue;
+  }
 
   if (sesuaian.lewati) {
     dilewati.push(nama);
@@ -172,5 +195,6 @@ writeFileSync(
     `\n    }\n  }\n}\n\nexport {};\n`,
 );
 
-console.log(`[wrapper] ${dibuat.length} elemen: ${dibuat.join(", ")}`);
-console.log(`[wrapper] ${dilewati.length} dilewati (butuh elemen khusus): ${dilewati.join(", ")}`);
+console.log(`[wrapper] ${dibuat.length} elemen otomatis: ${dibuat.join(", ")}`);
+console.log(`[wrapper] ${dirakit.length} elemen rakitan tangan: ${dirakit.join(", ")}`);
+console.log(`[wrapper] ${dilewati.length} dilewati: ${dilewati.join(", ")}`);

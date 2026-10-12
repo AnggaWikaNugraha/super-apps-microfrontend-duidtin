@@ -40,7 +40,7 @@ Dari root repo ini (`x-duidtin/duidtin-ui-design-system/`):
 
 Komponen di `packages/ui` semuanya komponen **React**. Supaya bisa dipakai konsumen yang bukan React, sebagian juga dibungkus jadi custom element. Sejak `duidtin-feature-beranda` pindah ke **Vue**, jalur ini bukan lagi persiapan untuk nanti — itu satu-satunya cara beranda memakai design-system, dan pemakaian sungguhan itulah yang akhirnya menyingkap dua bug di bawah.
 
-Daftar lengkapnya ada di folder `src/component-wrapper/` itu sendiri: komponen yang dibungkus punya `buatElemen(...)`, yang belum punya berkas berisi `BELUM_DIBUNGKUS` beserta alasannya. Sekarang 11 dibungkus, 7 belum.
+Daftar lengkapnya ada di folder `src/component-wrapper/` itu sendiri. Sekarang **17 dari 18 komponen** punya elemen: 11 dibungkus otomatis satu-lawan-satu, 6 **dirakit tangan** di `<n>/rakitan.tsx` karena compound-nya tidak boleh dipecah — bagian-bagiannya bertukar data lewat React Context, dan Context tidak menyeberang antar React root. Satu yang tersisa, `error-boundary`, berisi `BELUM_DIBUNGKUS` beserta alasannya.
 
 ```
 <dtn-button color="primary">Masuk</dtn-button>
@@ -116,7 +116,8 @@ Dijalankan otomatis lewat `prebuild`, atau manual: `bun run gen:wrapper`.
 
 | Ditulis tangan sekali | Di mana |
 |---|---|
-| props non-varian (`isDisabled`, `data`, `isLoading`), props bagian compound (`propsBagian`), event (`onPress` → `press`), daftar yang dilewati | `src/component-wrapper/utils/peta.ts` |
+| props non-varian (`isDisabled`, `data`, `isLoading`), props bagian compound (`propsBagian`), event (`onPress` → `press`), penanda `rakit`, daftar yang `lewati` | `src/component-wrapper/utils/peta.ts` |
+| susunan tiap compound | `src/component-wrapper/<n>/rakitan.tsx` — **tulisan tangan, tidak pernah ditimpa** |
 
 Keluarannya: `component-wrapper/<n>/index.ts` per komponen, `component-wrapper/index.ts` (mendaftarkan semua), dan `utils/elemen.d.ts` (deklarasi JSX). Semuanya **berkas generate** — jangan diedit tangan.
 
@@ -242,7 +243,7 @@ codegen        predev / prebuild — generate-components.ts
    │
 build remote   apps/producer — rslib format "mf", target dual
    │             └─▶ dist/mf/remoteEntry.js
-   │                   exposes 18 komponen React + 19 pembungkus + ./globals
+   │                   exposes 18 komponen React + 18 pembungkus + ./globals
    │                   shared react singleton · tipe ke @mf-types
    │
 sajikan        :3001/design-system/static/
@@ -314,7 +315,7 @@ Script ini yang menghilangkan langkah manual "bikin shim + daftarin ke `componen
 - Baca semua nama folder di `packages/ui/src/components/`, konversi ke PascalCase (`button` → `Button`) — asumsinya nama folder dan nama komponen yang di-export selalu selaras (konvensi yang sudah dipakai sejak awal).
 - Generate file shim `apps/producer/src/components/<nama>.ts` isinya cuma re-export dari `@duidtin/ui`, dan generate ulang seluruh isi `component-exposes.ts` dari daftar folder yang ketemu.
 - Konsekuensinya: `apps/producer/src/components/component-exposes.ts` dan tiap file shim `<nama>.ts` di folder itu **jadi file hasil generate**, bukan yang ditulis manual lagi — kalau diedit manual, akan ketiban pas `prebuild` jalan lagi.
-- **Pembungkus Web Component ikut digenerate di sini.** Script yang sama membaca `packages/ui/src/component-wrapper/*`, menulis shim `apps/producer/src/component-wrapper/<nama>.ts` (isinya `import "@duidtin/ui/component-wrapper/<nama>"` — impor efek samping, karena yang dibutuhkan pendaftaran elemennya), plus satu entri `./component-wrapper/semua` yang mendaftarkan semuanya sekaligus. Totalnya sekarang 18 expose React + 19 expose pembungkus + `./globals`.
+- **Pembungkus Web Component ikut digenerate di sini.** Script yang sama membaca `packages/ui/src/component-wrapper/*`, menulis shim `apps/producer/src/component-wrapper/<nama>.ts` (isinya `import "@duidtin/ui/component-wrapper/<nama>"` — impor efek samping, karena yang dibutuhkan pendaftaran elemennya), plus satu entri `./component-wrapper/semua` yang mendaftarkan semuanya sekaligus. Totalnya sekarang 18 expose React + 18 expose pembungkus + `./globals`.
 - Wrapper-nya sendiri digenerate script lain di `packages/ui` — lihat [Codegen](#codegen-packagesuiscriptsgenerate-wrappersts) di bagian Pembungkus Web Component.
 
 ## Tipe lintas-remote (MF `dts`)

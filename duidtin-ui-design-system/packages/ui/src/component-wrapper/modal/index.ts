@@ -1,10 +1,14 @@
 // BERKAS HASIL GENERATE — jangan diedit tangan (bun run gen:wrapper).
 //
-// Modal SENGAJA belum dibungkus jadi Web Component.
+// <dtn-modal> dirakit TANGAN di ./rakitan.tsx — berkas itu tidak pernah ditimpa
+// codegen, karena susunan bagian compound-nya tidak bisa disimpulkan otomatis.
 //
-// bagian-bagiannya bertukar data lewat React Context (id, aria-*, fokus, keyboard). Tiap custom
-// element punya React root sendiri dan Context tidak menyeberang antar-root, jadi memecahnya jadi
-// elemen terpisah akan memutus aksesibilitasnya. Butuh elemen khusus yang merakit bagian-bagiannya
-// di dalam SATU root. Ditambah portal: isinya dirender ke luar pohon DOM elemen.
+// bagian-bagiannya bertukar data lewat React Context (id, aria-*, fokus, keyboard), jadi semuanya
+// dirakit di dalam SATU React root — bukan satu elemen per bagian. Dibuka lewat atribut `is-open`,
+// bukan lewat tombol pemicu di dalamnya; isinya datang dari anak light DOM.
 
-export const BELUM_DIBUNGKUS = "bagian-bagiannya bertukar data lewat React Context (id, aria-*, fokus, keyboard). Tiap custom element punya React root sendiri dan Context tidak menyeberang antar-root, jadi memecahnya jadi elemen terpisah akan memutus aksesibilitasnya. Butuh elemen khusus yang merakit bagian-bagiannya di dalam SATU root. Ditambah portal: isinya dirender ke luar pohon DOM elemen.";
+import "./rakitan";
+
+export const NAMA_ELEMEN = "dtn-modal";
+
+export default NAMA_ELEMEN;

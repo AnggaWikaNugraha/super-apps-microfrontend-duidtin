@@ -1,10 +1,14 @@
 // BERKAS HASIL GENERATE — jangan diedit tangan (bun run gen:wrapper).
 //
-// Select SENGAJA belum dibungkus jadi Web Component.
+// <dtn-select> dirakit TANGAN di ./rakitan.tsx — berkas itu tidak pernah ditimpa
+// codegen, karena susunan bagian compound-nya tidak bisa disimpulkan otomatis.
 //
-// bagian-bagiannya bertukar data lewat React Context (id, aria-*, fokus, keyboard). Tiap custom
-// element punya React root sendiri dan Context tidak menyeberang antar-root, jadi memecahnya jadi
-// elemen terpisah akan memutus aksesibilitasnya. Butuh elemen khusus yang merakit bagian-bagiannya
-// di dalam SATU root.
+// bagian-bagiannya bertukar data lewat React Context (id, aria-*, fokus, keyboard), jadi semuanya
+// dirakit di dalam SATU React root — bukan satu elemen per bagian. Pilihannya datang dari atribut
+// `items` (JSON), bukan dari elemen anak.
 
-export const BELUM_DIBUNGKUS = "bagian-bagiannya bertukar data lewat React Context (id, aria-*, fokus, keyboard). Tiap custom element punya React root sendiri dan Context tidak menyeberang antar-root, jadi memecahnya jadi elemen terpisah akan memutus aksesibilitasnya. Butuh elemen khusus yang merakit bagian-bagiannya di dalam SATU root.";
+import "./rakitan";
+
+export const NAMA_ELEMEN = "dtn-select";
+
+export default NAMA_ELEMEN;

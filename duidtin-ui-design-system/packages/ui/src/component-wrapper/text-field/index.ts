@@ -1,10 +1,14 @@
 // BERKAS HASIL GENERATE — jangan diedit tangan (bun run gen:wrapper).
 //
-// TextField SENGAJA belum dibungkus jadi Web Component.
+// <dtn-text-field> dirakit TANGAN di ./rakitan.tsx — berkas itu tidak pernah ditimpa
+// codegen, karena susunan bagian compound-nya tidak bisa disimpulkan otomatis.
 //
-// bagian-bagiannya bertukar data lewat React Context (id, aria-*, fokus, keyboard). Tiap custom
-// element punya React root sendiri dan Context tidak menyeberang antar-root, jadi memecahnya jadi
-// elemen terpisah akan memutus aksesibilitasnya. Butuh elemen khusus yang merakit bagian-bagiannya
-// di dalam SATU root.
+// bagian-bagiannya bertukar data lewat React Context (id, aria-*, fokus, keyboard), jadi semuanya
+// dirakit di dalam SATU React root — bukan satu elemen per bagian. Susunannya label → input → deskripsi
+// → pesan error.
 
-export const BELUM_DIBUNGKUS = "bagian-bagiannya bertukar data lewat React Context (id, aria-*, fokus, keyboard). Tiap custom element punya React root sendiri dan Context tidak menyeberang antar-root, jadi memecahnya jadi elemen terpisah akan memutus aksesibilitasnya. Butuh elemen khusus yang merakit bagian-bagiannya di dalam SATU root.";
+import "./rakitan";
+
+export const NAMA_ELEMEN = "dtn-text-field";
+
+export default NAMA_ELEMEN;

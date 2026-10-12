@@ -1,4 +1,4 @@
-import { createElement, type ComponentType } from "react";
+import { createElement, type ComponentType, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 /**
@@ -28,6 +28,20 @@ export interface OpsiElemen {
   events?: Record<string, string>;
 }
 
+/** Alat yang diberikan ke fungsi perakit. */
+export interface Bantuan {
+  /** Kirim `CustomEvent` yang menggelembung dari elemennya. */
+  kirim: (namaEvent: string, detail?: unknown) => void;
+  /**
+   * Tempat anak light-DOM akan dipindahkan. Taruh di mana pun di dalam hasil
+   * render; kalau tidak dipakai, anak aslinya disembunyikan.
+   */
+  slot: ReactElement;
+}
+
+/** Fungsi perakit: menerima props hasil tafsir atribut, memulangkan pohon React. */
+export type Perakit = (props: Record<string, never>, bantuan: Bantuan) => ReactElement;
+
 const keKebab = (nama: string) => nama.replace(/[A-Z]/g, (huruf) => `-${huruf.toLowerCase()}`);
 
 const tafsir = (nilai: string | null, tipe: TipeProp): unknown => {
@@ -50,7 +64,34 @@ const tafsir = (nilai: string | null, tipe: TipeProp): unknown => {
   }
 };
 
-export const buatElemen = (nama: string, Komponen: ComponentType<never>, opsi: OpsiElemen = {}): void => {
+/**
+ * Pintu untuk komponen compound yang BAGIANNYA TIDAK BOLEH DIPECAH.
+ *
+ * `Select`, `TextField`, `Tabs`, dan kawan-kawannya bertukar data lewat React
+ * Context (id, aria-*, fokus, keyboard). Context tidak menyeberang antar React
+ * root, jadi satu elemen per bagian akan memutus aksesibilitasnya diam-diam —
+ * elemennya tampak bekerja, padahal `aria-labelledby` kosong dan panah keyboard
+ * mati. Di sini seluruh pohonnya dirakit di dalam SATU root, dan dari luar yang
+ * terlihat cuma satu tag.
+ *
+ * Harganya: susunannya tetap. Konsumen React tetap memakai compound aslinya dan
+ * bebas menyusun ulang; elemen ini melayani kasus yang paling sering saja.
+ *
+ * Fungsi perakitnya DITULIS TANGAN per komponen (`<n>/rakitan.tsx`) — cuma
+ * manusia yang tahu `Select.Item` harus diulang dari `items` sementara
+ * `Select.Label` tidak.
+ */
+export const buatElemenRakitan = (nama: string, rakit: Perakit, opsi: OpsiElemen = {}): void =>
+  daftarkan(nama, rakit, opsi);
+
+export const buatElemen = (nama: string, Komponen: ComponentType<never>, opsi: OpsiElemen = {}): void =>
+  daftarkan(
+    nama,
+    (props, { slot }) => createElement(Komponen as ComponentType<Record<string, unknown>>, props, slot),
+    opsi,
+  );
+
+const daftarkan = (nama: string, rakit: Perakit, opsi: OpsiElemen): void => {
   if (typeof window === "undefined" || customElements.get(nama)) return;
 
   const daftarProp = Object.entries(opsi.props ?? {});
@@ -124,8 +165,11 @@ export const buatElemen = (nama: string, Komponen: ComponentType<never>, opsi: O
 
     #render() {
       const slot = createElement("span", { ref: this.#taruhSlot, style: { display: "contents" } });
+      const kirim = (namaEvent: string, detail?: unknown) => {
+        this.dispatchEvent(new CustomEvent(namaEvent, { bubbles: true, detail }));
+      };
 
-      this.#root?.render(createElement(Komponen as ComponentType<Record<string, unknown>>, this.#props(), slot));
+      this.#root?.render(rakit(this.#props() as Record<string, never>, { kirim, slot }));
     }
 
     /**

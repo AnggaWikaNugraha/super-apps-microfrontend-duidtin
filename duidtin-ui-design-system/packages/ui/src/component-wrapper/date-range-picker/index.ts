@@ -1,10 +1,12 @@
 // BERKAS HASIL GENERATE — jangan diedit tangan (bun run gen:wrapper).
 //
-// DateRangePicker SENGAJA belum dibungkus jadi Web Component.
+// <dtn-date-range-picker> dirakit TANGAN di ./rakitan.tsx — berkas itu tidak pernah ditimpa
+// codegen, karena susunan bagian compound-nya tidak bisa disimpulkan otomatis.
 //
-// bagian-bagiannya bertukar data lewat React Context (id, aria-*, fokus, keyboard). Tiap custom
-// element punya React root sendiri dan Context tidak menyeberang antar-root, jadi memecahnya jadi
-// elemen terpisah akan memutus aksesibilitasnya. Butuh elemen khusus yang merakit bagian-bagiannya
-// di dalam SATU root. Ditambah popover kalender yang memakai portal.
+// nilainya diratakan jadi atribut `from` dan `to`, karena props aslinya berupa objek props input.
 
-export const BELUM_DIBUNGKUS = "bagian-bagiannya bertukar data lewat React Context (id, aria-*, fokus, keyboard). Tiap custom element punya React root sendiri dan Context tidak menyeberang antar-root, jadi memecahnya jadi elemen terpisah akan memutus aksesibilitasnya. Butuh elemen khusus yang merakit bagian-bagiannya di dalam SATU root. Ditambah popover kalender yang memakai portal.";
+import "./rakitan";
+
+export const NAMA_ELEMEN = "dtn-date-range-picker";
+
+export default NAMA_ELEMEN;
