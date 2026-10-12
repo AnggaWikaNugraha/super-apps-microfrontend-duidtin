@@ -6,6 +6,7 @@ import { catatRequest } from "./middleware/log.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { berandaRouter } from "./modules/beranda/beranda.routes.js";
 import { healthRouter } from "./modules/health/health.routes.js";
+import { rekeningRouter } from "./modules/rekening/rekening.routes.js";
 
 /**
  * Entry yang dideteksi Vercel (export default). Sengaja tidak memanggil listen():
@@ -22,6 +23,7 @@ app.use(catatRequest);
 app.use("/health", healthRouter);
 app.use("/auth", authRouter);
 app.use("/beranda", berandaRouter);
+app.use("/rekening", rekeningRouter);
 
 app.use(tidakDitemukan);
 app.use(penanganError);

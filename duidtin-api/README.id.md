@@ -1,6 +1,6 @@
 # duidtin-api
 
-> **Status: Fase 1 (fondasi), Fase 2 (autentikasi), Fase 3 (deploy), dan Fase 4 (data beranda) selesai — 45 tes lolos.** Cakupannya sekarang **autentikasi + data baca beranda**; belum ada endpoint yang mengubah uang. Arsitektur keseluruhan (posisi backend, strategi token, sesi lintas remote) ada di [README.be.id.md](../README.be.id.md). Versi Inggris dibuat setelah rencananya final.
+> **Status: Fase 1-5 selesai — 56 tes lolos.** Cakupannya sekarang **autentikasi + data baca** (beranda dan rekening); belum ada endpoint yang mengubah uang. Arsitektur keseluruhan (posisi backend, strategi token, sesi lintas remote) ada di [README.be.id.md](../README.be.id.md). Versi Inggris dibuat setelah rencananya final.
 
 Backend Express + MongoDB untuk super-app duidtin. Di-deploy sebagai project Vercel kelima dari repo `x-duidtin`.
 
@@ -60,6 +60,7 @@ duidtin-api/
       auth/                 # auth.routes.ts, auth.service.ts, auth.schema.ts, README.id.auth.md
       beranda/              # beranda.routes.ts, beranda.service.ts, README.id.beranda.md
       health/               # health.routes.ts, README.id.health.md
+      rekening/             # rekening.routes.ts, rekening.service.ts, README.id.rekening.md
     types/express.d.ts      # tipe req.auth
   scripts/
     dev.ts                  # app.listen(4000) — khusus lokal
@@ -72,6 +73,7 @@ duidtin-api/
     app.test.ts             # health, 404, JSON rusak, CORS, seed, indeks
     auth.test.ts            # login, me, refresh, logout
     beranda.test.ts         # rekening, persetujuan, aktivitas + isolasi antar perusahaan
+    rekening.test.ts        # daftar, detail, aktivitas per rekening + 404 vs 403
   .env.example
   bunfig.toml               # preload tes
   package.json
@@ -376,6 +378,7 @@ Dokumentasi per API — params, respons sukses, respons gagal, dan diagram alur 
 | `health` | `GET /health` | [src/modules/health/README.id.health.md](src/modules/health/README.id.health.md) |
 | `auth` | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me` | [src/modules/auth/README.id.auth.md](src/modules/auth/README.id.auth.md) |
 | `beranda` | `GET /beranda/rekening`, `GET /beranda/persetujuan`, `GET /beranda/aktivitas` | [src/modules/beranda/README.id.beranda.md](src/modules/beranda/README.id.beranda.md) |
+| `rekening` | `GET /rekening`, `GET /rekening/:id`, `GET /rekening/:id/aktivitas` | [src/modules/rekening/README.id.rekening.md](src/modules/rekening/README.id.rekening.md) |
 
 Semua request dan respons memakai `Content-Type: application/json`.
 
@@ -391,7 +394,7 @@ request
   ├─▶ express.json()              body JSON rusak ─────────────────────────▶ 400 VALIDASI_GAGAL
   ├─▶ catatRequest                mencatat request + respons ke log (lihat Log request)
   │
-  ├─▶ router: /health, /auth, atau /beranda
+  ├─▶ router: /health, /auth, /beranda, atau /rekening
   │     ├─▶ validasiBody(skema)   body tidak sesuai skema ────────────────▶ 400 VALIDASI_GAGAL + detail
   │     ├─▶ butuhLogin            (khusus endpoint Bearer) token bermasalah ▶ 401 TOKEN_*
   │     ├─▶ pastikanDatabase      gagal konek MongoDB ─────────────────────▶ 500 KESALAHAN_SERVER
@@ -529,7 +532,14 @@ Selain tes, hasil `build:node` dijalankan di **Node 24** terhadap MongoDB lokal 
 
 **Selesai kalau:** ketiga endpoint menolak request tanpa token, dan pengguna perusahaan A tidak bisa melihat data perusahaan B walaupun mengirim request yang identik. ✅
 
+### Fase 5 — Sumber daya rekening ✅ · [modul `rekening`](src/modules/rekening/README.id.rekening.md)
+- ☑ `GET /rekening`, `/rekening/:id`, `/rekening/:id/aktivitas`
+- ☑ Rekening perusahaan lain dijawab 404 dengan badan respons yang **identik** dengan id yang tidak ada
+- ☑ Id berbentuk rusak dicegat `isValidObjectId()` → 404, bukan 500
+- ☑ 11 tes
+
+**Selesai kalau:** dua halaman `duidtin-feature-rekening` bisa dibangun tanpa menambah endpoint lagi. ✅
+
 ### Berikutnya (belum dirinci)
-- **Frontend memakai endpoint ini** — `services/api/client.ts` di `duidtin-feature-beranda` masih transport palsu; yang perlu diganti cuma berkas itu.
-- **Fitur Rekening** — halaman daftar/detail rekening sebagai fitur sendiri; beranda cuma menampilkan ringkasannya.
+- **Mutasi** — daftar aktivitas penuh dengan filter (rekening, arah, rentang tanggal) dan paginasi. Endpoint `/rekening/:id/aktivitas` sekarang keras di 10 baris.
 - **Transaksi & maker-checker** — `POST /transfer`, aksi setuju/tolak pada `persetujuan`, dan `middleware/otorisasi.ts` untuk cek peran (kode `AKSES_DITOLAK` sudah disiapkan).
