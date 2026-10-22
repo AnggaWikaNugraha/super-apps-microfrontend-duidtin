@@ -19,7 +19,7 @@ localhost:3000/rekening?remote-lokal=duidtin_feature_rekening@3005
 localhost:3000/?remote-lokal=hapus                                  ← back to all-published
 ```
 
-The host does not check whether a published version exists first: without `?remote-lokal`, a remote that has not been published (today: rekening) shows up as a "Gagal memuat …" box.
+The host does not check whether a published version exists first: without `?remote-lokal`, a remote that has not been published — or whose `REMOTE_*_URL` is empty — shows up as a "Gagal memuat …" box.
 
 ### Everything local
 

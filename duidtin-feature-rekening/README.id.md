@@ -14,7 +14,7 @@ Dua server. Remote lain (design-system, layout, auth) dan API diambil dari versi
 2. `../duidtin-ui/` → `bun run dev` (`:3000`)
 3. Buka sekali `localhost:3000/rekening?remote-lokal=duidtin_feature_rekening@3005`, lalu login
 
-`?remote-lokal` wajib: rekening belum di-publish, jadi tanpa itu host tidak punya tempat lain untuk mengambilnya. API-nya diatur [`.env.development`](.env.development) — bundle ini memanggil `configureAuth()` sendiri, jadi harus menunjuk API yang sama dengan host. Kalau host dijalankan semua lokal, timpa dengan `PUBLIC_API_URL=http://localhost:4000` di `.env.local`.
+Tanpa `?remote-lokal`, host memakai rekening versi publish (`super-apps-duidtin-feature-rekening.vercel.app`) — perubahan lokalmu tidak terlihat. API-nya diatur [`.env.development`](.env.development) — bundle ini memanggil `configureAuth()` sendiri, jadi harus menunjuk API yang sama dengan host. Kalau host dijalankan semua lokal, timpa dengan `PUBLIC_API_URL=http://localhost:4000` di `.env.local`.
 
 Halaman dev `:3005/rekening/` memilih halaman lewat query string, karena di sini tidak ada router sama sekali:
 

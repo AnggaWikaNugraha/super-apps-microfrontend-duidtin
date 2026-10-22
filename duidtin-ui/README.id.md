@@ -19,7 +19,7 @@ localhost:3000/rekening?remote-lokal=duidtin_feature_rekening@3005
 localhost:3000/?remote-lokal=hapus                                  ← kembali ke publish semua
 ```
 
-Host tidak mengecek dulu apakah versi publish-nya ada: tanpa `?remote-lokal`, remote yang belum di-publish (sekarang: rekening) tampil sebagai kotak "Gagal memuat …".
+Host tidak mengecek dulu apakah versi publish-nya ada: tanpa `?remote-lokal`, remote yang belum di-publish — atau yang `REMOTE_*_URL`-nya kosong — tampil sebagai kotak "Gagal memuat …".
 
 ### Semua lokal
 

@@ -149,18 +149,19 @@ other tabs
 
 ## Deploy
 
-> **Status: six projects deployed.**
+> **Status: seven projects deployed.**
 
 | Project | URL | Note |
 |---|---|---|
 | host | `https://super-apps-duidtin.vercel.app` | joins every remote through rewrites |
 | design system | `https://super-apps-duidtin-ui-system.vercel.app` | Storybook at `/storybook/` |
 | layout | `https://super-apps-duidtin-ui-layout.vercel.app/layout` | `remoteEntry.js` under `/layout/_next/static/chunks/` |
-| beranda | deployed | `/beranda/*` still 404 — `REMOTE_BERANDA_URL` on the host is not right yet |
+| beranda | deployed | `/beranda/*` on the host now answers 200 |
+| rekening | `https://super-apps-duidtin-feature-rekening.vercel.app` | `remoteEntry.js` under `/rekening/static/`; the `/rekening` and `/rekening/[id]` pages belong to the host |
 | auth | `https://super-apps-duidtin-feature-auth.vercel.app` | the host's `/login` already renders its form |
 | api | `https://super-apps-duidtin-api-eta.vercel.app` | `/health` → `db: "terhubung"`, login 200 |
 
-Still outstanding: `REMOTE_BERANDA_URL` is not set on the host project, so `/beranda/*` answers 404 and the home page never appears in production. Rewrites are baked at build time, so setting the env must be followed by a host redeploy.
+Still outstanding: `REMOTE_REKENING_URL` on the host project. Until it is set (and the host redeployed), `/rekening/static/*` answers 404 and the `/rekening` page shows a "Gagal memuat …" box. Rewrites are baked at build time, so setting the env must be followed by a host redeploy.
 
 ### Topology: one domain, told apart by path
 
@@ -170,6 +171,7 @@ https://super-apps-duidtin.vercel.app/layout/_next/static/…             → la
 https://super-apps-duidtin.vercel.app/beranda/static/…                  → beranda project (Rsbuild, no _next)
 https://super-apps-duidtin.vercel.app/design-system/static/…            → design-system project
 https://super-apps-duidtin.vercel.app/auth/_next/static/…               → auth project
+https://super-apps-duidtin.vercel.app/rekening/static/…                 → rekening project (Rsbuild; the pages are host routes)
 ```
 
 **The backend does NOT follow this pattern.** `duidtin-api` is reached directly on its own
@@ -190,10 +192,11 @@ A single origin is also what keeps sessions simple: `localStorage` is shared by 
 | `REMOTE_LAYOUT_URL` | the layout's `*.vercel.app` URL | `/layout/:path*` → `…/layout/:path*` |
 | `REMOTE_BERANDA_URL` | beranda's `*.vercel.app` URL | `/beranda/:path*` → `…/beranda/:path*` |
 | `REMOTE_AUTH_URL` | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
+| `REMOTE_REKENING_URL` | `duidtin-feature-rekening` | **assets only:** `/rekening/static/:path*` → `…/rekening/static/:path*` — `/rekening` itself is a host route |
 | `NEXT_PUBLIC_API_URL` | the `duidtin-api` URL | **no rewrite** — read by `configureAuth()` in the host bundle. Remotes that call the API set it for themselves too (`duidtin-feature-auth`) |
 
 - **The design system's prefix is stripped**, because it is not Next and has no `basePath`: its files sit at the root of its Vercel domain. The layout and beranda keep their prefixes.
-- **Local dev:** the variables are empty → no rewrites → remotes are reached through their own ports.
+- **Local dev:** `duidtin-ui/.env.development` sets the same variables to the production URLs, so a plain `bun run dev` uses the published remotes through the rewrites; the remote you are working on is pointed at your laptop with `?remote-lokal`. Everything local → `NEXT_PUBLIC_REMOTE_DARI=lokal` in `.env.local`.
 
 ### Rules for the next remotes
 
@@ -311,8 +314,9 @@ Where each piece stands today:
 |---|---|---|
 | host, layout, design system | ✅ | ✅ live |
 | auth remote | ✅ login + session-expired modal | ✅ live, the host's `/login` already renders its form |
-| beranda | ✅ Vue, **data from `duidtin-api`** | ⚠️ its project is live, but `REMOTE_BERANDA_URL` on the host is unset → `/beranda/*` 404 |
-| `duidtin-api` | ✅ auth + home-page data (`rekening`, `persetujuan`, `aktivitas`) | ✅ live, `/health` → `db: "terhubung"` |
+| beranda | ✅ Vue, **data from `duidtin-api`**, the account card links to `/rekening` | ✅ live |
+| rekening | ✅ Vue, list + detail, two exposes | ⚠️ its project is live, but `REMOTE_REKENING_URL` on the host is not active yet → `/rekening/static/*` 404 |
+| `duidtin-api` | ✅ auth + home-page data (`rekening`, `persetujuan`, `aktivitas`) + the `rekening` module (list, detail, activity) | ✅ live, `/health` → `db: "terhubung"` |
 | FE → API wiring | — | ✅ host, auth and beranda all point at the production API (verified in their bundles) |
 
 ## Architecture flow

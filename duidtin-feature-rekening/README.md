@@ -14,7 +14,7 @@ Two servers. The other remotes (design system, layout, auth) and the API come fr
 2. `../duidtin-ui/` → `bun run dev` (`:3000`)
 3. Open `localhost:3000/rekening?remote-lokal=duidtin_feature_rekening@3005` once, then log in
 
-`?remote-lokal` is required: rekening has not been published, so without it the host has nowhere else to load it from. The API is set in [`.env.development`](.env.development) — this bundle calls `configureAuth()` itself, so it must point at the same API as the host. If the host runs everything locally, override it with `PUBLIC_API_URL=http://localhost:4000` in `.env.local`.
+Without `?remote-lokal` the host uses the published rekening (`super-apps-duidtin-feature-rekening.vercel.app`) — your local changes will not show. The API is set in [`.env.development`](.env.development) — this bundle calls `configureAuth()` itself, so it must point at the same API as the host. If the host runs everything locally, override it with `PUBLIC_API_URL=http://localhost:4000` in `.env.local`.
 
 The dev page at `:3005/rekening/` picks a page through the query string, because there is no router here at all:
 

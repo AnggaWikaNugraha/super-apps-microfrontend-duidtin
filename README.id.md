@@ -149,18 +149,19 @@ tab lain
 
 ## Deploy
 
-> **Status: enam project ter-deploy.**
+> **Status: tujuh project ter-deploy.**
 
 | Project | URL | Catatan |
 |---|---|---|
 | host | `https://super-apps-duidtin.vercel.app` | menyatukan semua remote lewat rewrites |
 | design-system | `https://super-apps-duidtin-ui-system.vercel.app` | Storybook di `/storybook/` |
 | layout | `https://super-apps-duidtin-ui-layout.vercel.app/layout` | `remoteEntry.js` di `/layout/_next/static/chunks/` |
-| beranda | ter-deploy | `/beranda/*` masih 404 — `REMOTE_BERANDA_URL` di host belum benar |
+| beranda | ter-deploy | `/beranda/*` di host sudah 200 |
+| rekening | `https://super-apps-duidtin-feature-rekening.vercel.app` | `remoteEntry.js` di `/rekening/static/`; halaman `/rekening` dan `/rekening/[id]` milik host |
 | auth | `https://super-apps-duidtin-feature-auth.vercel.app` | `/login` di host sudah merender formnya |
 | api | `https://super-apps-duidtin-api-eta.vercel.app` | `/health` → `db: "terhubung"`, login 200 |
 
-Yang masih menggantung: `REMOTE_BERANDA_URL` belum diisi di project host, jadi `/beranda/*` menjawab 404 dan beranda tidak muncul di produksi. Rewrite dikunci saat build, jadi mengisi env-nya harus diikuti redeploy host.
+Yang masih menggantung: `REMOTE_REKENING_URL` di project host. Selama belum diisi (dan host belum di-redeploy), `/rekening/static/*` menjawab 404 dan halaman `/rekening` menampilkan kotak "Gagal memuat …". Rewrite dikunci saat build, jadi mengisi env-nya harus diikuti redeploy host.
 
 ### Topologi: satu domain, dibedakan path
 
@@ -170,6 +171,7 @@ https://super-apps-duidtin.vercel.app/layout/_next/static/…             → pr
 https://super-apps-duidtin.vercel.app/beranda/static/…                  → project beranda (Rsbuild, tanpa _next)
 https://super-apps-duidtin.vercel.app/design-system/static/…            → project design-system
 https://super-apps-duidtin.vercel.app/auth/_next/static/…               → project auth
+https://super-apps-duidtin.vercel.app/rekening/static/…                 → project rekening (Rsbuild; halamannya route host)
 ```
 
 **Backend TIDAK ikut pola ini.** `duidtin-api` diakses langsung ke domainnya sendiri
@@ -190,10 +192,11 @@ Satu origin juga yang membuat sesi sederhana: `localStorage` otomatis dipakai be
 | `REMOTE_LAYOUT_URL` | URL `*.vercel.app` layout | `/layout/:path*` → `…/layout/:path*` |
 | `REMOTE_BERANDA_URL` | URL `*.vercel.app` beranda | `/beranda/:path*` → `…/beranda/:path*` |
 | `REMOTE_AUTH_URL` | `duidtin-feature-auth` | `/auth/:path*` → `…/auth/:path*` |
+| `REMOTE_REKENING_URL` | `duidtin-feature-rekening` | **hanya aset:** `/rekening/static/:path*` → `…/rekening/static/:path*` — `/rekening` sendiri route host |
 | `NEXT_PUBLIC_API_URL` | URL `duidtin-api` | **tanpa rewrite** — dibaca `configureAuth()` di bundle host. Tiap remote yang memanggil API mengisinya sendiri: `duidtin-feature-auth` memakai nama yang sama, `duidtin-feature-beranda` memakai **`PUBLIC_API_URL`** karena bundler-nya Rsbuild, bukan Next |
 
 - **Design-system membuang prefiksnya**, karena bukan Next dan tanpa `basePath`: berkasnya ada di root domain Vercel-nya. Layout dan beranda tetap membawa prefiks.
-- **Dev lokal:** env kosong → rewrites tidak aktif → remote diakses langsung lewat port masing-masing.
+- **Dev lokal:** `duidtin-ui/.env.development` mengisi env yang sama dengan URL produksi, jadi bawaan `bun run dev` memakai remote publish lewat rewrites; remote yang sedang dikerjakan diarahkan ke laptop dengan `?remote-lokal`. Semua lokal → `NEXT_PUBLIC_REMOTE_DARI=lokal` di `.env.local`.
 
 ### Aturan untuk remote berikutnya
 
@@ -313,8 +316,9 @@ Keadaan tiap bagian sekarang:
 |---|---|---|
 | host, layout, design-system | ✅ | ✅ live |
 | remote auth | ✅ login + modal sesi berakhir | ✅ live, `/login` di host sudah merender formnya |
-| beranda | ✅ Vue, **data dari `duidtin-api`** | ⚠️ project-nya live, tapi `REMOTE_BERANDA_URL` di host belum diisi → `/beranda/*` 404 |
-| `duidtin-api` | ✅ auth + data beranda (`rekening`, `persetujuan`, `aktivitas`) | ✅ live, `/health` → `db: "terhubung"` |
+| beranda | ✅ Vue, **data dari `duidtin-api`**, kartu rekening menaut ke `/rekening` | ✅ live |
+| rekening | ✅ Vue, daftar + detail, dua expose | ⚠️ project-nya live, tapi `REMOTE_REKENING_URL` di host belum aktif → `/rekening/static/*` 404 |
+| `duidtin-api` | ✅ auth + data beranda (`rekening`, `persetujuan`, `aktivitas`) + modul `rekening` (daftar, detail, aktivitas) | ✅ live, `/health` → `db: "terhubung"` |
 | sambungan FE → API | — | ✅ host, auth, dan beranda sudah menunjuk API produksi (dicek langsung di bundle-nya) |
 
 ## Alur Arsitektur
