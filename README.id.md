@@ -4,7 +4,7 @@
 
 Super-app microfrontend berbasis Module Federation.
 
-## Enam repo, enam project Vercel
+## Tujuh repo, tujuh project Vercel
 
 Module Federation menyatukan aplikasi **saat runtime lewat kontrak**, bukan saat build. Kontraknya cuma tiga hal: nama container, daftar `exposes`, dan share scope. Selama ketiganya cocok, tiap repo bebas memilih framework dan bundler-nya sendiri — tidak ada satu pun `npm install` di antara mereka.
 
@@ -59,7 +59,19 @@ Module Federation menyatukan aplikasi **saat runtime lewat kontrak**, bukan saat
 - **Peran** — beranda: ringkasan saldo, antrean persetujuan, pintasan. Feature remote pertama, jadi repo ini yang bikin FASE 2 di host benar-benar jalan
 - **Catatan** — yang di-expose **bukan komponen** tapi fungsi `mount(el)`, karena React tidak bisa merender komponen Vue. Host memanggilnya lewat `components/federation/remote-mount.tsx`. Sesi tetap satu lewat `@duidtin/auth/vue` — store yang sama dengan host
 
-### 5. `duidtin-feature-auth` — login
+### 5. `duidtin-feature-rekening` — rekening
+
+- **Port** — 3005
+- **Framework** — **Vue 3.5**, sama dengan beranda
+- **Bundler** — **Rsbuild 1.x**
+- **Plugin MF** — `@module-federation/rsbuild-plugin` 0.24.1
+- **React** — **tidak dipasang**
+- **Styling** — Tailwind v4, prefix `frek`
+- **Path** — `/rekening` (`server.base` + `assetPrefix`); **asetnya** di `/rekening/static/*`
+- **Peran** — daftar rekening (`./daftar`) dan detail satu rekening (`./detail`): saldo, nomor, dan sepuluh aktivitas terakhirnya
+- **Catatan** — remote pertama yang punya **dua halaman**. Host yang memegang route (`/rekening` dan `/rekening/[id]`), jadi repo ini punya dua expose, dan `id` dikirim host lewat **props** `mount(el, { id })` — remote tidak pernah membaca `location`. Arah baliknya lewat peristiwa DOM: remote melempar `CustomEvent("duidtin:navigate")`, host yang memanggil `router.push` — pindah halaman tanpa reload tanpa satu fungsi pun diseberangkan. Konsumen pertama elemen rakitan design-system (`<dtn-table>`, `<dtn-tabs>`, `<dtn-modal>`)
+
+### 6. `duidtin-feature-auth` — login
 
 - **Port** — 3004
 - **Framework** — Next.js 16.2.9
@@ -71,7 +83,7 @@ Module Federation menyatukan aplikasi **saat runtime lewat kontrak**, bukan saat
 - **Peran** — halaman login (`./login`) dan modal sesi berakhir (`./sesi-berakhir`): form email/password, `login()` dari `@duidtin/auth`, menampilkan `AuthError`
 - **Catatan** — satu-satunya feature remote yang berfungsi penuh saat dibuka sendiri (`:3004`), karena paket auth membuat store cadangan. `pages/index.tsx` wajib memakai `dynamic()` sebagai async boundary — lihat [README repo](duidtin-feature-auth/README.id.md)
 
-### 6. `duidtin-api` — backend
+### 7. `duidtin-api` — backend
 
 - **Port** — 4000
 - **Runtime** — Bun saat dev, Node.js (Vercel Function) di produksi

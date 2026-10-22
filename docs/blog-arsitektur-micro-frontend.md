@@ -106,20 +106,20 @@ export const mount = (el: HTMLElement): (() => void) => {
 
 ```tsx
 // sisi host — satu komponen, dipakai semua remote non-React
-const wadah = useRef<HTMLDivElement>(null);
+const containerRef = useRef<HTMLDivElement>(null);
 
 useEffect(() => {
-  let lepas: (() => void) | undefined;
+  let unmount: (() => void) | undefined;
 
   void (async () => {
-    const mod = await loadRemote(modul);
-    lepas = mod.mount(wadah.current);
+    const mod = await loadRemote(remote);
+    unmount = mod.mount(containerRef.current);
   })();
 
-  return () => lepas?.();
-}, [modul]);
+  return () => unmount?.();
+}, [remote]);
 
-return <div ref={wadah} />;
+return <div ref={containerRef} />;
 ```
 
 React tetap pemilik `<div>`-nya; Vue pemilik isinya. Keduanya tidak pernah bertemu — batasnya satu elemen DOM.

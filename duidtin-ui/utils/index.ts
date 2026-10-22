@@ -1,6 +1,6 @@
 const LOCAL_HOSTNAMES = ["localhost", "127.0.0.1"];
 
-// .env.local host: NEXT_PUBLIC_REMOTE_DARI=publish — lihat komentar getBaseFederationUrl
+// Bawaan dev "publish" (.env.development); "lokal" di .env.local → tiap remote dari port-nya sendiri
 const REMOTE_DARI_PUBLISH = process.env.NEXT_PUBLIC_REMOTE_DARI === "publish";
 
 /**
@@ -12,10 +12,10 @@ const REMOTE_DARI_PUBLISH = process.env.NEXT_PUBLIC_REMOTE_DARI === "publish";
  * Selain itu → origin yang lagi dibuka; di production semua remote satu domain,
  * dibedain lewat prefix path di `entryPath` masing-masing.
  *
- * Pengecualian `NEXT_PUBLIC_REMOTE_DARI=publish`: host lokal tetap memakai origin-nya
- * sendiri, lalu rewrites di next.config (env REMOTE_*_URL) meneruskan tiap path
- * remote ke Vercel. Dipakai saat yang diubah hanya host, supaya server remote
- * tidak perlu dinyalakan.
+ * Pengecualian `NEXT_PUBLIC_REMOTE_DARI=publish` (bawaan dev, dari `.env.development`):
+ * host lokal tetap memakai origin-nya sendiri, lalu rewrites di next.config (env
+ * REMOTE_*_URL) meneruskan tiap path remote ke Vercel. Server remote tidak perlu
+ * dinyalakan; yang sedang dikerjakan diarahkan ke laptop lewat `?remote-lokal`.
  */
 export const getBaseFederationUrl = (devOrigin: string): string => {
   if (!globalThis.window) return devOrigin;

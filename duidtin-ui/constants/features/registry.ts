@@ -34,6 +34,15 @@ export const featureRegistry: Record<string, FeatureMetadata> = {
     routes: ["/login"],
     matchType: "exact",
   },
+  duidtin_feature_rekening: {
+    name: "duidtin_feature_rekening",
+    // Rsbuild, sama dengan beranda — tanpa segmen `_next/static/chunks`
+    entryPath: "/rekening/static/remoteEntry.js",
+    devOrigin: "http://localhost:3005",
+    // prefix: cocok untuk "/rekening" DAN "/rekening/<id>", karena keduanya
+    // dilayani container yang sama lewat dua expose berbeda
+    routes: ["/rekening"],
+  },
   duidtin_feature_beranda: {
     name: "duidtin_feature_beranda",
     // Rsbuild, bukan Next — jadi tanpa segmen `_next/static/chunks`. Pola yang

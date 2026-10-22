@@ -6,12 +6,37 @@ The super-app host (shell). It owns routing, registers every remote with the Mod
 
 ## Getting started
 
-The host renders no UI of its own — everything comes from remotes. What you need to run depends on the page you want to open:
+The host renders no UI of its own — everything comes from remotes. **By default `bun run dev` takes every remote from its published version** (Vercel), through the rewrites in `next.config.mjs`. The values live in [`.env.development`](.env.development), which is committed and read only by `next dev`. The API is the production API too, because the published auth remote logs in there.
+
+```bash
+bun install && bun run dev    # :3000 — this is all you need
+```
+
+The remote you are working on is started on its own and pointed at your laptop with `?remote-lokal` (once; it is kept in `localStorage`):
+
+```
+localhost:3000/rekening?remote-lokal=duidtin_feature_rekening@3005
+localhost:3000/?remote-lokal=hapus                                  ← back to all-published
+```
+
+The host does not check whether a published version exists first: without `?remote-lokal`, a remote that has not been published (today: rekening) shows up as a "Gagal memuat …" box.
+
+### Everything local
+
+Put this in `.env.local` (it wins over `.env.development` and is not committed):
+
+```bash
+NEXT_PUBLIC_REMOTE_DARI=lokal
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
+
+Every remote is then taken from its own port. What you need to run depends on the page you want to open:
 
 | To open | Servers that must be running |
 |---|---|
 | `/` (beranda) | design system `:3001`, layout `:3002`, beranda `:3003` (Vue), host `:3000` |
 | `/login` | design system `:3001`, auth `:3004`, host `:3000` |
+| `/rekening` | design system `:3001`, layout `:3002`, rekening `:3005` (Vue), host `:3000` |
 | a real login | + `duidtin-api` `:4000` |
 
 ```bash
@@ -19,6 +44,7 @@ cd ../duidtin-ui-design-system && bun install && bun run dev:producer   # :3001
 cd ../duidtin-ui-layout        && bun install && bun run dev            # :3002
 cd ../duidtin-feature-beranda  && bun install && bun run dev            # :3003
 cd ../duidtin-feature-auth     && bun install && bun run dev            # :3004
+cd ../duidtin-feature-rekening && bun install && bun run dev            # :3005
 cd ../duidtin-api              && bun install && bun run dev            # :4000
 cd ../duidtin-ui               && bun install && bun run dev            # :3000 ← open this
 ```
@@ -355,8 +381,8 @@ The layer-A function, which reads `window.location`. It has **four** branches:
 | Condition | What it returns | When it happens | Example result |
 |---|---|---|---|
 | `!globalThis.window` | `devOrigin` | SSR / Next prerender — no `window` | `http://localhost:3002` |
-| hostname is `localhost` / `127.0.0.1` | `devOrigin` | local dev, each remote on its own port | `http://localhost:3002` |
-| hostname is `localhost` / `127.0.0.1` **and** `NEXT_PUBLIC_REMOTE_DARI=publish` | `window.location.origin` | local host using Vercel remotes through the rewrites | `http://localhost:3000` |
+| hostname is `localhost` / `127.0.0.1` **and** `NEXT_PUBLIC_REMOTE_DARI=publish` | `window.location.origin` | **the dev default** (`.env.development`): local host using Vercel remotes through the rewrites | `http://localhost:3000` |
+| hostname is `localhost` / `127.0.0.1`, any other value (`lokal` in `.env.local`) | `devOrigin` | everything local, each remote on its own port | `http://localhost:3002` |
 | anything else | `window.location.origin` | production, all remotes on one domain | `https://duidtin.example.com` |
 
 The first branch exists so the function doesn't blow up while Next prerenders on the server. Its value is never actually used for a fetch — no remote is loaded server-side.
@@ -989,7 +1015,7 @@ Browser opens "/"
                           │       → { default: ƒ }
                           │     normalised into { default: ComponentType }
                           │
-                          └─▶ <HomePage /> → <RemoteMount modul="duidtin_feature_beranda/base" />
+                          └─▶ <HomePage /> → <RemoteMount remote="duidtin_feature_beranda/base" />
                                 ├─ (on MOUNT) the loader runs inside useEffect:
                                 │     loadRemote("duidtin_feature_beranda/base")
                                 │       → { mount: ƒ }        ← a FUNCTION, not a component
@@ -1004,6 +1030,8 @@ There are two pages, and their shapes differ on purpose:
 |---|---|---|---|
 | `pages/index.tsx` | `duidtin_feature_beranda/base` | `getLayout` → `DefaultLayout` (the layout remote), with `userName`/`onLogout` from `useAuth()` | this remote is **Vue**, so it renders through `<RemoteMount>`, not `remoteComponent()` |
 | `pages/login.tsx` | `duidtin_feature_auth/login` | **no `getLayout`** | the header needs a session, and here the user has none yet. Redirecting after success is the host's job, through the `onSuccess` prop |
+| `pages/rekening/index.tsx` | `duidtin_feature_rekening/daftar` | `getLayout` → `DefaultLayout` | the second **Vue** remote; one registry entry serves both routes because the default `matchType` is `prefix` |
+| `pages/rekening/[id].tsx` | `duidtin_feature_rekening/detail` | `getLayout` → `DefaultLayout` | the `id` is read from `router.query` and passed as **props** — the host owns the URL, the remote owns the content |
 
 #### 1. `remoteComponent(path, pick?)` → `ComponentType`
 
@@ -1039,7 +1067,7 @@ at component MOUNT     next/dynamic runs the loader
 
 So defining 20 remote bridges in one file does not trigger 20 fetches. Only what renders gets fetched.
 
-#### 1b. `<RemoteMount modul>` — for remotes that are not React
+#### 1b. `<RemoteMount remote>` — for remotes that are not React
 
 `remoteComponent()` assumes the module exports a component. That does not hold for
 `duidtin_feature_beranda`, which is Vue: React cannot render a Vue component, nor the
@@ -1048,16 +1076,18 @@ exposes a function instead.
 
 ```tsx
 // components/federation/remote-mount.tsx
-const mod = await loadRemote<{ mount?: Pemasang }>(modul);
-lepas = mod.mount(wadah.current);   // inside useEffect
+const mod = await loadRemote<{ mount?: MountFn }>(remote);
+unmount = mod.mount(containerRef.current);  // inside useEffect
 …
-return () => lepas?.();             // on cleanup
+return () => unmount?.();                   // on cleanup
 ```
 
 | | |
 |---|---|
-| **Prop** | `modul: string` — `"duidtin_feature_beranda/base"` |
-| **Expects** | `mount(el: HTMLElement) => () => void` |
+| **Prop** | `remote: string` — `"duidtin_feature_beranda/base"` |
+| **Prop** | `props?: Record<string, unknown>` — forwarded verbatim to `mount(el, props)`; **data only** |
+| **Expects** | `mount(el: HTMLElement, props?) => () => void` |
+| **Listens for** | `duidtin:navigate` on its own `<div>` → `router.push(detail.to)` |
 | **Renders** | one empty `<div>`; everything inside it belongs to the remote |
 
 The host never learns which framework fills that `<div>`. A Svelte or Angular remote
@@ -1066,6 +1096,37 @@ the effect can be torn down before the module arrives (in dev, StrictMode runs e
 effect twice), so the result is discarded when that happens; and a failure to load is
 rendered inline rather than thrown, because one dead feature should not take the page
 with it.
+
+##### The way back out: `duidtin:navigate`
+
+Props carry data **in**, and only data: `propsKey = JSON.stringify(props)` drops
+function values without a sound, so `router.push` can never be handed to the remote the
+way it is handed to a React remote. The direction is reversed instead. The remote throws
+a bubbling, **cancelable** `CustomEvent`, and this component translates it:
+
+```tsx
+const { replace, to } = (event as CustomEvent<NavigateDetail>).detail ?? {};
+event.preventDefault();                                   // "I have got this"
+void (replace ? router.replace(to) : router.push(to));
+```
+
+`preventDefault()` is not a formality — it is the answer the remote reads. `dispatchEvent`
+returns `false` once something cancels the event, and the remote uses that to decide:
+
+```
+claimed      → the host navigates client-side, no reload
+not claimed  → the remote falls back to location.assign(to) — a full load, but it arrives
+```
+
+That second line is what keeps a feature repo usable on its own dev server, and keeps it
+correct under a host that has never heard of this event.
+
+The listener sits on **this** `<div>`, not on `window`: when a page loads two remotes,
+each one only handles events from its own tree. The cost is that an event raised inside a
+portal (a `<dtn-modal>` overlay renders into `document.body`) does not pass through here —
+and that is not where navigation links belong. The event name is duplicated by hand in
+every remote's `utils/navigate.ts`, the same contract as "file path = URL path = expose
+name".
 
 #### 2. `loadRemote(path)` → `Promise<unknown>`
 

@@ -10,13 +10,15 @@ Repo ini **satu-satunya repo duidtin yang bukan React** — Vue 3 + Rsbuild, sem
 
 ## Cara mulai
 
-Repo ini konsumen `duidtin-ui-design-system` dan `duidtin-api`. Untuk melihat beranda berisi data, lima server harus nyala:
+Repo ini konsumen `duidtin-ui-design-system` dan `duidtin-api`. Remote lain dan API diambil dari versi publish — itu bawaan dev host, lihat [`duidtin-ui/README.id.md`](../duidtin-ui/README.id.md#cara-mulai). Cukup dua server:
 
-1. `../duidtin-api/` → `bun run db:lokal` lalu `bun run dev` (`:4000`)
-2. `../duidtin-ui-design-system/` → `bun run dev:producer` (`:3001`)
-3. `../duidtin-ui-layout/` → `bun run dev` (`:3002`)
-4. Folder ini → `bun install` lalu `bun run dev` (`:3003`)
-5. `../duidtin-ui/` → `bun run dev` (`:3000`) ← **buka ini**, lalu login
+1. Folder ini → `bun install` lalu `bun run dev` (`:3003`)
+2. `../duidtin-ui/` → `bun run dev` (`:3000`)
+3. Buka sekali `localhost:3000/?remote-lokal=duidtin_feature_beranda@3003`, lalu login
+
+API-nya diatur [`.env.development`](.env.development): bundle ini memanggil `configureAuth()` sendiri, jadi harus menunjuk API yang sama dengan host. Kalau host dijalankan semua lokal, timpa dengan `PUBLIC_API_URL=http://localhost:4000` di `.env.local`.
+
+**Tautan ke halaman lain.** Kartu "Rekening perusahaan" menaut ke `/rekening` ("Lihat semua") dan ke `/rekening/<id>` per baris, lewat peristiwa `duidtin:navigate` ([`utils/navigate.ts`](utils/navigate.ts), salinan identik dari `duidtin-feature-rekening`) — host yang memanggil `router.push`, tanpa reload. Halaman itu milik remote rekening; kalau rekening juga sedang dikerjakan lokal, arahkan keduanya sekaligus: `?remote-lokal=duidtin_feature_beranda@3003,duidtin_feature_rekening@3005` (param ini **mengganti** daftar sebelumnya, bukan menambah).
 
 Beda dari versi Next-nya, `http://localhost:3003/beranda` sekarang menampilkan **berandanya yang sebenarnya**, bukan halaman guard — cukup design-system di `:3001` yang nyala. Lihat [Kontrak dengan host](#kontrak-dengan-host).
 
@@ -129,6 +131,7 @@ duidtin-feature-beranda/
       page-heading.vue   # memakai useAuth() versi Vue
       global-error-banner.vue
       icon.vue · format.ts
+      link.vue           # <a href> yang melempar duidtin:navigate
   composables/           # ATURAN 1 — satu per blok
     use-ringkasan-saldo.ts · use-rekening-perusahaan.ts
     use-antrean-persetujuan.ts · use-aktivitas-terakhir.ts · use-page-heading.ts
@@ -143,6 +146,7 @@ duidtin-feature-beranda/
   utils/
     index.ts             # getBaseFederationUrl()
     zustand-vue.ts       # jembatan store → ref
+    navigate.ts          # kontrak duidtin:navigate + cadangan location.assign
   types/
     global.d.ts          # window.__DUIDTIN_REMOTE_ENTRY__ (diisi host)
     dtn-elements.d.ts    # tipe <dtn-*> untuk vue-tsc
@@ -163,8 +167,8 @@ Host itu aplikasi React. React tidak bisa merender komponen Vue, dan sebaliknya.
 export const mount = (el: HTMLElement): (() => void) => { … };
 
 // components/federation/remote-mount.tsx — sisi host
-const lepas = mount(wadah.current);   // di dalam useEffect
-return () => lepas();                 // saat cleanup
+const unmount = mount(containerRef.current);  // di dalam useEffect
+return () => unmount();               // saat cleanup
 ```
 
 Host cuma tahu "ada `<div>` kosong, panggil fungsi ini". Remote Svelte atau Angular nanti memakai `RemoteMount` yang sama tanpa satu baris pun berubah di host.
@@ -306,7 +310,7 @@ Browser buka localhost:3000/
         │  FASE 2 host sudah memanaskan container lebih dulu:
         │    loadRemote("duidtin_feature_beranda/globals")   → <style> fber-*
         │
-        │  <RemoteMount modul="duidtin_feature_beranda/base" />
+        │  <RemoteMount remote="duidtin_feature_beranda/base" />
         ▼
       expose/base.ts — mount(el)
         ├─ siapkanDesignSystem()                      ← DITUNGGU sebelum app dipasang

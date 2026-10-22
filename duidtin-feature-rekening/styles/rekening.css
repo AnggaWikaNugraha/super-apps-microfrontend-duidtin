@@ -1,0 +1,153 @@
+/* Pola BEM + token --dtn-* milik design-system, sama seperti beranda (fber) dan
+   layout (lyt). Tailwind di sini cuma mengurus tata letak; warnanya dari token. */
+
+.frek-page {
+  @apply frek:flex frek:flex-col frek:gap-6;
+  font-family: var(--dtn-font);
+  color: var(--dtn-ink);
+}
+.frek-page__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.frek-page__eyebrow {
+  color: var(--dtn-primary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  margin-bottom: 10px;
+}
+.frek-page__title {
+  font-size: clamp(25px, 2.5vw, 34px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1.25;
+}
+.frek-page__lead {
+  color: var(--dtn-ink-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+.frek-page__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.frek-kembali {
+  color: var(--dtn-ink-muted);
+  font-size: 12px;
+  text-decoration: none;
+  width: fit-content;
+}
+.frek-kembali:hover {
+  color: var(--dtn-primary);
+}
+
+.frek-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.frek-section-heading p {
+  color: var(--dtn-ink-muted);
+  font-size: 12px;
+  margin-top: 6px;
+}
+.frek-page h2 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.frek-ringkasan {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+.frek-ringkasan__label {
+  color: var(--dtn-ink-muted);
+  font-size: 12px;
+}
+.frek-ringkasan__nilai {
+  color: var(--dtn-ink);
+  font-size: clamp(22px, 2vw, 30px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  margin-top: 6px;
+  overflow-wrap: anywhere;
+}
+
+.frek-saldo {
+  border-top: 3px solid var(--dtn-primary);
+}
+.frek-saldo__label {
+  color: var(--dtn-ink-muted);
+  font-size: 13px;
+}
+.frek-saldo__nilai {
+  color: var(--dtn-ink);
+  font-size: clamp(27px, 3vw, 42px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+
+.frek-tautan {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  border-top: 1px solid var(--dtn-line);
+  margin-top: 18px;
+  padding-top: 16px;
+}
+.frek-tautan a {
+  color: var(--dtn-primary);
+  font-size: 12px;
+  text-decoration: none;
+}
+.frek-tautan a:hover {
+  text-decoration: underline;
+}
+
+.frek-kosong {
+  color: var(--dtn-ink-subtle);
+  font-size: 12px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.frek-banner__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.frek-modal__nomor {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+.frek-modal__catatan {
+  color: var(--dtn-ink-muted);
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.frek-page :is(button, a):focus-visible {
+  outline: 2px solid var(--dtn-focus);
+  outline-offset: 3px;
+}

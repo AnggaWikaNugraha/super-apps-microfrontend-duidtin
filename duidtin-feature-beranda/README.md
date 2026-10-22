@@ -10,13 +10,15 @@ This is **the only duidtin repo that is not React** — Vue 3 + Rsbuild, while t
 
 ## Getting started
 
-This repo consumes `duidtin-ui-design-system` and `duidtin-api`. To see the home page with data, five servers must be running:
+This repo consumes `duidtin-ui-design-system` and `duidtin-api`. The other remotes and the API come from their published versions — that is the host's dev default, see [`duidtin-ui/README.md`](../duidtin-ui/README.md#getting-started). Two servers are enough:
 
-1. `../duidtin-api/` → `bun run db:lokal`, then `bun run dev` (`:4000`)
-2. `../duidtin-ui-design-system/` → `bun run dev:producer` (`:3001`)
-3. `../duidtin-ui-layout/` → `bun run dev` (`:3002`)
-4. This folder → `bun install`, then `bun run dev` (`:3003`)
-5. `../duidtin-ui/` → `bun run dev` (`:3000`) ← **open this one**, then log in
+1. This folder → `bun install`, then `bun run dev` (`:3003`)
+2. `../duidtin-ui/` → `bun run dev` (`:3000`)
+3. Open `localhost:3000/?remote-lokal=duidtin_feature_beranda@3003` once, then log in
+
+The API is set in [`.env.development`](.env.development): this bundle calls `configureAuth()` itself, so it must point at the same API as the host. If the host runs everything locally, override it with `PUBLIC_API_URL=http://localhost:4000` in `.env.local`.
+
+**Links to other pages.** The "Rekening perusahaan" card links to `/rekening` ("Lihat semua") and to `/rekening/<id>` per row, through the `duidtin:navigate` event ([`utils/navigate.ts`](utils/navigate.ts), an identical copy of `duidtin-feature-rekening`'s) — the host calls `router.push`, with no reload. Those pages belong to the rekening remote; if you are working on rekening locally too, point both at once: `?remote-lokal=duidtin_feature_beranda@3003,duidtin_feature_rekening@3005` (the param **replaces** the previous list, it does not add to it).
 
 Unlike the Next version, `http://localhost:3003/beranda` now shows **the real home page**, not a placeholder — only the design system on `:3001` needs to be up. See [The host contract](#the-host-contract).
 
@@ -129,6 +131,7 @@ duidtin-feature-beranda/
       page-heading.vue   # uses the Vue useAuth()
       global-error-banner.vue
       icon.vue · format.ts
+      link.vue           # an <a href> that throws duidtin:navigate
   composables/           # RULE 1 — one per block
     use-ringkasan-saldo.ts · use-rekening-perusahaan.ts
     use-antrean-persetujuan.ts · use-aktivitas-terakhir.ts · use-page-heading.ts
@@ -143,6 +146,7 @@ duidtin-feature-beranda/
   utils/
     index.ts             # getBaseFederationUrl()
     zustand-vue.ts       # store → ref bridge
+    navigate.ts          # the duidtin:navigate contract + the location.assign fallback
   types/
     global.d.ts          # window.__DUIDTIN_REMOTE_ENTRY__ (filled by the host)
     dtn-elements.d.ts    # <dtn-*> types for vue-tsc
@@ -163,8 +167,8 @@ The host is a React application. React cannot render a Vue component, nor the ot
 export const mount = (el: HTMLElement): (() => void) => { … };
 
 // components/federation/remote-mount.tsx — the host's side
-const lepas = mount(wadah.current);   // inside useEffect
-return () => lepas();                 // on cleanup
+const unmount = mount(containerRef.current);  // inside useEffect
+return () => unmount();               // on cleanup
 ```
 
 All the host knows is "here is an empty `<div>`, call this function". A Svelte or Angular remote later will use the same `RemoteMount` with not one line changed in the host.
@@ -306,7 +310,7 @@ Browser opens localhost:3000/
         │  the host's PHASE 2 has already warmed the container:
         │    loadRemote("duidtin_feature_beranda/globals")   → <style> fber-*
         │
-        │  <RemoteMount modul="duidtin_feature_beranda/base" />
+        │  <RemoteMount remote="duidtin_feature_beranda/base" />
         ▼
       expose/base.ts — mount(el)
         ├─ siapkanDesignSystem()                      ← AWAITED before the app mounts

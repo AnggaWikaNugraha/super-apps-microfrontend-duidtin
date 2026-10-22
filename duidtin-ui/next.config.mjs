@@ -4,7 +4,7 @@ import { NextFederationPlugin } from "@module-federation/nextjs-mf";
 
 import { federationConfig } from "./module-federation.config.mjs";
 
-const tanpaGarisMiringAkhir = (url) => url.replace(/\/+$/, "");
+const stripTrailingSlash = (url) => url.replace(/\/+$/, "");
 
 /**
  * Di produksi host jadi router satu domain: path tiap remote diteruskan ke project
@@ -14,27 +14,37 @@ const tanpaGarisMiringAkhir = (url) => url.replace(/\/+$/, "");
  * Dikunci saat build — mengganti env berarti redeploy.
  */
 const remoteRewrites = () => {
-  const { REMOTE_AUTH_URL, REMOTE_BERANDA_URL, REMOTE_DESIGN_SYSTEM_URL, REMOTE_LAYOUT_URL } = process.env;
+  const { REMOTE_AUTH_URL, REMOTE_BERANDA_URL, REMOTE_DESIGN_SYSTEM_URL, REMOTE_LAYOUT_URL, REMOTE_REKENING_URL } = process.env;
 
   return [
     // design-system bukan Next dan tanpa basePath: berkasnya ada di root domainnya,
     // jadi prefiks /design-system/static dibuang
     REMOTE_DESIGN_SYSTEM_URL && {
       source: "/design-system/static/:path*",
-      destination: `${tanpaGarisMiringAkhir(REMOTE_DESIGN_SYSTEM_URL)}/:path*`,
+      destination: `${stripTrailingSlash(REMOTE_DESIGN_SYSTEM_URL)}/:path*`,
     },
     REMOTE_LAYOUT_URL && {
       source: "/layout/:path*",
-      destination: `${tanpaGarisMiringAkhir(REMOTE_LAYOUT_URL)}/layout/:path*`,
+      destination: `${stripTrailingSlash(REMOTE_LAYOUT_URL)}/layout/:path*`,
     },
     REMOTE_BERANDA_URL && {
       source: "/beranda/:path*",
-      destination: `${tanpaGarisMiringAkhir(REMOTE_BERANDA_URL)}/beranda/:path*`,
+      destination: `${stripTrailingSlash(REMOTE_BERANDA_URL)}/beranda/:path*`,
+    },
+    /**
+     * HANYA aset remote rekening. Halaman `/rekening` dan `/rekening/[id]` itu
+     * route HOST — dan keduanya tidak bentrok dengan aturan ini, karena asetnya
+     * selalu di bawah `/rekening/static/*` sementara halamannya tidak pernah
+     * punya segmen `static`. Pola yang sama dengan `/auth`.
+     */
+    REMOTE_REKENING_URL && {
+      source: "/rekening/static/:path*",
+      destination: `${stripTrailingSlash(REMOTE_REKENING_URL)}/rekening/static/:path*`,
     },
     // /auth = ASET remote auth. Halaman login-nya route host /login — beda hal.
     REMOTE_AUTH_URL && {
       source: "/auth/:path*",
-      destination: `${tanpaGarisMiringAkhir(REMOTE_AUTH_URL)}/auth/:path*`,
+      destination: `${stripTrailingSlash(REMOTE_AUTH_URL)}/auth/:path*`,
     },
   ].filter(Boolean);
 };

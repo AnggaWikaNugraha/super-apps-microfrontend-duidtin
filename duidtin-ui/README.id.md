@@ -6,12 +6,37 @@ Host (shell) super-app. Dia yang pegang routing, mendaftarkan semua remote ke Mo
 
 ## Cara mulai
 
-Host tidak merender UI sendiri — semuanya datang dari remote. Yang perlu dinyalakan tergantung halaman yang mau dibuka:
+Host tidak merender UI sendiri — semuanya datang dari remote. **Bawaan `bun run dev`: semua remote diambil dari versi publish** (Vercel), lewat rewrites di `next.config.mjs`. Nilainya ada di [`.env.development`](.env.development), yang ikut di-commit dan hanya dibaca saat `next dev`. API-nya juga API produksi, karena remote auth yang publish login ke sana.
+
+```bash
+bun install && bun run dev    # :3000 — cukup ini
+```
+
+Remote yang sedang dikerjakan dinyalakan sendiri, lalu diarahkan ke laptop lewat `?remote-lokal` (sekali saja, tersimpan di `localStorage`):
+
+```
+localhost:3000/rekening?remote-lokal=duidtin_feature_rekening@3005
+localhost:3000/?remote-lokal=hapus                                  ← kembali ke publish semua
+```
+
+Host tidak mengecek dulu apakah versi publish-nya ada: tanpa `?remote-lokal`, remote yang belum di-publish (sekarang: rekening) tampil sebagai kotak "Gagal memuat …".
+
+### Semua lokal
+
+Tulis di `.env.local` (menang atas `.env.development`, tidak ikut commit):
+
+```bash
+NEXT_PUBLIC_REMOTE_DARI=lokal
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
+
+Tiap remote lalu diambil dari port-nya sendiri. Yang perlu nyala tergantung halaman yang mau dibuka:
 
 | Mau membuka | Server yang perlu nyala |
 |---|---|
 | `/` (beranda) | design-system `:3001`, layout `:3002`, beranda `:3003` (Vue), host `:3000` |
 | `/login` | design-system `:3001`, auth `:3004`, host `:3000` |
+| `/rekening` | design-system `:3001`, layout `:3002`, rekening `:3005` (Vue), host `:3000` |
 | login sungguhan | + `duidtin-api` `:4000` |
 
 ```bash
@@ -19,6 +44,7 @@ cd ../duidtin-ui-design-system && bun install && bun run dev:producer   # :3001
 cd ../duidtin-ui-layout        && bun install && bun run dev            # :3002
 cd ../duidtin-feature-beranda  && bun install && bun run dev            # :3003
 cd ../duidtin-feature-auth     && bun install && bun run dev            # :3004
+cd ../duidtin-feature-rekening && bun install && bun run dev            # :3005
 cd ../duidtin-api              && bun install && bun run dev            # :4000
 cd ../duidtin-ui               && bun install && bun run dev            # :3000 ← buka ini
 ```
@@ -367,8 +393,8 @@ Fungsi lapis A, yang membaca `window.location`. Punya **empat** cabang:
 | Kondisi | Yang dipulangkan | Kapan terjadi | Contoh hasil |
 |---|---|---|---|
 | `!globalThis.window` | `devOrigin` | SSR / prerender Next — tidak ada `window` | `http://localhost:3002` |
-| hostname `localhost` / `127.0.0.1` | `devOrigin` | dev lokal, tiap remote beda port | `http://localhost:3002` |
-| hostname `localhost` / `127.0.0.1` **dan** `NEXT_PUBLIC_REMOTE_DARI=publish` | `window.location.origin` | host lokal memakai remote Vercel lewat rewrites | `http://localhost:3000` |
+| hostname `localhost` / `127.0.0.1` **dan** `NEXT_PUBLIC_REMOTE_DARI=publish` | `window.location.origin` | **bawaan dev** (`.env.development`): host lokal memakai remote Vercel lewat rewrites | `http://localhost:3000` |
+| hostname `localhost` / `127.0.0.1`, nilai lain (`lokal` di `.env.local`) | `devOrigin` | semua lokal, tiap remote beda port | `http://localhost:3002` |
 | selain itu | `window.location.origin` | production, semua remote satu domain | `https://duidtin.example.com` |
 
 Cabang pertama ada supaya fungsi ini tidak meledak saat Next melakukan prerender di server. Nilainya sendiri tidak terpakai untuk fetch — di server tidak ada remote yang dimuat.
@@ -1001,7 +1027,7 @@ Browser buka "/"
                           │       → { default: ƒ }
                           │     dinormalkan jadi { default: ComponentType }
                           │
-                          └─▶ <HomePage /> → <RemoteMount modul="duidtin_feature_beranda/base" />
+                          └─▶ <HomePage /> → <RemoteMount remote="duidtin_feature_beranda/base" />
                                 ├─ (saat MOUNT) loader jalan di dalam useEffect:
                                 │     loadRemote("duidtin_feature_beranda/base")
                                 │       → { mount: ƒ }        ← FUNGSI, bukan komponen
@@ -1016,6 +1042,8 @@ Ada dua halaman, dan bentuknya sengaja berbeda:
 |---|---|---|---|
 | `pages/index.tsx` | `duidtin_feature_beranda/base` | `getLayout` → `DefaultLayout` (remote layout), `userName`/`onLogout` dari `useAuth()` | remote ini **Vue**, jadi dirender lewat `<RemoteMount>`, bukan `remoteComponent()` |
 | `pages/login.tsx` | `duidtin_feature_auth/login` | **tanpa `getLayout`** | header butuh sesi, sedangkan di sini pengguna justru belum punya sesi. Pengalihan setelah berhasil ditangani host lewat prop `onSuccess` |
+| `pages/rekening/index.tsx` | `duidtin_feature_rekening/daftar` | `getLayout` → `DefaultLayout` | remote **Vue** kedua; satu entri registry melayani dua route karena `matchType` bawaannya `prefix` |
+| `pages/rekening/[id].tsx` | `duidtin_feature_rekening/detail` | `getLayout` → `DefaultLayout` | `id` dibaca dari `router.query` lalu dikirim lewat **props** — host memiliki URL, remote memiliki isi |
 
 #### 1. `remoteComponent(path, pick?)` → `ComponentType`
 
@@ -1051,7 +1079,7 @@ saat komponen di-MOUNT        loader dijalankan next/dynamic
 
 Jadi mendefinisikan 20 jembatan remote di satu file tidak memicu 20 fetch. Yang dirender saja yang di-fetch.
 
-#### 1b. `<RemoteMount modul>` — untuk remote yang bukan React
+#### 1b. `<RemoteMount remote>` — untuk remote yang bukan React
 
 `remoteComponent()` mengandaikan modulnya mengekspor komponen. Itu tidak berlaku untuk
 `duidtin_feature_beranda` yang sekarang Vue: React tidak bisa merender komponen Vue, dan
@@ -1059,16 +1087,18 @@ sebaliknya. Yang bisa diseberangkan cuma **DOM**, jadi remote itu mengekspor fun
 
 ```tsx
 // components/federation/remote-mount.tsx
-const mod = await loadRemote<{ mount?: Pemasang }>(modul);
-lepas = mod.mount(wadah.current);   // di dalam useEffect
+const mod = await loadRemote<{ mount?: MountFn }>(remote);
+unmount = mod.mount(containerRef.current);  // di dalam useEffect
 …
-return () => lepas?.();             // saat cleanup
+return () => unmount?.();                   // saat cleanup
 ```
 
 | | |
 |---|---|
-| **Prop** | `modul: string` — `"duidtin_feature_beranda/base"` |
-| **Yang diharapkan** | `mount(el: HTMLElement) => () => void` |
+| **Prop** | `remote: string` — `"duidtin_feature_beranda/base"` |
+| **Prop** | `props?: Record<string, unknown>` — diteruskan apa adanya ke `mount(el, props)`; **hanya data** |
+| **Yang diharapkan** | `mount(el: HTMLElement, props?) => () => void` |
+| **Yang didengarkan** | `duidtin:navigate` di `<div>`-nya sendiri → `router.push(detail.to)` |
 | **Yang dirender** | satu `<div>` kosong; seluruh isinya milik remote |
 
 Host tidak pernah tahu framework apa yang mengisi `<div>` itu. Remote Svelte atau Angular
@@ -1077,6 +1107,38 @@ penting: efeknya bisa sudah dibersihkan sebelum modulnya sampai (saat dev, Stric
 menjalankan tiap efek dua kali), jadi hasilnya dibuang kalau itu terjadi; dan kegagalan
 memuat dirender di tempat, bukan dilempar — satu fitur mati tidak boleh menjatuhkan
 seluruh halaman.
+
+##### Arah baliknya: `duidtin:navigate`
+
+Props membawa data **masuk**, dan cuma data: `propsKey = JSON.stringify(props)` membuang
+nilai fungsi tanpa bersuara, jadi `router.push` tidak mungkin diserahkan ke remote seperti
+cara menyerahkannya ke remote React. Arahnya dibalik. Remote melempar `CustomEvent` yang
+menggelembung dan **cancelable**, dan komponen ini yang menerjemahkannya:
+
+```tsx
+const { replace, to } = (event as CustomEvent<NavigateDetail>).detail ?? {};
+event.preventDefault();                                   // "sudah saya tangani"
+void (replace ? router.replace(to) : router.push(to));
+```
+
+`preventDefault()` bukan formalitas — itu jawaban yang dibaca remote. `dispatchEvent`
+memulangkan `false` begitu ada yang membatalkan peristiwanya, dan remote memakai itu untuk
+memutuskan:
+
+```
+diklaim        → host pindah halaman client-side, tanpa reload
+tidak diklaim  → remote jatuh ke location.assign(to) — muat ulang penuh, tapi tetap sampai
+```
+
+Baris kedua itu yang membuat sebuah repo fitur tetap bisa dipakai di dev server-nya
+sendiri, dan tetap benar di bawah host yang belum pernah tahu peristiwa ini.
+
+Pendengarnya ada di `<div>` **ini**, bukan di `window`: kalau satu halaman memuat dua
+remote, masing-masing cuma mengurus peristiwa dari pohonnya sendiri. Harganya, peristiwa
+yang lahir di dalam portal (overlay `<dtn-modal>` dirender ke `document.body`) tidak lewat
+sini — dan di sana memang bukan tempat tautan navigasi. Nama peristiwanya digandakan
+dengan tangan di `utils/navigate.ts` tiap remote, kontrak yang sama dengan "path berkas =
+path URL = nama expose".
 
 #### 2. `loadRemote(path)` → `Promise<unknown>`
 

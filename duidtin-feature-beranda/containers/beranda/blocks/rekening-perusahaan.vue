@@ -3,6 +3,7 @@ import { useRekeningPerusahaan } from "@/composables/use-rekening-perusahaan";
 
 import { mataUang } from "../components/format";
 import Icon from "../components/icon.vue";
+import Link from "../components/link.vue";
 
 const { isEmpty, isError, isLoading, rekening, retry } = useRekeningPerusahaan();
 </script>
@@ -15,9 +16,13 @@ const { isEmpty, isError, isLoading, rekening, retry } = useRekeningPerusahaan()
           <h2>Rekening perusahaan</h2>
           <p>Saldo terpisah untuk setiap kebutuhan.</p>
         </div>
-        <dtn-badge v-if="!isLoading && !isError" color="default" variant="soft">
-          {{ rekening.length }} rekening
-        </dtn-badge>
+        <div class="fber-section-heading__actions">
+          <dtn-badge v-if="!isLoading && !isError" color="default" variant="soft">
+            {{ rekening.length }} rekening
+          </dtn-badge>
+          <!-- halaman milik remote lain; host yang memanggil router lewat duidtin:navigate -->
+          <Link class="fber-link" to="/rekening">Lihat semua</Link>
+        </div>
       </div>
     </dtn-card-header>
     <dtn-card-body>
@@ -32,17 +37,19 @@ const { isEmpty, isError, isLoading, rekening, retry } = useRekeningPerusahaan()
       >
         <ul class="fber-accounts">
           <li v-for="item in rekening" :key="item.id" class="fber-account">
-            <span class="fber-account__icon">
-              <Icon name="wallet" />
-            </span>
-            <div class="fber-account__detail">
-              <span class="fber-list__title">{{ item.nama }}</span>
-              <span class="fber-list__meta">{{ item.nomor }}</span>
-            </div>
-            <div class="fber-account__balance">
-              <strong>{{ mataUang(item.saldo, item.mataUang) }}</strong>
-              <span>{{ item.mataUang }}</span>
-            </div>
+            <Link class="fber-account__link" :to="`/rekening/${item.id}`">
+              <span class="fber-account__icon">
+                <Icon name="wallet" />
+              </span>
+              <div class="fber-account__detail">
+                <span class="fber-list__title">{{ item.nama }}</span>
+                <span class="fber-list__meta">{{ item.nomor }}</span>
+              </div>
+              <div class="fber-account__balance">
+                <strong>{{ mataUang(item.saldo, item.mataUang) }}</strong>
+                <span>{{ item.mataUang }}</span>
+              </div>
+            </Link>
           </li>
         </ul>
       </dtn-data-state>

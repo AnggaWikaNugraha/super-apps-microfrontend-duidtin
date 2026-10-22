@@ -91,10 +91,28 @@ export const buatElemen = (nama: string, Komponen: ComponentType<never>, opsi: O
     opsi,
   );
 
+/** Dipakai menyuruh elemen merender ulang dari accessor properti di bawah. */
+const RENDER = Symbol("dtn-render");
+
 const daftarkan = (nama: string, rakit: Perakit, opsi: OpsiElemen): void => {
   if (typeof window === "undefined" || customElements.get(nama)) return;
 
   const daftarProp = Object.entries(opsi.props ?? {});
+
+  /**
+   * Nilai yang datang lewat PROPERTI DOM, per elemen.
+   *
+   * Atribut HTML cuma bisa berisi teks. Framework yang mengirim array atau objek
+   * lewat atribut akan memanggil `String(nilai)` — `[{id:"a"}]` berubah jadi
+   * `"[object Object]"`, dan JSON.parse-nya gagal diam-diam. Vue, React, dan
+   * Angular semuanya mengirim nilai kompleks lewat properti kalau propertinya ADA
+   * di elemennya; kalau tidak ada, mereka jatuh ke atribut. Jadi properti itu
+   * disediakan di sini, dan atribut tetap dilayani untuk HTML polos.
+   *
+   * WeakMap, bukan field privat, karena accessor-nya dipasang di prototype dari
+   * luar badan kelas — `#field` tidak bisa diakses dari sana.
+   */
+  const nilaiProp = new WeakMap<HTMLElement, Map<string, unknown>>();
 
   class ElemenDuidtin extends HTMLElement {
     static observedAttributes = daftarProp.map(([propName]) => keKebab(propName));
@@ -104,6 +122,23 @@ const daftarkan = (nama: string, rakit: Perakit, opsi: OpsiElemen): void => {
     #root?: Root;
 
     connectedCallback() {
+      /**
+       * Properti yang ditulis SEBELUM elemen terdaftar mendarat sebagai properti
+       * milik instance, menindih accessor di prototype — jadi setter-nya tidak
+       * pernah jalan dan nilainya tidak pernah terbaca. Ini urutan yang biasa
+       * terjadi: framework merender dulu, `customElements.define` menyusul.
+       * Pola bakunya: ambil nilainya, hapus propertinya, tulis ulang supaya kali
+       * ini lewat setter.
+       */
+      for (const [propName] of daftarProp) {
+        if (!Object.prototype.hasOwnProperty.call(this, propName)) continue;
+
+        const nilai = (this as unknown as Record<string, unknown>)[propName];
+
+        delete (this as unknown as Record<string, unknown>)[propName];
+        (this as unknown as Record<string, unknown>)[propName] = nilai;
+      }
+
       if (!this.#root) {
         // anak asli dibungkus SATU span permanen, jadi posisinya bisa dipindah
         // tanpa pernah lepas dari dokumen — elemen bersarang tidak ikut unmount
@@ -147,9 +182,14 @@ const daftarkan = (nama: string, rakit: Perakit, opsi: OpsiElemen): void => {
 
     #props(): Record<string, unknown> {
       const props: Record<string, unknown> = {};
+      const dariProperti = nilaiProp.get(this);
 
       for (const [propName, tipe] of daftarProp) {
-        const nilai = tafsir(this.getAttribute(keKebab(propName)), tipe);
+        // Properti MENANG atas atribut: dia membawa nilai aslinya, tanpa lewat
+        // teks sama sekali.
+        const nilai = dariProperti?.has(propName)
+          ? dariProperti.get(propName)
+          : tafsir(this.getAttribute(keKebab(propName)), tipe);
 
         if (nilai !== undefined) props[propName] = nilai;
       }
@@ -161,6 +201,11 @@ const daftarkan = (nama: string, rakit: Perakit, opsi: OpsiElemen): void => {
       }
 
       return props;
+    }
+
+    /** Pintu render untuk accessor properti di luar badan kelas. */
+    [RENDER]() {
+      if (this.#root) this.#render();
     }
 
     #render() {
@@ -205,6 +250,27 @@ const daftarkan = (nama: string, rakit: Perakit, opsi: OpsiElemen): void => {
 
       if (this.#anak.parentNode !== this) this.append(this.#anak);
     };
+  }
+
+  for (const [propName] of daftarProp) {
+    Object.defineProperty(ElemenDuidtin.prototype, propName, {
+      configurable: true,
+      enumerable: true,
+      get(this: ElemenDuidtin) {
+        return nilaiProp.get(this)?.get(propName);
+      },
+      set(this: ElemenDuidtin, nilai: unknown) {
+        let peta = nilaiProp.get(this);
+
+        if (!peta) {
+          peta = new Map();
+          nilaiProp.set(this, peta);
+        }
+
+        peta.set(propName, nilai);
+        this[RENDER]();
+      },
+    });
   }
 
   customElements.define(nama, ElemenDuidtin);

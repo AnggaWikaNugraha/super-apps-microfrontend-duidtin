@@ -1,6 +1,6 @@
 """Menulis docs/arsitektur.svg dengan tangan — koordinatnya dihitung, bukan dikira-kira."""
 
-W, H = 1000, 660
+W, H = 1140, 660
 FONT = "ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 
 WARNA = {
@@ -52,44 +52,45 @@ def gambar(t):
     ]
 
     # pengguna
-    s.append(f'<rect x="440" y="18" width="120" height="30" rx="15" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>')
-    s.append(f'<text x="500" y="38" text-anchor="middle" font-family="{FONT}" font-size="12.5" fill="{ABU}">{t["pengguna"]}</text>')
-    s.append(panah(500, 48, 500, 74))
+    s.append(f'<rect x="510" y="18" width="120" height="30" rx="15" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>')
+    s.append(f'<text x="570" y="38" text-anchor="middle" font-family="{FONT}" font-size="12.5" fill="{ABU}">{t["pengguna"]}</text>')
+    s.append(panah(570, 48, 570, 74))
 
     # host
-    host, h_host = kartu(330, 76, 340, "duidtin-ui — HOST", t["host"], "biru")
+    host, h_host = kartu(400, 76, 340, "duidtin-ui — HOST", t["host"], "biru")
     s.append(host)
     y_host = 76 + h_host
 
     # kotak kelompok remote
-    s.append(f'<rect x="24" y="196" width="952" height="152" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="6 5"/>')
+    s.append(f'<rect x="24" y="196" width="1092" height="152" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="6 5"/>')
     s.append(label(44, 341, t["grup"], "start"))
 
     kolom = [(44, "duidtin-ui-layout", t["layout"], "biru"),
-             (355, "duidtin-feature-beranda", t["beranda"], "hijau"),
-             (666, "duidtin-feature-auth", t["auth"], "biru")]
+             (312, "duidtin-feature-beranda", t["beranda"], "hijau"),
+             (580, "duidtin-feature-rekening", t["rekening"], "hijau"),
+             (848, "duidtin-feature-auth", t["auth"], "biru")]
     for x, judul, baris, warna in kolom:
-        k, _ = kartu(x, 228, 290, judul, baris, warna)
+        k, _ = kartu(x, 228, 248, judul, baris, warna)
         s.append(k)
-        s.append(panah(500, y_host, x + 145, 224, lengkung=26))
+        s.append(panah(570, y_host, x + 124, 224, lengkung=26))
 
     # design-system
-    ds, h_ds = kartu(120, 420, 340, "duidtin-ui-design-system", t["ds"], "oranye")
+    ds, h_ds = kartu(180, 420, 340, "duidtin-ui-design-system", t["ds"], "oranye")
     s.append(ds)
-    s.append(panah(290, 348, 290, 416))
-    s.append(label(300, 385, t["load"], "start"))
+    s.append(panah(350, 348, 350, 416))
+    s.append(label(360, 385, t["load"], "start"))
 
     # paket auth
-    p, h_p = kartu(560, 420, 340, "@duidtin/auth", t["paket"], "kuning")
+    p, h_p = kartu(620, 420, 340, "@duidtin/auth", t["paket"], "kuning")
     s.append(p)
-    s.append(panah(730, 348, 730, 416, putus=True))
-    s.append(label(740, 385, t["impor"], "start"))
+    s.append(panah(790, 348, 790, 416, putus=True))
+    s.append(label(800, 385, t["impor"], "start"))
 
     # api
-    api, _ = kartu(560, 556, 340, "duidtin-api", t["api"], "ungu")
+    api, _ = kartu(620, 556, 340, "duidtin-api", t["api"], "ungu")
     s.append(api)
-    s.append(panah(730, 420 + h_p, 730, 552))
-    s.append(label(740, 540, t["https"], "start"))
+    s.append(panah(790, 420 + h_p, 790, 552))
+    s.append(label(800, 540, t["https"], "start"))
 
     s.append("</svg>")
     return "\n  ".join(s) + "\n"
@@ -99,12 +100,13 @@ ID = dict(
     alt="Arsitektur micro-frontend duidtin",
     pengguna="Pengguna",
     grup="dimuat saat runtime lewat remoteEntry.js",
-    load="loadRemote — dari ketiganya",
-    impor="import saat build — host, beranda, auth",
+    load="loadRemote — dari keempatnya",
+    impor="import saat build — host + ketiga feature",
     https="HTTPS + Bearer",
     host=["Next 14.2 · webpack 5 · nextjs-mf 8.8.54", "MF runtime 0.24.1", "shell tipis — tidak merender UI sendiri"],
     layout=["Next 14.2 · webpack 5", "nextjs-mf 8.8.54 · MF 0.24.1", "header + footer tiap halaman"],
-    beranda=["Vue 3.5 · Rsbuild", "rsbuild-plugin 0.24.1 · MF 0.24.1", "satu-satunya yang bukan React"],
+    beranda=["Vue 3.5 · Rsbuild", "rsbuild-plugin 0.24.1", "satu halaman, satu expose"],
+    rekening=["Vue 3.5 · Rsbuild", "rsbuild-plugin 0.24.1", "DUA halaman, dua expose"],
     auth=["Next 16.2 · Rspack (next-rspack)", "enhanced 2.x · MF 2.x", "login + modal sesi berakhir"],
     ds=["Turborepo: apps/producer + packages/ui", "Rslib 0.19 · rsbuild-plugin 0.24.1 · MF 0.24.1", "React + elemen &lt;dtn-*&gt;"],
     paket=["file:../duidtin-packages/auth", "paket biasa, BUKAN remote", "tsc saja · zustand 5 (vanilla) + axios 1"],
@@ -116,11 +118,12 @@ EN = dict(
     alt="duidtin micro-frontend architecture",
     pengguna="User",
     grup="loaded at runtime via remoteEntry.js",
-    load="loadRemote — from all three",
-    impor="imported at build time — host, beranda, auth",
+    load="loadRemote — from all four",
+    impor="imported at build time — host + all three features",
     host=["Next 14.2 · webpack 5 · nextjs-mf 8.8.54", "MF runtime 0.24.1", "a thin shell — renders no UI of its own"],
     layout=["Next 14.2 · webpack 5", "nextjs-mf 8.8.54 · MF 0.24.1", "header + footer on every page"],
-    beranda=["Vue 3.5 · Rsbuild", "rsbuild-plugin 0.24.1 · MF 0.24.1", "the only one that is not React"],
+    beranda=["Vue 3.5 · Rsbuild", "rsbuild-plugin 0.24.1", "one page, one expose"],
+    rekening=["Vue 3.5 · Rsbuild", "rsbuild-plugin 0.24.1", "TWO pages, two exposes"],
     auth=["Next 16.2 · Rspack (next-rspack)", "enhanced 2.x · MF 2.x", "login + session-expired modal"],
     ds=["Turborepo: apps/producer + packages/ui", "Rslib 0.19 · rsbuild-plugin 0.24.1 · MF 0.24.1", "React + &lt;dtn-*&gt; elements"],
     paket=["file:../duidtin-packages/auth", "a plain package, NOT a remote", "tsc only · zustand 5 (vanilla) + axios 1"],

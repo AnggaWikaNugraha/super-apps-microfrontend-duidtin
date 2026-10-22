@@ -4,7 +4,7 @@
 
 A Module Federation-based microfrontend super-app.
 
-## Six repos, six Vercel projects
+## Seven repos, seven Vercel projects
 
 Module Federation composes applications **at runtime through a contract**, not at build time. The contract is only three things: the container name, the `exposes` list, and the shared scope. As long as those line up, each repo is free to pick its own framework and bundler — there is not a single `npm install` between them.
 
@@ -59,7 +59,19 @@ Module Federation composes applications **at runtime through a contract**, not a
 - **Role** — the home page: balance summary, approval queue, shortcuts. The first feature remote, so this repo is what makes PHASE 2 in the host actually run
 - **Note** — what it exposes is **not a component** but a `mount(el)` function, because React cannot render a Vue component. The host calls it through `components/federation/remote-mount.tsx`. The session stays single through `@duidtin/auth/vue` — the very same store as the host
 
-### 5. `duidtin-feature-auth` — login
+### 5. `duidtin-feature-rekening` — accounts
+
+- **Port** — 3005
+- **Framework** — **Vue 3.5**, same as beranda
+- **Bundler** — **Rsbuild 1.x**
+- **MF plugin** — `@module-federation/rsbuild-plugin` 0.24.1
+- **React** — **not installed**
+- **Styling** — Tailwind v4, prefix `frek`
+- **Path** — `/rekening` (`server.base` + `assetPrefix`); its **assets** live at `/rekening/static/*`
+- **Role** — the account list (`./daftar`) and a single account's detail (`./detail`): balance, number, and its ten most recent activities
+- **Note** — the first remote with **two pages**. The host owns the routes (`/rekening` and `/rekening/[id]`), so this repo has two exposes, and the `id` is passed by the host through **props** — `mount(el, { id })`; the remote never reads `location`. The way back out is a DOM event: the remote throws a `CustomEvent("duidtin:navigate")` and the host calls `router.push` — a page change with no reload, without a single function crossing. The first consumer of the design system's assembled elements (`<dtn-table>`, `<dtn-tabs>`, `<dtn-modal>`)
+
+### 6. `duidtin-feature-auth` — login
 
 - **Port** — 3004
 - **Framework** — Next.js 16.2.9
@@ -71,7 +83,7 @@ Module Federation composes applications **at runtime through a contract**, not a
 - **Role** — the login page (`./login`) and the session-expired modal (`./sesi-berakhir`): email/password form, `login()` from `@duidtin/auth`, renders `AuthError`
 - **Note** — the only feature remote that fully works when opened on its own (`:3004`), because the auth package creates a fallback store. `pages/index.tsx` must use `dynamic()` as an async boundary — see the [repo README](duidtin-feature-auth/README.id.md)
 
-### 6. `duidtin-api` — the backend
+### 7. `duidtin-api` — the backend
 
 - **Port** — 4000
 - **Runtime** — Bun in dev, Node.js (a Vercel Function) in production

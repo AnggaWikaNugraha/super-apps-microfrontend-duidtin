@@ -61,6 +61,26 @@
   flex-wrap: wrap;
   gap: 14px;
 }
+.fber-section-heading__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.fber-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dtn-primary);
+  text-decoration: none;
+  border-radius: var(--dtn-radius-sm);
+}
+.fber-link:hover {
+  text-decoration: underline;
+}
+.fber-link:focus-visible,
+.fber-account__link:focus-visible {
+  outline: 2px solid var(--dtn-focus);
+  outline-offset: 2px;
+}
 .fber-section-heading p {
   margin-top: 6px;
   font-size: 12px;
@@ -219,6 +239,21 @@
   gap: 12px;
   padding: 20px 0;
   border-bottom: 1px solid var(--dtn-line);
+}
+/* Seluruh baris jadi satu tautan: <a href> sungguhan, jadi cmd-klik dan
+   "buka di tab baru" tetap jalan. Isinya tetap tata letak baris yang sama. */
+.fber-account__link {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--dtn-radius-sm);
+}
+.fber-account__link:hover .fber-list__title {
+  color: var(--dtn-primary);
 }
 .fber-account:last-child {
   border-bottom: 0;
@@ -401,7 +436,7 @@
   .fber-page__overview {
     grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   }
-  .fber-account {
+  .fber-account__link {
     flex-wrap: wrap;
   }
   .fber-account__balance {

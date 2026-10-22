@@ -23,7 +23,7 @@ import type { ReactElement, ReactNode } from "react";
  * elemennya dan memanggil fungsi itu. Selebihnya halaman ini tidak tahu — dan
  * tidak perlu tahu — bahwa isinya Vue.
  */
-const HomePage = () => <RemoteMount modul="duidtin_feature_beranda/base" />;
+const HomePage = () => <RemoteMount remote="duidtin_feature_beranda/base" />;
 
 /**
  * `getLayout` dijadikan komponen supaya boleh memakai hook — `userName` dan
