@@ -1099,7 +1099,7 @@ return () => unmount?.();                   // saat cleanup
 | **Prop** | `props?: Record<string, unknown>` — diteruskan apa adanya ke `mount(el, props)`; **hanya data** |
 | **Yang diharapkan** | `mount(el: HTMLElement, props?) => () => void` |
 | **Yang didengarkan** | `duidtin:navigate` di `<div>`-nya sendiri → `router.push(detail.to)` |
-| **Yang dirender** | satu `<div>` kosong; seluruh isinya milik remote |
+| **Yang dirender** | satu `<div>` kosong; seluruh isinya milik remote. Selama `<div>` itu belum punya elemen anak, di sebelahnya tampil penanda "Memuat halaman…" (`.app-remote-loading`, muncul setelah 200ms) |
 
 Host tidak pernah tahu framework apa yang mengisi `<div>` itu. Remote Svelte atau Angular
 nanti memakai komponen yang sama tanpa satu baris pun berubah di sini. Dua detail yang
@@ -1107,6 +1107,12 @@ penting: efeknya bisa sudah dibersihkan sebelum modulnya sampai (saat dev, Stric
 menjalankan tiap efek dua kali), jadi hasilnya dibuang kalau itu terjadi; dan kegagalan
 memuat dirender di tempat, bukan dilempar — satu fitur mati tidak boleh menjatuhkan
 seluruh halaman.
+
+Penanda loading-nya mengamati **hasil**, bukan remote-nya. `mount()` langsung kembali,
+tapi remote Vue baru memasang app-nya setelah design-system siap, jadi host tidak punya
+janji untuk ditunggu. `MutationObserver` di `<div>` itu menyembunyikan penanda begitu remote
+menaruh elemen pertamanya di sana — biasanya skeleton miliknya sendiri. Tidak ada kontrak
+baru untuk remote.
 
 ##### Arah baliknya: `duidtin:navigate`
 

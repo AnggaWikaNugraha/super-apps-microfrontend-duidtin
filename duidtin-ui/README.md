@@ -1088,7 +1088,7 @@ return () => unmount?.();                   // on cleanup
 | **Prop** | `props?: Record<string, unknown>` — forwarded verbatim to `mount(el, props)`; **data only** |
 | **Expects** | `mount(el: HTMLElement, props?) => () => void` |
 | **Listens for** | `duidtin:navigate` on its own `<div>` → `router.push(detail.to)` |
-| **Renders** | one empty `<div>`; everything inside it belongs to the remote |
+| **Renders** | one empty `<div>`; everything inside it belongs to the remote. Until that `<div>` has a child element, a "Memuat halaman…" indicator sits next to it (`.app-remote-loading`, shown after 200ms) |
 
 The host never learns which framework fills that `<div>`. A Svelte or Angular remote
 later uses this same component with not a line changed here. Two details that matter:
@@ -1096,6 +1096,11 @@ the effect can be torn down before the module arrives (in dev, StrictMode runs e
 effect twice), so the result is discarded when that happens; and a failure to load is
 rendered inline rather than thrown, because one dead feature should not take the page
 with it.
+
+The loading indicator watches the **result**, not the remote. `mount()` returns at once,
+but a Vue remote only mounts its app after the design system is ready, so the host has no
+promise to wait on. A `MutationObserver` on the `<div>` hides the indicator as soon as the
+remote puts its first element there — usually its own skeleton. No new contract for remotes.
 
 ##### The way back out: `duidtin:navigate`
 

@@ -65,6 +65,33 @@ const RemoteMount = ({ remote, props }: RemoteMountProps) => {
   // fungsi tidak bisa diserialkan, dan memang tidak bisa diseberangkan ke Vue.
   const propsKey = JSON.stringify(props ?? null);
   const [error, setError] = useState<Error | null>(null);
+  const [hasContent, setHasContent] = useState(false);
+
+  /**
+   * Penanda loading selama `<div>` ini masih kosong.
+   *
+   * Host tidak bisa menunggu remote selesai: `mount()` langsung kembali, sementara
+   * app-nya dipasang belakangan — remote Vue menunggu design-system siap dulu
+   * (CSS + pembungkus `<dtn-*>`). Jadi yang diamati HASILNYA: begitu container
+   * punya elemen anak, remote sudah merender sesuatu (biasanya skeleton miliknya
+   * sendiri) dan penanda ini mundur. Tidak ada kontrak baru yang harus dipenuhi
+   * remote — Svelte atau Angular nanti ikut tertangani apa adanya.
+   *
+   * Konsekuensinya: remote yang akarnya cuma komentar (`v-if` palsu di elemen
+   * akar) tidak pernah dianggap "sudah merender".
+   */
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const update = () => setHasContent(el.childElementCount > 0);
+    const observer = new MutationObserver(update);
+
+    update();
+    observer.observe(el, { childList: true });
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let unmount: (() => void) | undefined;
@@ -142,7 +169,19 @@ const RemoteMount = ({ remote, props }: RemoteMountProps) => {
     );
   }
 
-  return <div ref={containerRef} />;
+  return (
+    <>
+      {/* Sibling, bukan anak: container milik remote harus tetap kosong dan
+          tetap ada di DOM supaya `mount()` punya tempat. */}
+      {!hasContent && (
+        <div className="app-remote-loading" role="status">
+          <span className="app-remote-loading__spinner" aria-hidden="true" />
+          Memuat halaman…
+        </div>
+      )}
+      <div ref={containerRef} />
+    </>
+  );
 };
 
 export default RemoteMount;

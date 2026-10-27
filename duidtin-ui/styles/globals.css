@@ -25,3 +25,24 @@
 .app-page__stat-value {
   @apply app:mt-1 app:text-2xl app:font-bold app:text-gray-900;
 }
+
+/* Penanda loading <RemoteMount> selama container remote masih kosong.
+   Muncul setelah 200ms: remote yang sudah ter-cache memasang app-nya nyaris
+   seketika, dan penanda yang tampil sekejap lalu hilang terasa seperti kedipan. */
+.app-remote-loading {
+  @apply app:flex app:min-h-60 app:items-center app:justify-center app:gap-3 app:text-sm app:text-gray-500;
+  animation: app-remote-loading-in 150ms ease-out 200ms both;
+}
+
+.app-remote-loading__spinner {
+  @apply app:size-5 app:animate-spin app:rounded-full app:border-2 app:border-gray-300 app:border-t-gray-600 app:motion-reduce:animate-none;
+}
+
+@keyframes app-remote-loading-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
